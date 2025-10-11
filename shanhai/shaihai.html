@@ -1,21 +1,33 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>多条脉冲线（3–6 随机峰；整条线垂直渐变拖尾；90% 拉直；9:16）</title>
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>山海</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="wrap" id="wrap">
-    <canvas id="c"></canvas>
-    <div class="hud">
-      <div><b>SPACE</b> 暂停/继续 · <b>R</b> 重置全部 · <b>T</b> 残影 · 点击=重置</div>
-      <div>线条=<span id="lc"></span>（目标 2–5） · 峰数=3–6 · 速度≈<span id="sp"></span>px/s · 拉直=<span id="tp"></span> · 拖尾=<span id="tl"></span>px</div>
-    </div>
-  </div>
+    <div id="wrap">
+        <div class="hud" style="display: none;">
+            <div><b>SPACE</b> 暂停/继续 · <b>R</b> 重置全部 · <b>T</b> 残影 · 点击=重置</div>
+            <div>线条=<span id="lc"></span>（目标 2–5） · 峰数=3–6 · 速度≈<span id="sp"></span>px/s · 拉直=<span id="tp"></span> · 拖尾=<span id="tl"></span>px</div>
+        </div>
 
-  <script src="script.js"></script>
+        <audio id="audio" loop>
+            <source src="shanhai.mp3" type="audio/mpeg">
+            您的浏览器不支持音频元素。
+        </audio>
+        <canvas id="c"></canvas>
+        
+        <!-- 底部半透明圆角磨砂框 -->
+        <div class="glass-panel">
+            <div class="glass-content">
+                ShanHai
+                <canvas id="miniVisualizer" class="mini-visualizer"></canvas>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
 </body>
 </html>
 

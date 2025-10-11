@@ -1,7 +1,7 @@
 // ======================== 参数 ========================
 const PARAMS = {
   // 同时存在的脉冲线数量（保持 2–5 随机，不平均）
-  minLines: 2, maxLines: 5,
+  minLines: 4, maxLines: 6,
 
   // 每条线内部"多峰"形状（3–6 随机峰）
   minPeaks: 3, maxPeaks: 6,
@@ -52,6 +52,13 @@ const PARAMS = {
   throttleFPS: 60,               // 限制最大FPS
   useCachedMath: true,           // 使用缓存的数学计算
   useOffscreenCanvas: false,     // 是否使用离屏Canvas (浏览器支持时启用)
+  
+  // 音频可视化参数
+  audioVisualization: true,      // 是否启用音频可视化
+  audioAmpMultiplier: 1.5,       // 音频幅度乘数
+  audioFreqRangeStart: 0.1,      // 音频频率范围起始点 (0-1)
+  audioFreqRangeEnd: 0.5,        // 音频频率范围结束点 (0-1)
+  audioSmoothFactor: 0.6,        // 音频平滑因子 (0-1)
 };
 
 // ======================== 画布（强制 9:16 居中 + 留黑边） ========================
@@ -60,6 +67,269 @@ const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
 let W = 0, H = 0; // CSS 像素
+
+// 小型音频可视化画布
+let miniCanvas = null;
+let miniCtx = null;
+let miniW = 0, miniH = 0;
+
+// ======================== 音频可视化相关 ========================
+let audioContext = null;
+let analyser = null;
+let audioElement = null;
+let dataArray = null;
+let audioSource = null;
+let smoothedAudioValue = 0;
+let audioInitialized = false;
+
+// 初始化小型音频可视化器
+function initMiniVisualizer() {
+  try {
+    miniCanvas = document.getElementById('miniVisualizer');
+    if (miniCanvas) {
+      miniCtx = miniCanvas.getContext('2d');
+      // 设置画布尺寸
+      const glassPanel = document.querySelector('.glass-panel');
+      if (glassPanel) {
+        const rect = glassPanel.getBoundingClientRect();
+        miniW = rect.width * 0.8; // 占玻璃面板宽度的80%
+        miniH = 30; // 固定高度，降低高度使其更小巧
+        miniCanvas.width = miniW * dpr;
+        miniCanvas.height = miniH * dpr;
+        miniCanvas.style.width = `${miniW}px`;
+        miniCanvas.style.height = `${miniH}px`;
+        miniCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+    }
+  } catch (error) {
+    console.error('小型音频可视化器初始化失败:', error);
+  }
+}
+
+function initAudio() {
+  try {
+    // 创建音频上下文
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    audioElement = document.getElementById('audio');
+    
+    // 创建分析器节点
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256; // FFT大小，较小的值更快但精度较低
+    
+    // 创建数据数组来存储分析结果
+    const bufferLength = analyser.frequencyBinCount;
+    dataArray = new Uint8Array(bufferLength);
+    
+    // 连接音频源到分析器
+    audioSource = audioContext.createMediaElementSource(audioElement);
+    audioSource.connect(analyser);
+    analyser.connect(audioContext.destination);
+    
+    audioInitialized = true;
+    
+    // 添加点击事件以开始播放音频（用户交互要求）
+    canvas.addEventListener('click', () => {
+      if (audioContext && audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
+      if (audioElement.paused) {
+        audioElement.play().catch(e => {
+          console.error('音频播放失败:', e);
+          // 即使播放失败，也继续执行动画
+          PARAMS.audioVisualization = false;
+        });
+      }
+    });
+    
+    // 监听音频错误事件
+    audioElement.addEventListener('error', (e) => {
+      console.error('音频元素错误:', e);
+      PARAMS.audioVisualization = false;
+    });
+  } catch (error) {
+    console.error('音频初始化失败:', error);
+    PARAMS.audioVisualization = false; // 如果初始化失败，禁用音频可视化
+  }
+}
+
+// 釜山天气数据 - 由于是模拟环境，使用模拟数据
+let busanWeatherData = {
+  temperature: 22, // 温度(°C)
+  humidity: 65,    // 湿度(%)
+  windSpeed: 15,   // 风速(km/h)
+  lastUpdate: new Date().toLocaleTimeString()
+};
+
+// 更新天气数据的函数
+function updateBusanWeather() {
+  // 在实际应用中，这里会调用天气API获取实时数据
+  // 由于是模拟环境，我们随机生成一些接近实际值的波动数据
+  const simulationTime = performance.now() / 1000;
+  
+  // 添加小波动来模拟实时变化
+  const tempVariation = Math.sin(simulationTime * 0.1) * 0.5;
+  const humidityVariation = Math.sin(simulationTime * 0.2 + 1) * 2;
+  const windVariation = Math.sin(simulationTime * 0.3 + 2) * 1.5;
+  
+  // 更新数据
+  busanWeatherData = {
+    temperature: Math.round((22 + tempVariation) * 10) / 10,
+    humidity: Math.round(65 + humidityVariation),
+    windSpeed: Math.round((15 + windVariation) * 10) / 10,
+    lastUpdate: new Date().toLocaleTimeString()
+  };
+  
+  // 每30秒更新一次
+  setTimeout(updateBusanWeather, 30000);
+}
+
+// 绘制天气数据可视化线条
+function drawMiniVisualizer(audioLevel) {
+  if (!miniCtx) return;
+  
+  // 清除画布
+  miniCtx.clearRect(0, 0, miniW, miniH);
+  
+  // 更新天气数据
+  updateBusanWeather();
+  
+  // 配置可视化参数
+  const lineCount = 3; // 线条数量
+  const lineColors = [
+    'rgba(255, 150, 150, 0.9)',  // 红色线条 - 代表温度
+    'rgba(150, 180, 255, 0.8)',  // 蓝色线条 - 代表湿度
+    'rgba(150, 255, 180, 0.7)'   // 绿色线条 - 代表风速
+  ];
+  const glowColors = [
+    'rgba(255, 150, 150, 0.4)',  // 红色发光
+    'rgba(150, 180, 255, 0.3)',  // 蓝色发光
+    'rgba(150, 255, 180, 0.3)'   // 绿色发光
+  ];
+  const lineWidths = [2, 1.5, 1.2]; // 线条宽度
+  const maxLineHeight = miniH * 0.8; // 最大线条高度
+  const lineSpacing = miniH * 0.1; // 线条之间的垂直间距
+  
+  // 绘制三条天气数据线条
+  for (let l = 0; l < lineCount; l++) {
+    const lineColor = lineColors[l];
+    const glowColor = glowColors[l];
+    const lineWidth = lineWidths[l];
+    const yOffset = (lineCount - l - 1) * lineSpacing; // 线条垂直偏移
+    
+    miniCtx.shadowColor = glowColor;
+    miniCtx.shadowBlur = 4;
+    miniCtx.strokeStyle = lineColor;
+    miniCtx.lineWidth = lineWidth;
+    miniCtx.beginPath();
+    
+    // 为每条线生成天气数据波形
+    const pointCount = 30; // 每条线的点数
+    for (let i = 0; i < pointCount; i++) {
+      // 根据线条类型获取相应的天气数据值
+      let weatherValue = 0;
+      let minValue = 0;
+      let maxValue = 100;
+      
+      // 根据线条索引选择不同的天气指标
+      if (l === 0) { // 温度
+        weatherValue = busanWeatherData.temperature;
+        minValue = 0;    // 最低温度范围
+        maxValue = 40;   // 最高温度范围
+      } else if (l === 1) { // 湿度
+        weatherValue = busanWeatherData.humidity;
+        minValue = 0;    // 最低湿度范围
+        maxValue = 100;  // 最高湿度范围
+      } else if (l === 2) { // 风速
+        weatherValue = busanWeatherData.windSpeed;
+        minValue = 0;    // 最低风速范围
+        maxValue = 30;   // 最高风速范围
+      }
+      
+      // 将天气值标准化到0-1范围
+      const normalizedValue = (weatherValue - minValue) / (maxValue - minValue);
+      
+      // 添加一些波动来创建更自然的波形
+      const simulationTime = performance.now() / 1000;
+      const waveFactor = 0.1; // 波动幅度
+      const wave = Math.sin(i * 0.5 + simulationTime * 0.5 + l * 1.5) * waveFactor;
+      
+      // 计算线条高度
+      const lineHeight = Math.max(0, Math.min(maxLineHeight, (normalizedValue + wave) * maxLineHeight));
+      
+      // 计算点的位置
+      const x = (i / (pointCount - 1)) * miniW;
+      const y = miniH - lineHeight - yOffset - (miniH - maxLineHeight) / 4;
+      
+      // 绘制线条
+      if (i === 0) {
+        miniCtx.moveTo(x, y);
+      } else {
+        miniCtx.lineTo(x, y);
+      }
+    }
+    
+    miniCtx.stroke();
+  }
+  
+  // 绘制天气数据文本
+  miniCtx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+  miniCtx.font = '8px Arial'; // 减小字体大小
+  miniCtx.textAlign = 'center';
+  
+  // 显示温度 - 调整垂直位置确保完全显示
+  miniCtx.fillStyle = 'rgba(255, 150, 150, 0.9)';
+  miniCtx.fillText(`TEMP: ${busanWeatherData.temperature}°C`, miniW * 0.2, maxLineHeight * 1.1);
+  
+  // 显示湿度 - 调整垂直位置确保完全显示
+  miniCtx.fillStyle = 'rgba(150, 180, 255, 0.8)';
+  miniCtx.fillText(`HUM: ${busanWeatherData.humidity}%`, miniW * 0.5, maxLineHeight * 1.1);
+  
+  // 显示风速 - 调整垂直位置确保完全显示
+  miniCtx.fillStyle = 'rgba(150, 255, 180, 0.7)';
+  miniCtx.fillText(`WIND: ${busanWeatherData.windSpeed}km/h`, miniW * 0.8, maxLineHeight * 1.1);
+  
+  // 更新时间放在底部
+  miniCtx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+  miniCtx.font = '7px Arial';
+  miniCtx.fillText(`UPD: ${busanWeatherData.lastUpdate}`, miniW * 0.5, maxLineHeight * 1.5);
+  
+  miniCtx.shadowBlur = 0;
+}
+
+function getAudioLevel() {
+  if (!analyser || !PARAMS.audioVisualization) {
+    return 0;
+  }
+  
+  try {
+    // 获取频域数据
+    analyser.getByteFrequencyData(dataArray);
+    
+    // 计算指定频率范围内的平均水平
+    const startIndex = Math.floor(dataArray.length * PARAMS.audioFreqRangeStart);
+    const endIndex = Math.floor(dataArray.length * PARAMS.audioFreqRangeEnd);
+    let sum = 0;
+    let count = 0;
+    
+    for (let i = startIndex; i < endIndex; i++) {
+      sum += dataArray[i];
+      count++;
+    }
+    
+    // 计算平均值并标准化到0-1范围
+    const avg = count > 0 ? sum / count : 0;
+    const normalized = avg / 255; // 255是Uint8Array的最大值
+    
+    // 应用平滑处理
+    smoothedAudioValue = smoothedAudioValue * PARAMS.audioSmoothFactor + normalized * (1 - PARAMS.audioSmoothFactor);
+    
+    // 应用幅度乘数
+    return Math.min(1, smoothedAudioValue * PARAMS.audioAmpMultiplier);
+  } catch (error) {
+    console.error('获取音频电平失败:', error);
+    return 0;
+  }
+}
 
 function resize(){
   const aspect = 9/16; // 竖版比例
@@ -162,13 +432,15 @@ const spEl = document.getElementById('sp');
 const tpEl = document.getElementById('tp');
 const tlEl = document.getElementById('tl');
 function updateHud(){
-  lcEl.textContent = `${lines.length}`;
-  if(lines.length){
-    const avg = lines.reduce((s,p)=>s+p.speed,0)/lines.length;
-    spEl.textContent = avg.toFixed(0);
-  } else spEl.textContent = '-';
-  tpEl.textContent = Math.round(PARAMS.topFlattenStart*100)+'%';
-  tlEl.textContent = PARAMS.tailLenBase.toFixed(0);
+  if(lcEl) lcEl.textContent = `${lines.length}`;
+  if(spEl) {
+    if(lines.length){
+      const avg = lines.reduce((s,p)=>s+p.speed,0)/lines.length;
+      spEl.textContent = avg.toFixed(0);
+    } else spEl.textContent = '-';
+  }
+  if(tpEl) tpEl.textContent = Math.round(PARAMS.topFlattenStart*100)+'%';
+  if(tlEl) tlEl.textContent = PARAMS.tailLenBase.toFixed(0);
 }
 
 function seedLines(){
@@ -181,7 +453,20 @@ seedLines();
 
 // 交互
 window.addEventListener('keydown', (e)=>{
-  if(e.code === 'Space'){ running = !running; }
+  if(e.code === 'Space'){ 
+    running = !running; 
+    // 同时控制音频的播放和暂停
+    if(audioElement){
+      if(audioContext && audioContext.state === 'suspended'){
+        audioContext.resume();
+      }
+      if(running){
+        audioElement.play().catch(e => console.error('音频播放失败:', e));
+      } else {
+        audioElement.pause();
+      }
+    }
+  }
   else if(e.key === 'r' || e.key === 'R'){ seedLines(); }
   else if(e.key === 't' || e.key === 'T'){ PARAMS.useTrail = !PARAMS.useTrail; }
 });
@@ -200,21 +485,35 @@ function yAt(line, u, t, ampScale){
 }
 
 // 绘制单条"多峰"脉冲线 + 整条线垂直渐变拖尾
-function drawLine(line){
+function drawLine(line, audioLevel){
   const t = performance.now()/1000;
   const N = Math.max(160, Math.floor(W/5));
   const step = W / (N-1);
-
+  
   // 预计算主线 y 值
-  const ampScale = ampScaleForLine(line);
+  const baseAmpScale = ampScaleForLine(line);
+  // 根据音频电平调整幅度缩放
+  const audioAmpScale = 1 + audioLevel * 0.5;
+  const ampScale = baseAmpScale * audioAmpScale;
+  
   const yVals = new Float32Array(N);
   for(let i=0;i<N;i++){
     const u = (N===1?0:i/(N-1));
-    yVals[i] = yAt(line, u, t, ampScale);
+    // 在y值计算中应用音频影响
+    let y = yAt(line, u, t, ampScale);
+    
+    // 额外添加与音频相关的波动
+    if (audioLevel > 0.1) {
+      const audioInfluence = audioLevel * 15 * Math.sin(u * Math.PI * 2 + t * 2);
+      y -= audioInfluence;
+    }
+    
+    yVals[i] = y;
   }
-
-  // 计算尾长度与层数
-  const tailLen = Math.min(PARAMS.tailLenBase * (0.35 + 0.65*ampScale), H);
+  
+  // 根据音频电平调整尾长度
+  const tailAmpScale = 1 + audioLevel * 0.3;
+  const tailLen = Math.min(PARAMS.tailLenBase * (0.35 + 0.65*ampScale) * tailAmpScale, H);
   const maxLayersByLen = Math.max(1, Math.floor(tailLen / PARAMS.tailSpacing));
   const L = Math.min(PARAMS.tailLayersMax, maxLayersByLen);
 
@@ -290,6 +589,17 @@ let lastT = performance.now()/1000;
 let lastFrameTime = 0;
 const frameInterval = 1000 / PARAMS.throttleFPS; // 帧间隔时间（毫秒）
 
+// 模拟音频数据（当实际音频不可用时）
+let simulationTime = 0;
+function getSimulatedAudioLevel() {
+  // 创建模拟的音频波动数据
+  simulationTime += 0.016; // 大约60fps的时间增量
+  const base = Math.sin(simulationTime * 1.5) * 0.5 + 0.5; // 基础波动
+  const beat = Math.sin(simulationTime * 0.2) * 0.3 + 0.7; // 节拍
+  const noise = (Math.random() - 0.5) * 0.2; // 随机噪声
+  return Math.max(0, Math.min(1, base * beat + noise));
+}
+
 function tick(timestamp){
   // 帧率限制
   if (PARAMS.throttleFPS > 0) {
@@ -313,13 +623,29 @@ function tick(timestamp){
       ctx.fillStyle = '#000';
       ctx.fillRect(0,0,W,H);
     }
+    
+    // 获取音频或模拟的音频电平
+    let audioLevel = 0;
+    if (PARAMS.audioVisualization && audioInitialized) {
+      audioLevel = getAudioLevel();
+    } else {
+      // 如果没有真实音频，使用模拟的音频数据
+      audioLevel = getSimulatedAudioLevel();
+    }
+    
+    // 绘制小型音频可视化器
+    drawMiniVisualizer(audioLevel);
 
     // 更新 & 绘制每条线
-    for(const p of lines){ p.y -= p.speed * dt; }
+    for(const p of lines){ 
+      // 根据音频电平调整线条速度
+      const speedFactor = 1 + audioLevel * 0.3;
+      p.y -= p.speed * dt * speedFactor;
+    }
     
     // 性能优化：只绘制可见的线条
     const visibleLines = lines.filter(line => line.y < H + 50);
-    for(const p of visibleLines) drawLine(p);
+    for(const p of visibleLines) drawLine(p, audioLevel);
 
     // 移除到顶的线
     lines = lines.filter(p => p.y >= -30);
@@ -344,5 +670,14 @@ function tick(timestamp){
 document.addEventListener('DOMContentLoaded', () => {
   ctx.fillStyle = '#000';
   ctx.fillRect(0,0,W,H);
+  
+  // 初始化音频可视化
+  if (PARAMS.audioVisualization) {
+    initAudio();
+  }
+  
+  // 初始化小型音频可视化器
+  initMiniVisualizer();
+  
   requestAnimationFrame(tick);
 });
