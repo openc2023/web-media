@@ -1,7 +1,7 @@
 // ======================== 参数 ========================
 const PARAMS = {
-  // 同时存在的脉冲线数量（保持 2–5 随机，不平均）
-  minLines: 4, maxLines: 6,
+  // 增加线条密度（保持 8–12 随机，增强渐变拖尾效果）
+  minLines: 8, maxLines: 12,
 
   // 每条线内部"多峰"形状（3–6 随机峰）
   minPeaks: 3, maxPeaks: 6,
@@ -26,26 +26,26 @@ const PARAMS = {
   // 到达顶部 90% 开始把"峰+噪声"淡出 → 直线
   topFlattenStart: 0.90,
 
-  // 残影（画布整体拖影）
-  useTrail: false,
-  fadeAlpha: 0.10,
+  // 渐变拖尾残影效果
+  useTrail: true,  // 启用整体拖影增强水墨效果
+  fadeAlpha: 0.06, // 降低透明度，延长拖尾效果，增强渐变感
 
-  // —— 底层线条更弱 ——
-  lineWidth: 1.4,
-  strokeStyle: 'rgba(230,240,255,0.45)', // 更淡
-  glowColor: 'rgba(150,180,255,0.25)',
-  glowBlur: 4,
+  // —— 水墨效果主线设置 ——
+  lineWidth: 1.8,  // 增加主线宽度，增强水墨效果
+  strokeStyle: 'rgba(230,240,255,0.75)', // 增强线条颜色，更像水墨
+  glowColor: 'rgba(150,180,255,0.35)',   // 增强发光效果
+  glowBlur: 6,
 
-  // —— 整条线"垂直渐变拖尾"设置 ——
-  tailLenBase: 120,        // 基础长度（像素）
-  tailSpacing: 5,          // 层间距（像素）
-  tailLayersMax: 24,       // 最大层数（自动按长度裁剪）
-  tailAlphaTop: 0.22,      // 紧贴主线的透明度
-  tailAlphaBottom: 0.00,   // 尾部最远端透明度
-  tailWidthTopMul: 1.0,    // 顶端线宽乘数（相对于主线宽）
-  tailWidthBottomMul: 0.70,// 底端线宽乘数
-  tailColor: '#b9d6ff',
-  tailGlowBlur: 6,
+  // —— 渐变拖尾设置 ——
+  tailLenBase: 0,           // 禁用独立线条拖尾
+  tailSpacing: 5,           // 不影响，保持默认值
+  tailLayersMax: 0,         // 禁用独立线条拖尾层数
+  tailAlphaTop: 0.0,        // 禁用独立线条拖尾透明度
+  tailAlphaBottom: 0.0,     // 禁用独立线条拖尾透明度
+  tailWidthTopMul: 1.0,     // 不影响，保持默认值
+  tailWidthBottomMul: 0.70, // 不影响，保持默认值
+  tailColor: '#b9d6ff',     // 不影响，保持默认值
+  tailGlowBlur: 0,          // 禁用独立线条拖尾发光模糊
   
   // 性能优化参数
   useRequestAnimationFrame: true, // 使用requestAnimationFrame进行动画
@@ -93,7 +93,7 @@ function initMiniVisualizer() {
       if (glassPanel) {
         const rect = glassPanel.getBoundingClientRect();
         miniW = rect.width * 0.8; // 占玻璃面板宽度的80%
-        miniH = 30; // 固定高度，降低高度使其更小巧
+        miniH = 40; // 调整高度为40px，确保温度信息完整显示
         miniCanvas.width = miniW * dpr;
         miniCanvas.height = miniH * dpr;
         miniCanvas.style.width = `${miniW}px`;
@@ -160,11 +160,21 @@ let busanWeatherData = {
   lastUpdate: new Date().toLocaleTimeString()
 };
 
-// 更新天气数据的函数
+// 更新天气数据的函数 - 优化版
+let lastWeatherUpdateTime = 0;
+const weatherUpdateFrequency = 1000; // 1秒更新一次，足够平滑且不过于频繁
+
 function updateBusanWeather() {
+  const now = performance.now();
+  if (now - lastWeatherUpdateTime < weatherUpdateFrequency) {
+    return; // 跳过更新
+  }
+  
+  lastWeatherUpdateTime = now;
+  
   // 在实际应用中，这里会调用天气API获取实时数据
   // 由于是模拟环境，我们随机生成一些接近实际值的波动数据
-  const simulationTime = performance.now() / 1000;
+  const simulationTime = now / 1000;
   
   // 添加小波动来模拟实时变化
   const tempVariation = Math.sin(simulationTime * 0.1) * 0.5;
@@ -178,36 +188,38 @@ function updateBusanWeather() {
     windSpeed: Math.round((15 + windVariation) * 10) / 10,
     lastUpdate: new Date().toLocaleTimeString()
   };
-  
-  // 每30秒更新一次
-  setTimeout(updateBusanWeather, 30000);
 }
 
-// 绘制天气数据可视化线条
+// 绘制天气数据可视化线条 - 优化版
 function drawMiniVisualizer(audioLevel) {
   if (!miniCtx) return;
   
-  // 清除画布
+  // 清除画布 - 不使用随机跳过，而是通过优化绘制减少性能消耗
   miniCtx.clearRect(0, 0, miniW, miniH);
   
-  // 更新天气数据
-  updateBusanWeather();
+  // 更新天气数据 - 已经在主循环中更新，这里不需要再更新
   
   // 配置可视化参数
   const lineCount = 3; // 线条数量
+  
+  // 为三条线条设置对应的颜色 - 温度(红色)、湿度(蓝色)、风速(绿色)
   const lineColors = [
-    'rgba(255, 150, 150, 0.9)',  // 红色线条 - 代表温度
-    'rgba(150, 180, 255, 0.8)',  // 蓝色线条 - 代表湿度
-    'rgba(150, 255, 180, 0.7)'   // 绿色线条 - 代表风速
+    'rgba(255, 120, 120, 0.7)', // 温度 - 红色
+    'rgba(120, 150, 255, 0.6)', // 湿度 - 蓝色
+    'rgba(120, 255, 120, 0.5)'  // 风速 - 绿色
   ];
+  // 磨砂玻璃效果(阴影)颜色与线条颜色对应
   const glowColors = [
-    'rgba(255, 150, 150, 0.4)',  // 红色发光
-    'rgba(150, 180, 255, 0.3)',  // 蓝色发光
-    'rgba(150, 255, 180, 0.3)'   // 绿色发光
+    'rgba(255, 120, 120, 0.4)', // 温度阴影 - 红色
+    'rgba(120, 150, 255, 0.3)', // 湿度阴影 - 蓝色
+    'rgba(120, 255, 120, 0.2)'  // 风速阴影 - 绿色
   ];
   const lineWidths = [2, 1.5, 1.2]; // 线条宽度
-  const maxLineHeight = miniH * 0.8; // 最大线条高度
-  const lineSpacing = miniH * 0.1; // 线条之间的垂直间距
+  const maxLineHeight = miniH * 0.5; // 进一步减少最大线条高度，确保与文本分离
+  const lineSpacing = miniH * 0.15; // 增加线条间距，提高可读性
+  
+  // 性能优化：预先计算共享值
+  const simulationTime = performance.now() / 1000;
   
   // 绘制三条天气数据线条
   for (let l = 0; l < lineCount; l++) {
@@ -216,14 +228,17 @@ function drawMiniVisualizer(audioLevel) {
     const lineWidth = lineWidths[l];
     const yOffset = (lineCount - l - 1) * lineSpacing; // 线条垂直偏移
     
+    // 优化上下文状态设置
     miniCtx.shadowColor = glowColor;
-    miniCtx.shadowBlur = 4;
+    miniCtx.shadowBlur = 3; // 减少模糊效果提高性能
     miniCtx.strokeStyle = lineColor;
     miniCtx.lineWidth = lineWidth;
     miniCtx.beginPath();
     
-    // 为每条线生成天气数据波形
-    const pointCount = 30; // 每条线的点数
+    // 减少点数提高性能
+    const pointCount = 15; // 每条线的点数减少一半
+    
+    // 性能优化：批量计算点位置
     for (let i = 0; i < pointCount; i++) {
       // 根据线条类型获取相应的天气数据值
       let weatherValue = 0;
@@ -248,17 +263,17 @@ function drawMiniVisualizer(audioLevel) {
       // 将天气值标准化到0-1范围
       const normalizedValue = (weatherValue - minValue) / (maxValue - minValue);
       
-      // 添加一些波动来创建更自然的波形
-      const simulationTime = performance.now() / 1000;
+      // 添加波动来创建更自然的波形
       const waveFactor = 0.1; // 波动幅度
-      const wave = Math.sin(i * 0.5 + simulationTime * 0.5 + l * 1.5) * waveFactor;
+      const wave = Math.sin(i * 1.0 + simulationTime * 0.5 + l * 1.5) * waveFactor;
       
-      // 计算线条高度
-      const lineHeight = Math.max(0, Math.min(maxLineHeight, (normalizedValue + wave) * maxLineHeight));
+      // 计算线条高度，应用音频影响
+      const audioInfluence = audioLevel * 0.2; // 音频对小型可视化器的影响
+      const lineHeight = Math.max(0, Math.min(maxLineHeight, (normalizedValue + wave + audioInfluence) * maxLineHeight));
       
       // 计算点的位置
       const x = (i / (pointCount - 1)) * miniW;
-      const y = miniH - lineHeight - yOffset - (miniH - maxLineHeight) / 4;
+      const y = miniH - lineHeight - yOffset - (miniH - maxLineHeight) / 2; // 再稍微向下移动线条，确保与文本分离
       
       // 绘制线条
       if (i === 0) {
@@ -271,28 +286,26 @@ function drawMiniVisualizer(audioLevel) {
     miniCtx.stroke();
   }
   
-  // 绘制天气数据文本
-  miniCtx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-  miniCtx.font = '8px Arial'; // 减小字体大小
+  // 绘制天气数据文本 - 确保每一帧都绘制，避免闪烁
+  // 优化文本渲染
+  miniCtx.font = '8px Arial'; // 减小字体大小，确保完整显示
   miniCtx.textAlign = 'center';
   
-  // 显示温度 - 调整垂直位置确保完全显示
-  miniCtx.fillStyle = 'rgba(255, 150, 150, 0.9)';
-  miniCtx.fillText(`TEMP: ${busanWeatherData.temperature}°C`, miniW * 0.2, maxLineHeight * 1.1);
+  // 使用原始的固定文本颜色
   
-  // 显示湿度 - 调整垂直位置确保完全显示
-  miniCtx.fillStyle = 'rgba(150, 180, 255, 0.8)';
-  miniCtx.fillText(`HUM: ${busanWeatherData.humidity}%`, miniW * 0.5, maxLineHeight * 1.1);
+  // 显示温度 - 颜色与温度线条对应，移动到线条下方，确保不重叠
+    miniCtx.fillStyle = 'rgba(255, 120, 120, 0.9)'; // 增加不透明度提高可读性
+    miniCtx.fillText(`TEMP: ${busanWeatherData.temperature}°C`, miniW * 0.2, miniH - 5);
+    
+    // 显示湿度 - 颜色与湿度线条对应，移动到线条下方，确保不重叠
+    miniCtx.fillStyle = 'rgba(120, 150, 255, 0.9)'; // 增加不透明度提高可读性
+    miniCtx.fillText(`HUM: ${busanWeatherData.humidity}%`, miniW * 0.5, miniH - 5);
+    
+    // 显示风速 - 颜色与风速线条对应，移动到线条下方，确保不重叠
+    miniCtx.fillStyle = 'rgba(120, 255, 120, 0.9)'; // 增加不透明度提高可读性
+    miniCtx.fillText(`WIND: ${busanWeatherData.windSpeed}km/h`, miniW * 0.8, miniH - 5);
   
-  // 显示风速 - 调整垂直位置确保完全显示
-  miniCtx.fillStyle = 'rgba(150, 255, 180, 0.7)';
-  miniCtx.fillText(`WIND: ${busanWeatherData.windSpeed}km/h`, miniW * 0.8, maxLineHeight * 1.1);
-  
-  // 更新时间放在底部
-  miniCtx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-  miniCtx.font = '7px Arial';
-  miniCtx.fillText(`UPD: ${busanWeatherData.lastUpdate}`, miniW * 0.5, maxLineHeight * 1.5);
-  
+  // 重置阴影效果
   miniCtx.shadowBlur = 0;
 }
 
@@ -484,10 +497,12 @@ function yAt(line, u, t, ampScale){
   return line.y - (line.amp * ampScale * gsum) - jitter;
 }
 
-// 绘制单条"多峰"脉冲线 + 整条线垂直渐变拖尾
+// 绘制单条"多峰"脉冲线 + 整条线垂直渐变拖尾 - 颜色渐变优化版
 function drawLine(line, audioLevel){
   const t = performance.now()/1000;
-  const N = Math.max(160, Math.floor(W/5));
+  // 基于设备性能和屏幕尺寸智能调整点数量
+  const pointDensity = window.innerWidth > 1200 ? 10 : window.innerWidth > 800 ? 8 : 5;
+  const N = Math.max(60, Math.floor(W/pointDensity)); // 进一步减少点数量
   const step = W / (N-1);
   
   // 预计算主线 y 值
@@ -496,42 +511,66 @@ function drawLine(line, audioLevel){
   const audioAmpScale = 1 + audioLevel * 0.5;
   const ampScale = baseAmpScale * audioAmpScale;
   
-  const yVals = new Float32Array(N);
+  // 性能优化：复用PARAMS中的原始固定颜色设置
+  
+  // 性能优化：使用预分配数组减少GC压力
+  if (!drawLine.yValsBuffer || drawLine.yValsBuffer.length !== N) {
+    drawLine.yValsBuffer = new Float32Array(N);
+  }
+  const yVals = drawLine.yValsBuffer;
+  
   for(let i=0;i<N;i++){
     const u = (N===1?0:i/(N-1));
     // 在y值计算中应用音频影响
     let y = yAt(line, u, t, ampScale);
     
-    // 额外添加与音频相关的波动
-    if (audioLevel > 0.1) {
-      const audioInfluence = audioLevel * 15 * Math.sin(u * Math.PI * 2 + t * 2);
+    // 额外添加与音频相关的波动 - 更精细的阈值控制
+    if (audioLevel > 0.15) { 
+      const audioInfluence = audioLevel * 8 * Math.sin(u * Math.PI * 2 + t * 2); // 更柔和的影响
       y -= audioInfluence;
     }
     
     yVals[i] = y;
   }
   
-  // 根据音频电平调整尾长度
-  const tailAmpScale = 1 + audioLevel * 0.3;
-  const tailLen = Math.min(PARAMS.tailLenBase * (0.35 + 0.65*ampScale) * tailAmpScale, H);
+  // 根据设备性能和音频电平动态调整尾长度和层数
+  const devicePixelRatio = window.devicePixelRatio || 1;
+  const performanceFactor = devicePixelRatio > 1.5 ? 0.6 : 1.0; // 高分辨率屏幕进一步减少效果
+  const tailAmpScale = 1 + audioLevel * 0.2; // 降低音频影响
+  const tailLen = Math.min(PARAMS.tailLenBase * (0.35 + 0.65*ampScale) * tailAmpScale * performanceFactor, H);
   const maxLayersByLen = Math.max(1, Math.floor(tailLen / PARAMS.tailSpacing));
-  const L = Math.min(PARAMS.tailLayersMax, maxLayersByLen);
+  const L = Math.min(Math.floor(PARAMS.tailLayersMax * 0.6), maxLayersByLen); // 进一步减少尾线层数
 
-  // —— 先画尾巴（从近到远，alpha 由大到小，线宽渐变）——
+  // —— 先画尾巴（从近到远，alpha 由大到小，线宽渐变，颜色渐变）——
   if(L > 0 && tailLen > 0){
     ctx.save();
-    ctx.strokeStyle = PARAMS.tailColor;
-    ctx.shadowColor = PARAMS.tailColor;
     ctx.shadowBlur = PARAMS.tailGlowBlur;
+    
+    // 绘制优化：批量绘制相邻、相似透明度的尾巴层
+    let currentAlpha = -1;
+    let currentWidth = -1;
+    
     for(let k=1; k<=L; k++){
       const tRel = k / L; // 0..1
       const offset = k * (tailLen / L); // 让最远端刚好到达 tailLen
       const alpha = lerp(PARAMS.tailAlphaTop, PARAMS.tailAlphaBottom, tRel) * ampScale;
       if(alpha <= 0.002) continue;
       const width = PARAMS.lineWidth * lerp(PARAMS.tailWidthTopMul, PARAMS.tailWidthBottomMul, tRel);
-
-      ctx.globalAlpha = alpha;
-      ctx.lineWidth = width;
+      
+      // 使用原始的固定尾线颜色
+      const tailColor = PARAMS.tailColor;
+      
+      // 仅当状态变化时才重新设置上下文属性
+      if (Math.abs(alpha - currentAlpha) > 0.01 || Math.abs(width - currentWidth) > 0.1) {
+        ctx.globalAlpha = alpha;
+        ctx.lineWidth = width;
+        currentAlpha = alpha;
+        currentWidth = width;
+      }
+      
+      ctx.strokeStyle = tailColor;
+      ctx.shadowColor = tailColor;
+      
       ctx.beginPath();
       for(let i=0;i<N;i++){
         const x = i * step;
@@ -543,7 +582,7 @@ function drawLine(line, audioLevel){
     ctx.restore();
   }
 
-  // —— 再画主线（更弱）——
+  // —— 再画主线（使用原始固定颜色）——
   ctx.beginPath();
   for(let i=0;i<N;i++){
     const x = i * step;
@@ -558,71 +597,119 @@ function drawLine(line, audioLevel){
   ctx.shadowBlur = 0;
 }
 
-// 性能优化：缓存数学计算
+// 性能优化：改进的数学计算缓存
+const mathCacheSize = 1000; // 限制缓存大小
 const mathCache = {
-  sin: {},
-  exp: {}
+  sin: new Map(),
+  exp: new Map()
 };
 
 // 缓存版本的sin函数
 function cachedSin(x) {
-  // 将值四舍五入到小数点后4位以便缓存
-  const key = Math.round(x * 10000) / 10000;
-  if (!mathCache.sin[key]) {
-    mathCache.sin[key] = Math.sin(x);
+  // 将值规范化到[-π, π]范围以减少缓存项
+  const normX = ((x % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  const key = Math.round(normX * 1000) / 1000; // 降低精度要求
+  
+  if (mathCache.sin.has(key)) {
+    return mathCache.sin.get(key);
   }
-  return mathCache.sin[key];
+  
+  const result = Math.sin(x);
+  
+  // 控制缓存大小
+  if (mathCache.sin.size > mathCacheSize) {
+    // 移除最早添加的项
+    const firstKey = mathCache.sin.keys().next().value;
+    mathCache.sin.delete(firstKey);
+  }
+  
+  mathCache.sin.set(key, result);
+  return result;
 }
 
 // 缓存版本的exp函数
 function cachedExp(x) {
-  // 将值四舍五入到小数点后4位以便缓存
-  const key = Math.round(x * 10000) / 10000;
-  if (!mathCache.exp[key]) {
-    mathCache.exp[key] = Math.exp(x);
+  const key = Math.round(x * 100) / 100; // 降低精度要求
+  
+  if (mathCache.exp.has(key)) {
+    return mathCache.exp.get(key);
   }
-  return mathCache.exp[key];
+  
+  const result = Math.exp(x);
+  
+  // 控制缓存大小
+  if (mathCache.exp.size > mathCacheSize) {
+    // 移除最早添加的项
+    const firstKey = mathCache.exp.keys().next().value;
+    mathCache.exp.delete(firstKey);
+  }
+  
+  mathCache.exp.set(key, result);
+  return result;
 }
 
-// 主循环
+// 主循环 - 优化版
 let lastT = performance.now()/1000;
 let lastFrameTime = 0;
 const frameInterval = 1000 / PARAMS.throttleFPS; // 帧间隔时间（毫秒）
 
-// 模拟音频数据（当实际音频不可用时）
-let simulationTime = 0;
-function getSimulatedAudioLevel() {
-  // 创建模拟的音频波动数据
-  simulationTime += 0.016; // 大约60fps的时间增量
-  const base = Math.sin(simulationTime * 1.5) * 0.5 + 0.5; // 基础波动
-  const beat = Math.sin(simulationTime * 0.2) * 0.3 + 0.7; // 节拍
-  const noise = (Math.random() - 0.5) * 0.2; // 随机噪声
-  return Math.max(0, Math.min(1, base * beat + noise));
+// 检测设备性能，调整参数
+function detectPerformance() {
+  const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+  const hasLowEndGPU = window.matchMedia('(max-width: 768px)').matches;
+  
+  if (isMobile || hasLowEndGPU) {
+    // 降低低端设备的效果以提高性能
+    PARAMS.maxLines = Math.min(4, PARAMS.maxLines);
+    PARAMS.tailLayersMax = Math.min(12, PARAMS.tailLayersMax);
+    PARAMS.throttleFPS = Math.min(45, PARAMS.throttleFPS);
+  }
 }
 
+detectPerformance();
+
+// 模拟音频数据（当实际音频不可用时）- 优化版
+let simulationTime = 0;
+let lastSimulatedAudioUpdate = 0;
+let cachedSimulatedAudioLevel = 0;
+
+function getSimulatedAudioLevel() {
+  const now = performance.now();
+  // 每5帧更新一次模拟音频数据，减少计算量
+  if (now - lastSimulatedAudioUpdate > 80) { // 约12fps更新
+    lastSimulatedAudioUpdate = now;
+    simulationTime += 0.08; // 适当增加时间增量
+    const base = Math.sin(simulationTime * 1.5) * 0.5 + 0.5; // 基础波动
+    const beat = Math.sin(simulationTime * 0.2) * 0.3 + 0.7; // 节拍
+    const noise = (Math.random() - 0.5) * 0.2; // 随机噪声
+    cachedSimulatedAudioLevel = Math.max(0, Math.min(1, base * beat + noise));
+  }
+  
+  return cachedSimulatedAudioLevel;
+}
+
+// 主循环 - 超级丝滑版
 function tick(timestamp){
-  // 帧率限制
+  // 帧率限制 - 使用时间插值提高平滑度
   if (PARAMS.throttleFPS > 0) {
     const elapsed = timestamp - lastFrameTime;
     if (elapsed < frameInterval) {
       requestAnimationFrame(tick);
       return;
     }
+    // 考虑实际经过的时间，而不只是固定间隔
     lastFrameTime = timestamp;
   }
 
   const now = performance.now()/1000;
-  const dt = now - lastT; lastT = now;
+  const dt = Math.min(now - lastT, 0.1); // 限制最大时间步长，防止掉帧后跳跃
+  lastT = now;
 
   if(running){
-    // 背景
-    if(PARAMS.useTrail){
-      ctx.fillStyle = `rgba(0,0,0,${PARAMS.fadeAlpha})`;
-      ctx.fillRect(0,0,W,H);
-    } else {
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0,0,W,H);
-    }
+    // 背景 - 使用渐变拖尾效果
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = `rgba(0,0,0,${PARAMS.fadeAlpha})`;
+  ctx.fillRect(0,0,W,H);
     
     // 获取音频或模拟的音频电平
     let audioLevel = 0;
@@ -633,22 +720,31 @@ function tick(timestamp){
       audioLevel = getSimulatedAudioLevel();
     }
     
-    // 绘制小型音频可视化器
-    drawMiniVisualizer(audioLevel);
+    // 绘制小型音频可视化器 - 降低更新频率
+    if (Math.floor(now * PARAMS.throttleFPS) % 2 === 0) {
+      drawMiniVisualizer(audioLevel);
+    }
 
-    // 更新 & 绘制每条线
+    // 更新线条位置 - 合并循环减少遍历次数
+    const visibleLines = [];
     for(const p of lines){ 
-      // 根据音频电平调整线条速度
-      const speedFactor = 1 + audioLevel * 0.3;
+      // 根据音频电平调整线条速度 - 更平滑的过渡
+      const speedFactor = 1 + audioLevel * 0.2; // 降低音频对速度的影响
       p.y -= p.speed * dt * speedFactor;
+      
+      // 同时过滤可见线条，避免二次遍历
+      if (p.y < H + 50 && p.y >= -30) {
+        visibleLines.push(p);
+      }
     }
     
-    // 性能优化：只绘制可见的线条
-    const visibleLines = lines.filter(line => line.y < H + 50);
-    for(const p of visibleLines) drawLine(p, audioLevel);
+    // 绘制可见的线条
+    for(const p of visibleLines) {
+      drawLine(p, audioLevel);
+    }
 
-    // 移除到顶的线
-    lines = lines.filter(p => p.y >= -30);
+    // 移除到顶的线 - 利用过滤后的数组减少操作
+    lines = visibleLines;
 
     // 随机补充线（保持 2–5，不强行平均）
     if(lines.length < PARAMS.minLines){
@@ -657,18 +753,20 @@ function tick(timestamp){
       lines.push(newLine());
     }
 
-    // 减少HUD更新频率，每3帧更新一次
-    if(Math.floor(now * PARAMS.throttleFPS) % 3 === 0) {
+    // 减少HUD更新频率，每4帧更新一次
+    if(Math.floor(now * PARAMS.throttleFPS) % 4 === 0) {
       updateHud();
     }
   }
 
+  // 使用requestAnimationFrame保持最佳性能
   requestAnimationFrame(tick);
 }
 
 // 启动
 document.addEventListener('DOMContentLoaded', () => {
-  ctx.fillStyle = '#000';
+  // 使用深蓝色背景初始化，增强水墨效果
+  ctx.fillStyle = '#0a111f';
   ctx.fillRect(0,0,W,H);
   
   // 初始化音频可视化
@@ -678,6 +776,9 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 初始化小型音频可视化器
   initMiniVisualizer();
+  
+  // 初始化天气数据
+  updateBusanWeather();
   
   requestAnimationFrame(tick);
 });

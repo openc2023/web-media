@@ -55,12 +55,12 @@ canvas {
 
 .glass-content {
   color: #ffffff;
-  font: 12px system-ui, -apple-system, Segoe UI, Roboto, PingFang SC, Noto Sans SC, sans-serif;
+  font: 15px system-ui, -apple-system, Segoe UI, Roboto, PingFang SC, Noto Sans SC, sans-serif;
   opacity: 0.9;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px; /* 稍微增加内容间距 */
+  gap: 10px; /* 增加内容间距 */
 }
 
 .mini-visualizer {
