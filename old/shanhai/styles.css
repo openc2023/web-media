@@ -1,0 +1,72 @@
+html, body { height: 100%; margin: 0; background:#000; }
+body { 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  height: 100vh; 
+  background: #000;
+  overscroll-behavior: none; /* 防止页面弹性滚动 */
+}
+/* 强制 9:16 居中容器（四周留黑边） */
+.wrap { 
+  position: relative;
+  will-change: transform; /* 提示浏览器这个元素会有变换，优化渲染 */
+}
+canvas { 
+  display: block; 
+  width: 100%; 
+  height: 100%;
+  will-change: transform; /* 优化画布渲染性能 */
+}
+.hud {
+  position: absolute; 
+  left: 10px; 
+  bottom: 10px; 
+  color: #9aa0a6;
+  font: 12px/1.4 system-ui, -apple-system, Segoe UI, Roboto, PingFang SC, Noto Sans SC, sans-serif;
+  background: rgba(0,0,0,.35); 
+  border: 1px solid rgba(255,255,255,.08);
+  padding: 8px 10px; 
+  border-radius: 8px; 
+  user-select: none;
+  pointer-events: none; /* 允许点击穿透HUD到画布 */
+}
+.hud b { color: #e8eaed }
+
+/* 底部半透明圆角磨砂框 */
+.glass-panel {
+  position: absolute;
+  bottom: 10px;
+  left: 10%;
+  right: 10%;
+  margin: 0 auto;
+  padding: 8px 10px; /* 增加内边距，使玻璃框稍微高一点 */
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  z-index: 1000;
+  text-align: center;
+  box-sizing: border-box;
+  max-width: 280px;
+}
+
+.glass-content {
+  color: #ffffff;
+  font: 15px system-ui, -apple-system, Segoe UI, Roboto, PingFang SC, Noto Sans SC, sans-serif;
+  opacity: 0.9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px; /* 增加内容间距 */
+}
+
+.mini-visualizer {
+  display: block;
+  margin: 0 auto;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  max-height: 100px; /* 增加最大高度，确保所有内容都能显示 */
+}

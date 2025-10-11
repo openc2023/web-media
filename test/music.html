@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>音乐线条波动 · WebAudio + Canvas</title>
+  <style>
+    :root{
+      --bg:#0b0d10; --panel:#12161b; --text:#e6f0ff; --muted:#8aa0b2; --accent:#5ab0ff;
+      --radius:16px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;}
+    body{
+      margin:0; background:radial-gradient(1200px 800px at 70% -10%, #0f1420 0%, #0b0d10 60%, #07080a 100%);
+      color:var(--text); font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, PingFang SC, Noto Sans SC, sans-serif;
+      display:flex; flex-direction:column;
+    }
+    header{
+      padding:16px clamp(16px, 4vw, 28px);
+      display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    }
+    h1{font-size:18px; margin:0; letter-spacing:.2px; color:#d8e9ff}
+    .controls{
+      margin-left:auto; display:flex; gap:10px; flex-wrap:wrap;
+    }
+    .panel{
+      background:rgba(18,22,27,.8); border:1px solid #1e2630; backdrop-filter: blur(6px);
+      padding:10px; border-radius:var(--radius); display:flex; gap:10px; align-items:center;
+      box-shadow: 0 6px 18px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.03);
+    }
+    .panel label{display:flex; align-items:center; gap:8px; color:var(--muted)}
+    .panel input[type="range"]{width:130px}
+    .panel input[type="color"]{width:32px; height:32px; padding:0; border:none; background:transparent}
+    button, .file-label{
+      appearance:none; border:1px solid #27313d; background:linear-gradient(#18222d,#121820);
+      color:#dbe7ff; padding:10px 12px; border-radius:12px; cursor:pointer; font-weight:600; letter-spacing:.2px;
+      box-shadow: 0 6px 16px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.03);
+      transition: transform .06s ease, background .2s ease, border-color .2s ease;
+    }
+    button:hover, .file-label:hover{transform: translateY(-1px); border-color:#3a4a5f}
+    button:active, .file-label:active{transform: translateY(0)}
+    .file-input{display:none}
+    .file-label{display:inline-flex; align-items:center; gap:8px}
+    .toggles{display:flex; gap:10px; align-items:center}
+    .hint{opacity:.7; font-size:12px}
+    #wrap{position:relative; flex:1;}
+    canvas{width:100%; height:100%; display:block}
+    footer{position:fixed; right:10px; bottom:10px; opacity:.7; font-size:12px}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🎵 音乐线条波动</h1>
+    <div class="controls">
+      <div class="panel">
+        <button id="micBtn" title="使用麦克风作为输入，避免回声">🎤 麦克风</button>
+        <label class="file-label" for="file">
+          📁 本地音频
+          <input id="file" class="file-input" type="file" accept="audio/*" />
+        </label>
+        <button id="playBtn" disabled>▶︎ 播放</button>
+      </div>
+      <div class="panel">
+        <label>颜色 <input id="color" type="color" value="#6bc1ff"/></label>
+        <label>粗细 <input id="thick" type="range" min="1" max="10" step="1" value="3"/></label>
+        <label>灵敏度 <input id="sens" type="range" min="0.5" max="3" step="0.1" value="1.2"/></label>
+        <label>平滑 <input id="smooth" type="range" min="0" max="0.95" step="0.01" value="0.6"/></label>
+        <label>拖影 <input id="trail" type="checkbox" checked/></label>
+        <label>对称 <input id="mirror" type="checkbox"/></label>
+        <label>风格
+          <select id="style">
+            <option value="line">单线</option>
+            <option value="neon">霓虹</option>
+            <option value="ribbon">缎带</option>
+          </select>
+        </label>
+      </div>
+    </div>
+  </header>
+
+  <div id="wrap"><canvas id="vis"></canvas></div>
+  <audio id="player" crossorigin="anonymous" style="display:none"></audio>
+  <footer class="hint">提示：用麦克风避免回声；本地音频播放时会将波形同步到画布。</footer>
+
+  <script>
+    // ====== 基础元素 ======
+    const canvas = document.getElementById('vis');
+    const ctx = canvas.getContext('2d');
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+
+    const micBtn = document.getElementById('micBtn');
+    const fileInput = document.getElementById('file');
+    const playBtn = document.getElementById('playBtn');
+    const colorInput = document.getElementById('color');
+    const thickInput = document.getElementById('thick');
+    const sensInput = document.getElementById('sens');
+    const smoothInput = document.getElementById('smooth');
+    const trailInput = document.getElementById('trail');
+    const mirrorInput = document.getElementById('mirror');
+    const styleSelect = document.getElementById('style');
+
+    const player = document.getElementById('player');
+
+    // ====== 音频节点 ======
+    let audioCtx;               // AudioContext
+    let analyser;               // AnalyserNode
+    let gainNode;               // GainNode（保留扩展用）
+    let sourceNode = null;      // 当前输入源（麦克风或元素）
+    let mediaStream = null;     // 麦克风流（用于停止）
+    let usingMic = false;       // 当前是否使用麦克风
+
+    // 可视化缓冲区
+    let buffer, bufferLength;
+
+    function resize() {
+      const { clientWidth:w, clientHeight:h } = canvas;
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // 逻辑像素绘制
+    }
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+    window.addEventListener('orientationchange', () => setTimeout(resize, 100));
+
+    // 初始化或恢复音频上下文
+    async function ensureAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 2048; // 时域波形更平滑
+        analyser.smoothingTimeConstant = parseFloat(smoothInput.value);
+        bufferLength = analyser.fftSize;
+        buffer = new Uint8Array(bufferLength);
+        gainNode = audioCtx.createGain();
+        gainNode.gain.value = 1.0;
+      }
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+    }
+
+    // 断开并清理现有源
+    function teardownSource() {
+      try {
+        if (sourceNode) {
+          try { sourceNode.disconnect(); } catch(e){}
+          sourceNode = null;
+        }
+        if (mediaStream) {
+          mediaStream.getTracks().forEach(t => t.stop());
+          mediaStream = null;
+        }
+      } catch (e) { console.warn(e); }
+    }
+
+    // 连接链路：source -> gain -> analyser -> (destination?)
+    function connectChain({ toDestination=false } = {}) {
+      if (!sourceNode) return;
+      try {
+        sourceNode.disconnect();
+      } catch(e){}
+      sourceNode.connect(gainNode);
+      gainNode.connect(analyser);
+      if (toDestination) {
+        analyser.connect(audioCtx.destination);
+      } else {
+        try { analyser.disconnect(); } catch(e){}
+      }
+    }
+
+    // 使用麦克风
+    micBtn.addEventListener('click', async () => {
+      try {
+        await ensureAudioContext();
+        teardownSource();
+        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false }, video: false });
+        sourceNode = audioCtx.createMediaStreamSource(mediaStream);
+        usingMic = true;
+        connectChain({ toDestination:false }); // 不回放到扬声器，避免啸叫
+        playBtn.disabled = true;
+      } catch (err) {
+        alert('无法访问麦克风：' + err.message);
+      }
+    });
+
+    // 选择本地音频
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      await ensureAudioContext();
+      teardownSource();
+      const url = URL.createObjectURL(file);
+      player.src = url;
+      // 为 audio 元素建立一次性的 MediaElementSource（同一元素只能创建一次）
+      if (!player._boundSource) {
+        player._boundSource = audioCtx.createMediaElementSource(player);
+      }
+      sourceNode = player._boundSource;
+      usingMic = false;
+      connectChain({ toDestination:true }); // 本地音频需要回放
+      playBtn.disabled = false;
+      playBtn.textContent = '▶︎ 播放';
+    });
+
+    // 播放/暂停按钮
+    playBtn.addEventListener('click', async () => {
+      if (!player.src) return;
+      await ensureAudioContext();
+      if (player.paused) {
+        player.play();
+        playBtn.textContent = '⏸ 暂停';
+      } else {
+        player.pause();
+        playBtn.textContent = '▶︎ 播放';
+      }
+    });
+
+    // 参数联动
+    smoothInput.addEventListener('input', () => {
+      if (analyser) analyser.smoothingTimeConstant = parseFloat(smoothInput.value);
+    });
+
+    // ====== 绘制循环 ======
+    function draw() {
+      requestAnimationFrame(draw);
+      if (!analyser) return;
+
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      // 拖影：用透明层覆盖，产生尾迹效果
+      if (trailInput.checked) {
+        ctx.fillStyle = 'rgba(7, 10, 14, 0.12)';
+        ctx.fillRect(0, 0, w, h);
+      } else {
+        ctx.clearRect(0, 0, w, h);
+      }
+
+      analyser.getByteTimeDomainData(buffer);
+      const midY = h / 2;
+      const stepX = w / (bufferLength - 1);
+      const sens = parseFloat(sensInput.value);
+      const color = colorInput.value;
+      const thick = parseFloat(thickInput.value);
+
+      // 辅助网格（轻微）
+      ctx.save();
+      ctx.globalAlpha = 0.08;
+      ctx.beginPath();
+      ctx.moveTo(0, midY); ctx.lineTo(w, midY);
+      ctx.strokeStyle = '#9ab4c8'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.restore();
+
+      // 计算路径点
+      const points = new Array(bufferLength);
+      for (let i = 0; i < bufferLength; i++) {
+        const v = (buffer[i] - 128) / 128; // -1..1
+        const y = midY + v * (midY - 8) * sens; // 留出上下 8px 边距
+        const x = i * stepX;
+        points[i] = [x, y];
+      }
+
+      const style = styleSelect.value;
+
+      if (style === 'neon') {
+        // 霓虹：多重描边 + 发光
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        for (let glow = 6; glow >= 1; glow--) {
+          ctx.beginPath();
+          for (let i = 0; i < points.length; i++) {
+            const [x, y] = points[i];
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+          }
+          ctx.strokeStyle = color;
+          ctx.globalAlpha = glow === 1 ? 1 : 0.08 * glow;
+          ctx.lineWidth = thick + glow * 2;
+          ctx.stroke();
+        }
+        ctx.restore();
+      } else if (style === 'ribbon') {
+        // 缎带：上下偏移形成带状
+        ctx.save();
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.15;
+        ctx.beginPath();
+        for (let i = 0; i < points.length; i++) {
+          const [x, y] = points[i];
+          const off = (Math.sin(i * 0.03) * 6 + 6);
+          i === 0 ? ctx.moveTo(x, y - off) : ctx.lineTo(x, y - off);
+        }
+        for (let i = points.length - 1; i >= 0; i--) {
+          const [x, y] = points[i];
+          const off = (Math.sin(i * 0.03) * 6 + 6);
+          ctx.lineTo(x, y + off);
+        }
+        ctx.closePath();
+        ctx.fill();
+        // 中线加描边
+        ctx.globalAlpha = 1;
+        ctx.beginPath();
+        for (let i = 0; i < points.length; i++) {
+          const [x, y] = points[i];
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = color; ctx.lineWidth = thick; ctx.stroke();
+        ctx.restore();
+      } else {
+        // 单线
+        ctx.save();
+        ctx.beginPath();
+        for (let i = 0; i < points.length; i++) {
+          const [x, y] = points[i];
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = color; ctx.lineWidth = thick; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 对称镜像（可叠加任意风格）
+      if (mirrorInput.checked) {
+        ctx.save();
+        ctx.translate(0, h); ctx.scale(1, -1);
+        ctx.globalAlpha = 0.4;
+        ctx.beginPath();
+        for (let i = 0; i < points.length; i++) {
+          const [x, y] = points[i];
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = color; ctx.lineWidth = Math.max(1, thick - 1);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // 启动
+    resize();
+    draw();
+  </script>
+</body>
+</html>
