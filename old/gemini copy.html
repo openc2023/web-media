@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>多条脉冲线（3–6 随机峰；整条线垂直渐变拖尾；90% 拉直；9:16）</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="wrap" id="wrap">
+    <canvas id="c"></canvas>
+    <div class="hud">
+      <div><b>SPACE</b> 暂停/继续 · <b>R</b> 重置全部 · <b>T</b> 残影 · 点击=重置</div>
+      <div>线条=<span id="lc"></span>（目标 2–5） · 峰数=3–6 · 速度≈<span id="sp"></span>px/s · 拉直=<span id="tp"></span> · 拖尾=<span id="tl"></span>px</div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
+

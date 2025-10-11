@@ -1,0 +1,12 @@
+html, body { height: 100%; margin: 0; background:#000; }
+body { display:flex; align-items:center; justify-content:center; height:100vh; background:#000; }
+/* 强制 9:16 居中容器（四周留黑边） */
+.wrap { position: relative; }
+canvas { display:block; width:100%; height:100%; }
+.hud {
+  position: absolute; left: 10px; bottom: 10px; color:#9aa0a6;
+  font: 12px/1.4 system-ui, -apple-system, Segoe UI, Roboto, PingFang SC, Noto Sans SC, sans-serif;
+  background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.08);
+  padding: 8px 10px; border-radius: 8px; user-select: none;
+}
+.hud b { color:#e8eaed }

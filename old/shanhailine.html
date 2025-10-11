@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>多峰“山脉”脉冲线（2–5 随机峰；90% 拉直）</title>
+  <style>
+    html, body { height: 100%; margin: 0; background:#000; }
+    canvas { display:block; width:100vw; height:100vh; }
+    .hud {
+      position: fixed; left: 10px; bottom: 10px; color: #9aa0a6;
+      font: 12px/1.4 system-ui, -apple-system, Segoe UI, Roboto, PingFang SC, Noto Sans SC, sans-serif;
+      background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.08);
+      padding: 8px 10px; border-radius: 8px; user-select: none;
+    }
+    .hud b { color:#e8eaed }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div class="hud">
+    <div><b>SPACE</b> 暂停/继续 · <b>R</b> 新脉冲 · 点击画布=换一个</div>
+    <div>速度=<span id="sp"></span>px/s · 残影=<span id="fd"></span> · 峰数=<span id="pk"></span></div>
+  </div>
+
+  <script>
+  // ======================== 参数 ========================
+  const PARAMS = {
+    minSpeed: 140, maxSpeed: 220,     // 上升速度(px/s)
+    minAmp: 60,  maxAmp: 160,         // 全局幅度（像素）
+
+    // 每个峰的宽度（相对画布宽度，越大越“胖”）
+    minSigma: 0.035, maxSigma: 0.14,
+
+    // ——重点：一次出现 2~5 个峰，不平均——
+    minPeaks: 2, maxPeaks: 5,
+
+    // 峰与峰的最小“建议间隔”（相对宽度）。设 0 则完全自由随机。
+    // 我们再加 30% 概率无视间隔，让分布更自然、不均匀。
+    minSeparation: 0.04,
+
+    fadeAlpha: 0.08,     // 残影强度（每帧透明黑覆盖）
+    lineWidth: 2.0,      // 线条粗细
+
+    // 轻量“噪声”用于上下抖动
+    noiseAmp: 8,
+    noiseFreq1: 5.5, noiseFreq2: 11.0,
+    noiseSpeed1: 0.8, noiseSpeed2: 1.35,
+
+    // 峰中心的轻微左右漂移（每个峰独立相位）
+    centerDriftAmp: 0.05,    // 相对宽度
+    centerDriftSpeed: 0.28,  // 周期速度
+
+    topFlattenStart: 0.90, // 到达高度 90% 开始“拉直”（峰与噪声同步为 0）
+  };
+
+  // ======================== 画布/状态 ========================
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+  let W = 0, H = 0;
+  function resize(){
+    W = Math.floor(window.innerWidth);
+    H = Math.floor(window.innerHeight);
+    canvas.width = Math.floor(W * dpr);
+    canvas.height = Math.floor(H * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // 工具函数
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const lerp = (a,b,t) => a + (b-a)*t;
+  const smooth01 = x => { x = clamp(x,0,1); return x*x*(3-2*x); };
+  const gauss = (u, mu, sigma) => { const d=(u-mu)/sigma; return Math.exp(-0.5*d*d); };
+
+  // 两个正弦叠加的轻量“噪声”
+  function noise1(u, t, seed){
+    const a = Math.sin( (u * PARAMS.noiseFreq1 + t * PARAMS.noiseSpeed1 + seed) * Math.PI * 2 );
+    const b = Math.sin( (u * PARAMS.noiseFreq2 + t * PARAMS.noiseSpeed2 + seed*1.718) * Math.PI * 2 );
+    return a * 0.66 + b * 0.34;
+  }
+
+  // 生成一个“多峰脉冲”
+  function newPulse(){
+    const speed = lerp(PARAMS.minSpeed, PARAMS.maxSpeed, Math.random());
+    const amp   = lerp(PARAMS.minAmp,  PARAMS.maxAmp,  Math.random());
+
+    // 峰数：2~5 随机
+    const k = Math.floor(lerp(PARAMS.minPeaks, PARAMS.maxPeaks + 1, Math.random()));
+
+    // 生成 k 个峰：位置/宽度/权重/相位随机（不平均）
+    const peaks = [];
+    const marginL = 0.10, marginR = 0.90;
+    const triesPerPeak = 12;
+
+    for(let m=0; m<k; m++){
+      let chosen = null;
+      for(let tries=0; tries<triesPerPeak; tries++){
+        const mu = lerp(marginL, marginR, Math.random());
+        const ok = PARAMS.minSeparation <= 0
+          || peaks.every(p => Math.abs(mu - p.mu) >= PARAMS.minSeparation)
+          || Math.random() < 0.30; // 30% 概率无视间隔，打破“平均”
+        if(ok){
+          chosen = {
+            mu,
+            sigma: lerp(PARAMS.minSigma, PARAMS.maxSigma, Math.random()),
+            w: 0.6 + Math.random(),         // 初始权重不均匀
+            seed: Math.random() * 10        // 漂移相位种子
+          };
+          break;
+        }
+      }
+      if(!chosen){ // 放宽限制兜底
+        chosen = {
+          mu: lerp(marginL, marginR, Math.random()),
+          sigma: lerp(PARAMS.minSigma, PARAMS.maxSigma, Math.random()),
+          w: 0.6 + Math.random(),
+          seed: Math.random() * 10
+        };
+      }
+      peaks.push(chosen);
+    }
+
+    // 归一化权重，避免总幅度失控
+    const sumW = peaks.reduce((s,p)=>s+p.w, 0);
+    for(const p of peaks) p.w /= sumW;
+
+    return { y: H + 30, speed, amp, peaks, born: performance.now()/1000 };
+  }
+
+  let pulse = newPulse();
+  let running = true;
+
+  // HUD
+  const spEl = document.getElementById('sp');
+  const fdEl = document.getElementById('fd');
+  const pkEl = document.getElementById('pk');
+  function updateHud(){
+    spEl.textContent = pulse.speed.toFixed(0);
+    fdEl.textContent = PARAMS.fadeAlpha.toFixed(2);
+    pkEl.textContent = pulse.peaks.length;
+  }
+  updateHud();
+
+  // 键盘控制
+  window.addEventListener('keydown', (e)=>{
+    if(e.code === 'Space'){ running = !running; }
+    else if(e.key === 'r' || e.key === 'R'){ pulse = newPulse(); updateHud(); }
+  });
+
+  // 绘制“多峰山脉线”
+  function drawPulseLine(p){
+    const t = performance.now()/1000;
+    const N = Math.max(160, Math.floor(W/5)); // 采样点数
+    const step = W / (N-1);
+
+    // 进度（0→1）
+    const progress = clamp(1 - (p.y / H), 0, 1);
+
+    // 在 90% 处把“峰+抖动”同时压扁到 0，顶端真正变直线
+    let ampScale = 1.0;
+    if(progress >= PARAMS.topFlattenStart){
+      const tt = (progress - PARAMS.topFlattenStart) / (1 - PARAMS.topFlattenStart);
+      ampScale = 1.0 - smooth01(tt);
+    }
+
+    ctx.beginPath();
+    for(let i=0;i<N;i++){
+      const x = i * step;
+      const u = (N===1?0:i/(N-1));
+
+      // 多峰叠加（每个峰中心带独立漂移）
+      let gsum = 0;
+      for(const pk of p.peaks){
+        const drift = Math.sin((t - p.born) * PARAMS.centerDriftSpeed * Math.PI * 2 + pk.seed) * PARAMS.centerDriftAmp;
+        const mu = clamp(pk.mu + drift, 0.0, 1.0);
+        gsum += pk.w * gauss(u, mu, pk.sigma);
+      }
+
+      const jitter = noise1(u, t, 7.7) * PARAMS.noiseAmp * ampScale; // 抖动也随 ampScale 衰减
+      const y = p.y - (p.amp * ampScale * gsum) - jitter;
+      if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+
+    // 线条样式（微弱发光）
+    ctx.lineWidth = PARAMS.lineWidth;
+    ctx.strokeStyle = '#e6f0ff';
+    ctx.shadowColor = 'rgba(150,180,255,0.35)';
+    ctx.shadowBlur = 6;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  // 主循环
+  let lastT = performance.now()/1000;
+  function tick(){
+    const now = performance.now()/1000;
+    const dt = now - lastT; lastT = now;
+
+    if(running){
+      // 残影
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = `rgba(0,0,0,${PARAMS.fadeAlpha})`;
+      ctx.fillRect(0,0,W,H);
+
+      // 更新位置
+      pulse.y -= pulse.speed * dt;
+
+      // 绘制
+      drawPulseLine(pulse);
+
+      // 顶部就换新
+      if(pulse.y < -30){
+        pulse = newPulse();
+        updateHud();
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // 初始清屏并启动
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,W,H);
+  requestAnimationFrame(tick);
+
+  // 点击：立即换一个随机“多峰脉冲”
+  canvas.addEventListener('click', ()=>{ pulse = newPulse(); updateHud(); });
+  </script>
+</body>
+</html>

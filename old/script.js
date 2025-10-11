@@ -1,0 +1,294 @@
+// ======================== 参数 ========================
+const PARAMS = {
+  // 同时存在的脉冲线数量（保持 2–5 随机，不平均）
+  minLines: 2, maxLines: 5,
+
+  // 每条线内部"多峰"形状（3–6 随机峰）
+  minPeaks: 3, maxPeaks: 6,
+  minSeparation: 0.04,     // 峰之间建议最小间隔（相对宽度）；30% 概率忽略，打破平均
+
+  // 上升速度与整体幅度
+  minSpeed: 140, maxSpeed: 220, // px/s
+  minAmp: 60,  maxAmp: 160,     // 像素
+
+  // 单峰宽度（相对画布宽度，越大越"胖"）
+  minSigma: 0.035, maxSigma: 0.14,
+
+  // 噪声（线条细微抖动）
+  noiseAmp: 8,                   // 像素
+  noiseFreq1: 5.5, noiseFreq2: 11.0,
+  noiseSpeed1: 0.8, noiseSpeed2: 1.35,
+
+  // 峰中心轻微漂移（每个峰独立相位）
+  centerDriftAmp: 0.05,          // 相对宽度
+  centerDriftSpeed: 0.28,        // 周期速度（Hz 近似）
+
+  // 到达顶部 90% 开始把"峰+噪声"淡出 → 直线
+  topFlattenStart: 0.90,
+
+  // 残影（画布整体拖影）
+  useTrail: false,
+  fadeAlpha: 0.10,
+
+  // —— 底层线条更弱 ——
+  lineWidth: 1.4,
+  strokeStyle: 'rgba(230,240,255,0.45)', // 更淡
+  glowColor: 'rgba(150,180,255,0.25)',
+  glowBlur: 4,
+
+  // —— 整条线"垂直渐变拖尾"设置 ——
+  tailLenBase: 120,        // 基础长度（像素）
+  tailSpacing: 5,          // 层间距（像素）
+  tailLayersMax: 24,       // 最大层数（自动按长度裁剪）
+  tailAlphaTop: 0.22,      // 紧贴主线的透明度
+  tailAlphaBottom: 0.00,   // 尾部最远端透明度
+  tailWidthTopMul: 1.0,    // 顶端线宽乘数（相对于主线宽）
+  tailWidthBottomMul: 0.70,// 底端线宽乘数
+  tailColor: '#b9d6ff',
+  tailGlowBlur: 6,
+};
+
+// ======================== 画布（强制 9:16 居中 + 留黑边） ========================
+const wrap = document.getElementById('wrap');
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+let W = 0, H = 0; // CSS 像素
+
+function resize(){
+  const aspect = 9/16; // 竖版比例
+  const vw = Math.floor(window.innerWidth);
+  const vh = Math.floor(window.innerHeight);
+
+  let cssW, cssH;
+  if (vw / vh > aspect) { cssH = vh; cssW = Math.floor(cssH * aspect); }
+  else { cssW = vw; cssH = Math.floor(cssW / aspect); }
+
+  wrap.style.width  = cssW + 'px';
+  wrap.style.height = cssH + 'px';
+
+  canvas.width  = Math.floor(cssW * dpr);
+  canvas.height = Math.floor(cssH * dpr);
+  canvas.style.width  = '100%';
+  canvas.style.height = '100%';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+
+  W = cssW; H = cssH;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ======================== 小工具 ========================
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const lerp  = (a,b,t) => a + (b-a)*t;
+const smooth01 = (x)=>{ x = clamp(x,0,1); return x*x*(3-2*x); };
+
+// 轻量噪声
+function noise1(u, t, seed){
+  const a = Math.sin( (u * PARAMS.noiseFreq1 + t * PARAMS.noiseSpeed1 + seed) * Math.PI * 2 );
+  const b = Math.sin( (u * PARAMS.noiseFreq2 + t * PARAMS.noiseSpeed2 + seed*1.718) * Math.PI * 2 );
+  return a * 0.66 + b * 0.34;
+}
+
+// 高斯（钟形）
+function gauss(u, mu, sigma){
+  const d = (u - mu) / sigma;
+  return Math.exp(-0.5 * d * d);
+}
+
+function ampScaleForLine(line){
+  const progress = clamp(1 - (line.y / H), 0, 1);
+  if(progress < PARAMS.topFlattenStart) return 1;
+  const tt = (progress - PARAMS.topFlattenStart) / (1 - PARAMS.topFlattenStart);
+  return 1 - smooth01(tt);
+}
+
+// ======================== 脉冲线（每条线内部是"多峰之和"） ========================
+function newLine(){
+  const speed = lerp(PARAMS.minSpeed, PARAMS.maxSpeed, Math.random());
+  const amp   = lerp(PARAMS.minAmp,  PARAMS.maxAmp,  Math.random());
+
+  // 峰数：3~6 随机
+  const k = Math.floor(lerp(PARAMS.minPeaks, PARAMS.maxPeaks + 1, Math.random()));
+
+  // 生成 k 个峰：位置/宽度/权重/相位随机（不平均）
+  const peaks = [];
+  const marginL = 0.10, marginR = 0.90;
+  const triesPerPeak = 12;
+  for(let m=0; m<k; m++){
+    let chosen = null;
+    for(let tries=0; tries<triesPerPeak; tries++){
+      const mu = lerp(marginL, marginR, Math.random());
+      const ok = PARAMS.minSeparation <= 0
+        || peaks.every(p => Math.abs(mu - p.mu) >= PARAMS.minSeparation)
+        || Math.random() < 0.30; // 30% 概率无视间隔，打破"平均"
+      if(ok){
+        chosen = { mu,
+          sigma: lerp(PARAMS.minSigma, PARAMS.maxSigma, Math.random()),
+          w: 0.6 + Math.random(),
+          seed: Math.random() * 10 };
+        break;
+      }
+    }
+    if(!chosen){ // 放宽限制兜底
+      chosen = { mu: lerp(marginL, marginR, Math.random()),
+        sigma: lerp(PARAMS.minSigma, PARAMS.maxSigma, Math.random()),
+        w: 0.6 + Math.random(), seed: Math.random() * 10 };
+    }
+    peaks.push(chosen);
+  }
+  // 归一化权重
+  const sumW = peaks.reduce((s,p)=>s+p.w, 0);
+  for(const p of peaks) p.w /= sumW;
+
+  return { y: H + 30, speed, amp, peaks, born: performance.now()/1000 };
+}
+
+let lines = [];
+let running = true;
+
+// HUD
+const lcEl = document.getElementById('lc');
+const spEl = document.getElementById('sp');
+const tpEl = document.getElementById('tp');
+const tlEl = document.getElementById('tl');
+function updateHud(){
+  lcEl.textContent = `${lines.length}`;
+  if(lines.length){
+    const avg = lines.reduce((s,p)=>s+p.speed,0)/lines.length;
+    spEl.textContent = avg.toFixed(0);
+  } else spEl.textContent = '-';
+  tpEl.textContent = Math.round(PARAMS.topFlattenStart*100)+'%';
+  tlEl.textContent = PARAMS.tailLenBase.toFixed(0);
+}
+
+function seedLines(){
+  lines = [];
+  const n = Math.floor(lerp(PARAMS.minLines, PARAMS.maxLines + 1, Math.random()));
+  for(let i=0;i<n;i++) lines.push(newLine());
+  updateHud();
+}
+seedLines();
+
+// 交互
+window.addEventListener('keydown', (e)=>{
+  if(e.code === 'Space'){ running = !running; }
+  else if(e.key === 'r' || e.key === 'R'){ seedLines(); }
+  else if(e.key === 't' || e.key === 'T'){ PARAMS.useTrail = !PARAMS.useTrail; }
+});
+canvas.addEventListener('click', ()=>{ seedLines(); });
+
+// —— 在给定 u（0..1）处求 y ——
+function yAt(line, u, t, ampScale){
+  let gsum = 0;
+  for(const pk of line.peaks){
+    const drift = Math.sin((t - line.born) * PARAMS.centerDriftSpeed * Math.PI * 2 + pk.seed) * PARAMS.centerDriftAmp;
+    const mu = clamp(pk.mu + drift, 0.0, 1.0);
+    gsum += pk.w * gauss(u, mu, pk.sigma);
+  }
+  const jitter = noise1(u, t, 7.7) * PARAMS.noiseAmp * ampScale;
+  return line.y - (line.amp * ampScale * gsum) - jitter;
+}
+
+// 绘制单条"多峰"脉冲线 + 整条线垂直渐变拖尾
+function drawLine(line){
+  const t = performance.now()/1000;
+  const N = Math.max(160, Math.floor(W/5));
+  const step = W / (N-1);
+
+  // 预计算主线 y 值
+  const ampScale = ampScaleForLine(line);
+  const yVals = new Float32Array(N);
+  for(let i=0;i<N;i++){
+    const u = (N===1?0:i/(N-1));
+    yVals[i] = yAt(line, u, t, ampScale);
+  }
+
+  // 计算尾长度与层数
+  const tailLen = Math.min(PARAMS.tailLenBase * (0.35 + 0.65*ampScale), H);
+  const maxLayersByLen = Math.max(1, Math.floor(tailLen / PARAMS.tailSpacing));
+  const L = Math.min(PARAMS.tailLayersMax, maxLayersByLen);
+
+  // —— 先画尾巴（从近到远，alpha 由大到小，线宽渐变）——
+  if(L > 0 && tailLen > 0){
+    ctx.save();
+    ctx.strokeStyle = PARAMS.tailColor;
+    ctx.shadowColor = PARAMS.tailColor;
+    ctx.shadowBlur = PARAMS.tailGlowBlur;
+    for(let k=1; k<=L; k++){
+      const tRel = k / L; // 0..1
+      const offset = k * (tailLen / L); // 让最远端刚好到达 tailLen
+      const alpha = lerp(PARAMS.tailAlphaTop, PARAMS.tailAlphaBottom, tRel) * ampScale;
+      if(alpha <= 0.002) continue;
+      const width = PARAMS.lineWidth * lerp(PARAMS.tailWidthTopMul, PARAMS.tailWidthBottomMul, tRel);
+
+      ctx.globalAlpha = alpha;
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      for(let i=0;i<N;i++){
+        const x = i * step;
+        const y = yVals[i] + offset;
+        if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // —— 再画主线（更弱）——
+  ctx.beginPath();
+  for(let i=0;i<N;i++){
+    const x = i * step;
+    const y = yVals[i];
+    if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.lineWidth = PARAMS.lineWidth;
+  ctx.strokeStyle = PARAMS.strokeStyle;
+  ctx.shadowColor = PARAMS.glowColor;
+  ctx.shadowBlur = PARAMS.glowBlur;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+}
+
+// 主循环
+let lastT = performance.now()/1000;
+function tick(){
+  const now = performance.now()/1000;
+  const dt = now - lastT; lastT = now;
+
+  if(running){
+    // 背景
+    if(PARAMS.useTrail){
+      ctx.fillStyle = `rgba(0,0,0,${PARAMS.fadeAlpha})`;
+      ctx.fillRect(0,0,W,H);
+    } else {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0,0,W,H);
+    }
+
+    // 更新 & 绘制每条线
+    for(const p of lines){ p.y -= p.speed * dt; }
+    for(const p of lines) drawLine(p);
+
+    // 移除到顶的线
+    lines = lines.filter(p => p.y >= -30);
+
+    // 随机补充线（保持 2–5，不强行平均）
+    if(lines.length < PARAMS.minLines){
+      lines.push(newLine());
+    } else if(lines.length < PARAMS.maxLines && Math.random() < 0.03) {
+      lines.push(newLine());
+    }
+
+    updateHud();
+  }
+
+  requestAnimationFrame(tick);
+}
+
+// 启动
+document.addEventListener('DOMContentLoaded', () => {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,W,H);
+  requestAnimationFrame(tick);
+});

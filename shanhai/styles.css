@@ -1,0 +1,34 @@
+html, body { height: 100%; margin: 0; background:#000; }
+body { 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  height: 100vh; 
+  background: #000;
+  overscroll-behavior: none; /* 防止页面弹性滚动 */
+}
+/* 强制 9:16 居中容器（四周留黑边） */
+.wrap { 
+  position: relative;
+  will-change: transform; /* 提示浏览器这个元素会有变换，优化渲染 */
+}
+canvas { 
+  display: block; 
+  width: 100%; 
+  height: 100%;
+  will-change: transform; /* 优化画布渲染性能 */
+}
+.hud {
+  position: absolute; 
+  left: 10px; 
+  bottom: 10px; 
+  color: #9aa0a6;
+  font: 12px/1.4 system-ui, -apple-system, Segoe UI, Roboto, PingFang SC, Noto Sans SC, sans-serif;
+  background: rgba(0,0,0,.35); 
+  border: 1px solid rgba(255,255,255,.08);
+  padding: 8px 10px; 
+  border-radius: 8px; 
+  user-select: none;
+  pointer-events: none; /* 允许点击穿透HUD到画布 */
+}
+.hud b { color: #e8eaed }

@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>50×50 点阵 · 多峰随机脉冲（2–5 个同时 · 路过变大→渐变变小 · 呼吸）</title>
+  <style>
+    html, body { height: 100%; margin: 0; background:#000; }
+    body { display: grid; place-items: center; }
+    
+    /* 竖版框：9:16。若要横版16:9，改成 16 / 9 */
+    .frame {
+      height: min(90vh, 100vh);
+      aspect-ratio: 9 / 16;
+      width: auto;
+      background:#000;
+      position: relative;
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:14px;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0,0,0,.45);
+    }
+    
+    /* 画布填满容器 */
+    #c{ display:block; width:100%; height:100%; }
+    
+    /* HUD 从 fixed → absolute，贴在容器里 */
+    .hud {
+      position: absolute; left: 10px; bottom: 10px; color:#9aa0a6;
+      font: 12px/1.4 system-ui, -apple-system, Segoe UI, Roboto, PingFang SC, Noto Sans SC, sans-serif;
+      background: rgba(0,0,0,.35);
+      border: 1px solid rgba(255,255,255,.08);
+      padding: 8px 10px; border-radius: 8px; user-select: none; pointer-events: none;
+    }
+    .hud b{ color:#e8eaed; }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="frame">
+      <canvas id="c"></canvas>
+      <div class="hud">
+        <div>分辨率：<b>50×50</b> · <b>SPACE</b> 暂停/继续 · <b>R</b> 随机重置峰值 · <b>G</b> 网格 · <b>T</b> 残影</div>
+        <div>峰值数量=<span id="pc"></span>（目标 2–5 随机） · 速度≈<span id="sp"></span>px/s · 拉直=<span id="tp"></span> · 残影=<span id="fd"></span> · 呼吸=<span id="ba"></span></div>
+        <div>变小速度 <b>lerpDown</b>=<span id="sd"></span> （按 <b>[</b>/<b>]</b> 慢/快）</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // ======================== 点阵与参数 ========================
+  const GRID = { cols: 50, rows: 50 };
+  const MIN_PEAKS = 2, MAX_PEAKS = 5; // 同时存在的峰值数量范围
+
+  const PARAMS = {
+    // 运动/形状（单个峰值的随机范围）
+    minSpeed: 140,
+    maxSpeed: 220,
+    minAmp: 60,
+    maxAmp: 160,
+    minSigma: 0.05,
+    maxSigma: 0.18,
+    centerDriftAmp: 0.06,
+    centerDriftSpeed: 0.25,
+    topFlattenStart: 0.90, // 到高度 90% 开始拉直
+
+    // 噪声抖动（峰值线条微动）
+    noiseAmp: 8,
+    noiseFreq1: 5.5,
+    noiseFreq2: 11.0,
+    noiseSpeed1: 0.8,
+    noiseSpeed2: 1.35,
+
+    // 呈现尺寸/明暗
+    baseDotRadius: 0.22,  // 普通小点半径（相对 cell 最短边）
+    peakDotRadius: 0.42,  // 山峰经过时的大点半径
+    smallAlpha: 0.75,     // 小点明度
+    peakAlpha: 1.00,      // 大点明度
+
+    // 渐变缩放（让“变小是渐变变小”）
+    lerpUp: 0.35,   // 变大速度（相对每帧，0~1）
+    lerpDown: 0.12, // 变小速度（更慢，呈渐变）
+
+    // 非峰值“随机呼吸”
+    breathAmp: 0.30,      // 呼吸相对幅度（0.0~0.6 建议）
+    breathSpeed1: 0.20,   // s^-1
+    breathSpeed2: 0.37,   // s^-1
+
+    showGrid: false,
+    useTrail: false,      // 默认关闭残影；开启后有拖影
+    fadeAlpha: 0.10
+  };
+
+  // ======================== 画布/状态 ========================
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const frame = document.querySelector('.frame'); // 新增
+  const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+  let W = 0, H = 0, cellW = 0, cellH = 0;
+  function resize(){
+    const rect = frame.getBoundingClientRect(); // ← 读容器大小
+    W = Math.floor(rect.width);
+    H = Math.floor(rect.height);
+    canvas.width = Math.floor(W * dpr);
+    canvas.height = Math.floor(H * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    cellW = W / GRID.cols;
+    cellH = H / GRID.rows;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ======================== 小工具 ========================
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const lerp  = (a,b,t) => a + (b-a)*t;
+  const smoothstep = (e0,e1,x)=>{ const t = clamp((x-e0)/(e1-e0),0,1); return t*t*(3-2*t); };
+  const randInt = (a,b)=> (a + Math.floor(Math.random()*(b-a+1)));
+
+  function noise1(u, t, seed){
+    const a = Math.sin( (u * PARAMS.noiseFreq1 + t * PARAMS.noiseSpeed1 + seed) * Math.PI * 2 );
+    const b = Math.sin( (u * PARAMS.noiseFreq2 + t * PARAMS.noiseSpeed2 + seed*1.718) * Math.PI * 2 );
+    return a * 0.66 + b * 0.34;
+  }
+
+  // 为每个点准备一个呼吸用的随机相位，避免齐刷刷同步
+  const cellSeed = Array.from({length: GRID.cols}, () => Array.from({length: GRID.rows}, () => Math.random()*10));
+  function breathe01(i, j, t){
+    // 输出 0..1 的缓慢随机波动
+    const s1 = Math.sin( (t * PARAMS.breathSpeed1 + cellSeed[i][j]) * Math.PI*2 );
+    const s2 = Math.sin( (t * PARAMS.breathSpeed2 + cellSeed[i][j]*1.23) * Math.PI*2 );
+    return (s1*0.6 + s2*0.4) * 0.5 + 0.5; // → 0..1
+  }
+
+  // ======================== 脉冲（峰值） ========================
+  function newPulse(){
+    const speed = lerp(PARAMS.minSpeed, PARAMS.maxSpeed, Math.random());
+    const amp   = lerp(PARAMS.minAmp,   PARAMS.maxAmp,   Math.random());
+    const sigma = lerp(PARAMS.minSigma, PARAMS.maxSigma, Math.random());
+    const u0    = lerp(0.10, 0.90, Math.random()); // 允许更靠近两侧，避免平均感
+    const seed  = Math.random() * 10;
+    return { y: H + 30, speed, amp, sigma, u0, seed, born: performance.now()/1000 };
+  }
+
+  let pulses = [];
+  let running = true;
+
+  function seedPulses(){
+    pulses = [];
+    const n = randInt(MIN_PEAKS, MAX_PEAKS);
+    for(let k=0;k<n;k++) pulses.push(newPulse());
+    updateHud();
+  }
+
+  // HUD
+  const spEl = document.getElementById('sp');
+  const fdEl = document.getElementById('fd');
+  const tpEl = document.getElementById('tp');
+  const baEl = document.getElementById('ba');
+  const sdEl = document.getElementById('sd');
+  const pcEl = document.getElementById('pc');
+  function updateHud(){
+    if(pulses.length){
+      const speeds = pulses.map(p=>p.speed);
+      const avg = speeds.reduce((a,b)=>a+b,0)/speeds.length;
+      spEl.textContent = avg.toFixed(0)+`（${speeds.length}个）`;
+    } else {
+      spEl.textContent = '-';
+    }
+    pcEl.textContent = String(pulses.length);
+    fdEl.textContent = PARAMS.useTrail ? PARAMS.fadeAlpha.toFixed(2) : '关闭';
+    tpEl.textContent = (PARAMS.topFlattenStart*100).toFixed(0)+'%';
+    baEl.textContent = (PARAMS.breathAmp*100).toFixed(0)+'%';
+    sdEl.textContent = PARAMS.lerpDown.toFixed(2);
+  }
+
+  seedPulses();
+
+  // ======================== 键盘交互 ========================
+  window.addEventListener('keydown', (e)=>{
+    if(e.code === 'Space') running = !running;
+    else if(e.key === 'r' || e.key === 'R'){ seedPulses(); }
+    else if(e.key === 'g' || e.key === 'G'){ PARAMS.showGrid = !PARAMS.showGrid; }
+    else if(e.key === 't' || e.key === 'T'){ PARAMS.useTrail = !PARAMS.useTrail; updateHud(); }
+    else if(e.key === '['){ PARAMS.lerpDown = clamp(PARAMS.lerpDown - 0.02, 0.02, 0.60); updateHud(); }
+    else if(e.key === ']'){ PARAMS.lerpDown = clamp(PARAMS.lerpDown + 0.02, 0.02, 0.60); updateHud(); }
+  });
+
+  // ======================== 绘制 ========================
+  function drawGrid(){
+    if(!PARAMS.showGrid) return;
+    ctx.save();
+    ctx.globalAlpha = 0.15;
+    ctx.strokeStyle = '#2a2f3a';
+    ctx.lineWidth = 1;
+    for(let i=1;i<GRID.cols;i++){
+      const x = i*cellW + 0.5; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
+    }
+    for(let j=1;j<GRID.rows;j++){
+      const y = j*cellH + 0.5; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawDot(col, row, r, alpha, glow){
+    const cx = (col + 0.5) * cellW;
+    const cy = (row + 0.5) * cellH;
+    ctx.globalAlpha = alpha;
+    if(glow){ ctx.shadowColor = 'rgba(150,180,255,0.30)'; ctx.shadowBlur = 6; }
+    else { ctx.shadowBlur = 0; }
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI*2);
+    ctx.fillStyle = '#e6f0ff';
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  function computePeakRowsForPulse(p){
+    const t = performance.now()/1000;
+    const rows = new Array(GRID.cols);
+
+    const uCenter = p.u0 + Math.sin((t - p.born) * PARAMS.centerDriftSpeed * Math.PI * 2) * PARAMS.centerDriftAmp;
+    const progress = clamp(1 - (p.y / H), 0, 1);
+
+    // 拉直：幅度与抖动一起收敛到 0
+    let ampScale = 1.0;
+    if(progress >= PARAMS.topFlattenStart){
+      ampScale = 1.0 - smoothstep(PARAMS.topFlattenStart, 1.0, progress);
+    }
+
+    for(let i=0;i<GRID.cols;i++){
+      const u = (i + 0.5) / GRID.cols;
+      const g = Math.exp( - ( (u - uCenter)*(u - uCenter) ) / (2 * p.sigma * p.sigma) );
+      const jitter = noise1(u, t, p.seed) * PARAMS.noiseAmp * ampScale;
+      const yPix = p.y - (p.amp * ampScale * g) - jitter;
+      rows[i] = Math.round( clamp(yPix / H, 0, 1) * (GRID.rows - 1) );
+    }
+    return rows;
+  }
+
+  // 每个点当前半径，初始化为 base（含基础呼吸的瞬时值）
+  let curR = Array.from({length: GRID.cols}, () => Array.from({length: GRID.rows}, () => 0));
+
+  function tick(){
+    const now = performance.now()/1000;
+    const dt = 1/60; // 用固定步长做平滑（足够稳定）
+
+    if(running){
+      // 背景：若残影关，则完全清屏；否则半透明覆盖
+      if(PARAMS.useTrail){
+        ctx.fillStyle = `rgba(0,0,0,${PARAMS.fadeAlpha})`;
+        ctx.fillRect(0,0,W,H);
+      } else {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0,0,W,H);
+      }
+
+      if(PARAMS.showGrid) drawGrid();
+
+      // 更新所有脉冲高度
+      for(const p of pulses){ p.y -= p.speed * dt; }
+      // 移除到顶的脉冲
+      pulses = pulses.filter(p=> p.y >= -30);
+
+      // 随机补充，使数量保持在 [2,5]，但不强行填满，避免“平均感”
+      if(pulses.length < MIN_PEAKS){
+        pulses.push(newPulse());
+      } else if(pulses.length < MAX_PEAKS && Math.random() < 0.03){
+        pulses.push(newPulse());
+      }
+
+      // 计算：对每一列，收集所有脉冲的峰值行（集合，避免重复）
+      const peakRowsByCol = Array.from({length: GRID.cols}, ()=> new Set());
+      for(const p of pulses){
+        const rows = computePeakRowsForPulse(p);
+        for(let i=0;i<GRID.cols;i++) peakRowsByCol[i].add(rows[i]);
+      }
+
+      const rBase = Math.min(cellW, cellH) * PARAMS.baseDotRadius;
+      const rPeak = Math.min(cellW, cellH) * PARAMS.peakDotRadius;
+
+      // 更新每个点的半径（任一脉冲经过→放大；离开→渐变缩小；非峰值→随机呼吸）
+      for(let i=0;i<GRID.cols;i++){
+        const setRows = peakRowsByCol[i];
+        for(let j=0;j<GRID.rows;j++){
+          let target = rBase;
+          if(setRows.has(j)){
+            target = rPeak; // 任一脉冲经过该列该行 → 变大
+          } else {
+            const breathe = breathe01(i,j, now); // 0..1
+            const scale = 1 + PARAMS.breathAmp * (breathe*2 - 1); // -amp..+amp → 1±amp
+            target = rBase * clamp(scale, 0.8, 1.6);
+          }
+
+          const r0 = curR[i][j] || rBase;
+          const goingUp = target > r0;
+          const rate = goingUp ? PARAMS.lerpUp : PARAMS.lerpDown;
+          const k = 1 - Math.pow(1 - rate, dt * 60);
+          const r1 = r0 + (target - r0) * k;
+          curR[i][j] = r1;
+
+          const tSize = clamp((r1 - rBase) / (rPeak - rBase), 0, 1);
+          const alpha = lerp(PARAMS.smallAlpha, PARAMS.peakAlpha, tSize);
+          const glow = tSize > 0.35;
+          drawDot(i, j, r1, alpha, glow);
+        }
+      }
+
+      updateHud();
+    }
+
+    requestAnimationFrame(tick);
+  }
+
+  // ======================== 轻量级运行时自测（"测试用例"） ========================
+  function runSelfTests(){
+    console.group('%cSelf-Tests','color:#9cf');
+    console.assert(GRID.cols === 50 && GRID.rows === 50, 'GRID 应为 50×50');
+    console.assert(Number.isFinite(dpr) && dpr > 0, 'dpr 合法');
+
+    // 初始脉冲数量在范围内
+    console.assert(pulses.length >= MIN_PEAKS && pulses.length <= MAX_PEAKS, '初始峰值数量应在 2–5');
+
+    // 为每个脉冲试算一次峰值行
+    for(const p of pulses){
+      const rows = computePeakRowsForPulse(p);
+      console.assert(Array.isArray(rows) && rows.length === GRID.cols, 'computePeakRowsForPulse 长度正确');
+      console.assert(rows.every(v => Number.isInteger(v) && v>=0 && v<GRID.rows), 'computePeakRowsForPulse 值域正确');
+    }
+
+    // 半径数组形状
+    console.assert(curR.length === GRID.cols && curR.every(col=>col.length===GRID.rows), 'curR 形状正确');
+
+    // 重要参数非 NaN
+    ;['lerpUp','lerpDown','breathAmp','baseDotRadius','peakDotRadius'].forEach(k=>{
+      console.assert(Number.isFinite(PARAMS[k]), k+' 应为数值');
+    });
+
+    console.info('自测完成：如无报错即通过。');
+    console.groupEnd();
+  }
+
+  // 启动
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,W,H);
+  runSelfTests();
+  requestAnimationFrame(tick);
+
+  // 点击也可随机重置
+  canvas.addEventListener('click', seedPulses);
+  </script>
+</body>
+</html>
