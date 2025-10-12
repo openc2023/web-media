@@ -18,25 +18,19 @@
       min-height: 100vh;
       background: transparent;
       font-family: "SimSun", "STKaiti", "KaiTi", serif;
-      padding: 10px;
-      margin: 0;
-      overflow: hidden;
+      padding: 20px;
     }
     
-    /* 自适应容器 - 保持2:3的传统竖版比例 */
     .scroll-container {
       position: relative;
-      width: clamp(200px, 90vw, 400px);
-      max-width: 90vw;
+      width: 100%;
+      max-width: 400px; /* 传统竖版比例 */
       aspect-ratio: 2/3;
       background: #f5f2e9; /* 宣纸色调 */
       border-radius: 2px;
       overflow: hidden;
       box-shadow: 0 5px 25px rgba(0, 0, 0, 0.15);
       border: 1.5px solid #d9c7a6;
-      /* 使用transform进行等比缩放，确保元素位置保持一致 */
-      transform-origin: center;
-      transition: transform 0.3s ease;
     }
     
     canvas {
@@ -47,35 +41,29 @@
     
     .title {
       position: absolute;
-      top: 6.25%; /* 相对于容器高度的百分比 */
-      right: 6.25%; /* 相对于容器宽度的百分比 */
+      top: 25px;
+      right: 25px;
       color: #8c7e6b;
-      font-size: clamp(14px, 4.5vw, 18px);
+      font-size: 18px;
       writing-mode: vertical-rl;
       text-orientation: mixed;
       letter-spacing: 6px;
       text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
     }
     
-    .title img {
-      width: clamp(20px, 10vw, 40px);
-      height: auto;
-      max-width: 40px;
-    }
-    
     .seal {
       position: absolute;
-      bottom: 7.5%; /* 相对于容器高度的百分比 */
-      right: 5%; /* 相对于容器宽度的百分比 */
-      width: clamp(30px, 15%, 60px);
-      height: clamp(30px, 15%, 60px);
-      border: 1px solid #aca172;
+      bottom: 30px;
+      right: 20px;
+      width: 60px;
+      height: 60px;
+      border: 0.8px solid #aca172;
       border-radius: 2px;
       display: flex;
       justify-content: center;
       align-items: center;
       color: #aca172;
-      font-size: clamp(8px, 3.5vw, 14px);
+      font-size: 14px;
       writing-mode: vertical-rl;
       text-orientation: mixed;
       opacity: 0.7;
@@ -84,29 +72,17 @@
       background-color: rgba(255, 255, 255, 0.2);
     }
     
-    .seal img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-    
     .poem {
       position: absolute;
       top: 25%;
-      left: 5%; /* 相对于容器宽度的百分比 */
+      left: 20px;
       color: #8c7e6b;
-      font-size: clamp(10px, 3.5vw, 14px);
+      font-size: 14px;
       writing-mode: vertical-rl;
       text-orientation: mixed;
       line-height: 1.8;
       text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
       opacity: 0.8;
-    }
-    
-    .poem img {
-      width: clamp(60px, 30vw, 120px);
-      height: auto;
-      max-width: 120px;
     }
     
     .poem img {
@@ -121,25 +97,25 @@
     
     .controls {
       position: absolute;
-      bottom: 3.75%; /* 相对于容器高度的百分比 */
-      right: 3.75%; /* 相对于容器宽度的百分比 */
+      bottom: 15px;
+      right: 15px;
       display: flex;
       flex-direction: column;
-      gap: clamp(6px, 2vw, 8px);
+      gap: 8px;
     }
     
     .control-btn {
       background: rgba(140, 126, 107, 0.7);
       border: none;
       color: #f5f2e9;
-      width: clamp(24px, 7.5vw, 30px);
-      height: clamp(24px, 7.5vw, 30px);
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
       cursor: pointer;
       display: flex;
       justify-content: center;
       align-items: center;
-      font-size: clamp(12px, 3.5vw, 14px);
+      font-size: 14px;
       transition: all 0.3s;
     }
     
@@ -150,32 +126,30 @@
     
     .info-text {
       position: absolute;
-      bottom: 3.75%; /* 相对于容器高度的百分比 */
+      bottom: 15px;
       left: 50%;
       transform: translateX(-50%);
       color: #8c7e6b;
-      font-size: clamp(10px, 3vw, 12px);
+      font-size: 12px;
       text-align: center;
       width: 80%;
     }
     
     .weather-info {
       position: absolute;
-      bottom: 7.5%; /* 相对于容器高度的百分比 */
-      left: 5%; /* 相对于容器宽度的百分比 */
+      bottom: 30px;
+      left: 20px;
       color: #8c7e6b;
-      font-size: clamp(8px, 3vw, 12px);
-      padding: clamp(4px, 2vw, 8px) clamp(6px, 3vw, 12px);
+      font-size: 12px;
+      padding: 8px 12px;
       backdrop-filter: blur(3px);
       background-color: rgba(255, 255, 255, 0.2);
       border-radius: 2px;
       border: 1px solid #aca172;
-      height: clamp(35px, 15vw, 60px);
+      height: 60px;
       display: flex;
       flex-direction: column;
       justify-content: center;
-      max-height: 60px;
-      min-width: 70px;
     }
     
     .weather-item {
@@ -186,53 +160,18 @@
       margin-bottom: 0;
     }
     
-    /* 响应式调整 - 增强小屏幕适配 */
-    @media (max-width: 768px) {
-      body {
-        padding: 8px;
-      }
-    }
-    
+    /* 响应式调整 */
     @media (max-width: 480px) {
-      body {
-        padding: 5px;
-      }
-    }
-    
-    @media (max-width: 360px) {
-      body {
-        padding: 3px;
+      .scroll-container {
+        max-width: 320px;
       }
       
-      /* 在极小屏幕上，使用transform缩放整个容器 */
-      .scroll-container {
-        transform: scale(0.95);
-      }
-    }
-    
-    @media (max-width: 320px) {
-      .scroll-container {
-        transform: scale(0.9);
-      }
-    }
-    
-    /* 横屏设备适配 */
-    @media (orientation: landscape) {
-      body {
-        min-height: 100vh;
+      .title {
+        font-size: 16px;
       }
       
-      .scroll-container {
-        max-height: 90vh;
-        width: auto;
-        max-width: none;
-      }
-    }
-    
-    /* 高分辨率屏幕适配 */
-    @media (-webkit-device-pixel-ratio: 2), (resolution: 192dpi) {
-      .scroll-container {
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+      .poem {
+        font-size: 12px;
       }
     }
   </style>
@@ -240,10 +179,9 @@
 <body>
   <div class="scroll-container">
     <canvas id="c"></canvas>
-    <!-- 移除内联样式，让CSS类控制图片大小以保持比例 -->
-    <div class="title"><img src="山海.png" alt="山海"></div>
-    <div class="seal"><img src="7logo.png" alt="7logo"></div>
-    <div class="poem"><img src="诗.png" alt="诗句"></div>
+    <div class="title"><img src="山海.png" alt="山海" style="width: 40px; height: auto;"></div>
+    <div class="seal"><img src="7logo.png" alt="7logo" style="width: 60px; height: 60px;"></div>
+    <div class="poem"><img src="诗.png" alt="诗句" style="width: 120px; height: auto;"></div>
     <div class="weather-info">
       <div class="weather-item">Temp: <span id="temp">--</span>°C</div>
       <div class="weather-item">Humid: <span id="humidity">--</span>%</div>

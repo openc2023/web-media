@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>釜山海水 + 天气｜Open-Meteo 实时监测</title>
+<style>
+  :root{--bg:#0b0c10;--panel:#12141a;--fg:#e8eaed;--muted:#9aa0a6;--line:rgba(255,255,255,.1)}
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);
+            font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,PingFang SC,Noto Sans SC,sans-serif}
+  header{padding:16px 20px;border-bottom:1px solid var(--line)}
+  main{display:grid;grid-template-columns:320px 1fr;gap:16px;padding:16px;min-height:calc(100% - 61px)}
+  aside,section{background:var(--panel);border:1px solid var(--line);border-radius:12px}
+  aside{padding:14px}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px}
+  select,input{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);
+                background:#0e1116;color:var(--fg)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;
+       border:1px solid var(--line);background:#0f1319;color:var(--fg);cursor:pointer}
+  .btn:hover{border-color:#1f2937}
+  .pill{font-size:11px;padding:3px 8px;border-radius:999px;background:#10151c;
+        border:1px solid var(--line);color:var(--muted)}
+  section header{padding:12px 14px;border-bottom:1px solid var(--line);
+                 display:flex;justify-content:space-between;align-items:center}
+  .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:12px}
+  .card{background:#0e1116;border:1px solid var(--line);border-radius:10px;padding:10px}
+  .k{font-size:12px;color:var(--muted)} .v{font-size:20px}
+  #debug{white-space:pre-wrap;font-size:12px;color:var(--muted);padding:10px}
+</style>
+</head>
+<body>
+<header>
+  <div style="display:flex;gap:10px;align-items:center">
+    <h1 style="margin:0;font-size:16px">釜山海水 + 天气｜纯前端近实时监测</h1>
+    <span class="pill">数据源：Open-Meteo / Marine（免 Key / 支持 CORS）</span>
+  </div>
+  <div style="color:#9aa0a6;font-size:12px">
+    说明：海水为模式分析数据（每 15 分钟更新），非浮标实测；支持 10 秒～30 分钟刷新。
+  </div>
+</header>
+
+<main>
+  <aside>
+    <label>海水位置预设</label>
+    <select id="site">
+      <option value="Haeundae" selected>海云台（35.1587, 129.1604）</option>
+      <option value="Gijang">机张·日光（35.2660, 129.2210）</option>
+      <option value="Custom">自定义坐标</option>
+    </select>
+    <div class="row">
+      <div><label>纬度 (lat)</label><input id="lat" value="35.1587" /></div>
+      <div><label>经度 (lon)</label><input id="lon" value="129.1604" /></div>
+    </div>
+
+    <label>釜山市区天气坐标（默认市厅 35.1796 / 129.0756）</label>
+    <div class="row">
+      <div><input id="wlat" value="35.1796" /></div>
+      <div><input id="wlon" value="129.0756" /></div>
+    </div>
+
+    <label>刷新频率</label>
+    <select id="interval">
+      <option value="10s">每 10 秒</option>
+      <option value="5m">每 5 分钟</option>
+      <option value="10m" selected>每 10 分钟</option>
+      <option value="15m">每 15 分钟</option>
+      <option value="30m">每 30 分钟</option>
+    </select>
+
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="btnFetch">立即更新</button>
+      <button class="btn" id="btnToggle">开始自动刷新</button>
+      <span id="status" class="pill">待机</span>
+    </div>
+
+    <div id="debug"></div>
+  </aside>
+
+  <section>
+    <header><strong>当前值</strong><small id="meta" class="pill"></small></header>
+
+    <div class="cards">
+      <div class="card"><div class="k">海云台 SST (°C)</div><div id="curSstH" class="v">—</div><div class="k" id="curSstHTime"></div></div>
+      <div class="card"><div class="k">机张 SST (°C)</div><div id="curSstG" class="v">—</div><div class="k" id="curSstGTime"></div></div>
+      <div class="card"><div class="k">釜山 气温/湿度/风速</div><div id="curBusan" class="v">—</div><div class="k" id="curBusanTime"></div></div>
+      <div class="card"><div class="k">海云台 浪高 (m)</div><div id="curWaveH" class="v">—</div><div class="k" id="curWaveHTime"></div></div>
+      <div class="card"><div class="k">机张 浪高 (m)</div><div id="curWaveG" class="v">—</div><div class="k" id="curWaveGTime"></div></div>
+      <div class="card"><div class="k">釜山 降水 (mm/h)</div><div id="curRain" class="v">—</div><div class="k" id="curRainTime"></div></div>
+    </div>
+
+    <div style="padding:12px"><canvas id="chartSST" height="220"></canvas></div>
+    <div style="padding:12px"><canvas id="chartWave" height="220"></canvas></div>
+    <div style="padding:12px"><canvas id="chartWX" height="220"></canvas></div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const siteSel = $('#site'), latEl = $('#lat'), lonEl = $('#lon');
+const wlatEl = $('#wlat'), wlonEl = $('#wlon');
+const statusEl = $('#status'), metaEl = $('#meta'), dbg = $('#debug');
+
+let timer=null, busy=false;
+let sstChart=null, waveChart=null, wxChart=null;
+
+const presets={
+  Haeundae:{lat:35.1587,lon:129.1604},
+  Gijang:{lat:35.2660,lon:129.2210}
+};
+siteSel.addEventListener('change',()=>{
+  const v=siteSel.value;
+  if(v!=='Custom'){latEl.value=presets[v].lat;lonEl.value=presets[v].lon;}
+});
+
+function setStatus(t,ok=false){
+  statusEl.textContent=t;
+  statusEl.style.background=ok?'rgba(72,213,151,.15)':'rgba(255,211,110,.15)';
+}
+
+function marineURL(lat,lon){
+  const base='https://marine-api.open-meteo.com/v1/marine';
+  const p=new URLSearchParams({
+    latitude:lat,longitude:lon,
+    current:'sea_surface_temperature,wave_height',
+    hourly:'sea_surface_temperature,wave_height',
+    past_days:'1',forecast_days:'1',
+    cell_selection:'sea',timezone:'Asia/Seoul'
+  });
+  return `${base}?${p}`;
+}
+function weatherURL(lat,lon){
+  const base='https://api.open-meteo.com/v1/forecast';
+  const p=new URLSearchParams({
+    latitude:lat,longitude:lon,
+    current:'temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation,weather_code',
+    hourly:'temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation',
+    past_days:'1',forecast_days:'1',timezone:'Asia/Seoul'
+  });
+  return `${base}?${p}`;
+}
+
+async function fetchMarine(lat,lon){
+  const url=marineURL(lat,lon);
+  const r=await fetch(url);
+  if(!r.ok){
+    const txt=await r.text();
+    let reason=txt;
+    try{reason=JSON.parse(txt).reason||txt;}catch{}
+    throw new Error('Marine '+r.status+' — '+reason);
+  }
+  return r.json();
+}
+async function fetchWeather(lat,lon){
+  const url=weatherURL(lat,lon);
+  const r=await fetch(url);
+  if(!r.ok) throw new Error('Weather HTTP '+r.status);
+  return r.json();
+}
+
+function lineChart(ctx,labels,datasets){
+  if(ctx._chart)ctx._chart.destroy();
+  ctx._chart=new Chart(ctx,{type:'line',
+    data:{labels,datasets:datasets.map(d=>({...d,pointRadius:0,tension:.25}))},
+    options:{responsive:true,scales:{x:{ticks:{maxRotation:0,autoSkip:true}}}}
+  });
+  return ctx._chart;
+}
+
+async function fetchOnce(){
+  const h={lat:+latEl.value,lon:+lonEl.value};
+  const g=presets.Gijang;
+  const w={lat:+wlatEl.value,lon:+wlonEl.value};
+
+  dbg.textContent='请求：\n'+marineURL(h.lat,h.lon)+'\n'+marineURL(g.lat,g.lon)+'\n'+weatherURL(w.lat,w.lon);
+
+  const [mh,mg,wx]=await Promise.all([fetchMarine(h.lat,h.lon),fetchMarine(g.lat,g.lon),fetchWeather(w.lat,w.lon)]);
+
+  // 当前海水
+  const curH=mh.current||{}, curG=mg.current||{};
+  $('#curSstH').textContent=curH.sea_surface_temperature??'—';
+  $('#curWaveH').textContent=curH.wave_height??'—';
+  $('#curSstHTime').textContent=curH.time?('更新：'+curH.time):'';
+  $('#curWaveHTime').textContent=curH.time?('更新：'+curH.time):'';
+  $('#curSstG').textContent=curG.sea_surface_temperature??'—';
+  $('#curWaveG').textContent=curG.wave_height??'—';
+  $('#curSstGTime').textContent=curG.time?('更新：'+curG.time):'';
+  $('#curWaveGTime').textContent=curG.time?('更新：'+curG.time):'';
+
+  // 当前天气
+  const curW=wx.current||{};
+  $('#curBusan').textContent=[
+    curW.temperature_2m!=null?(curW.temperature_2m+'°C'):'—',
+    curW.relative_humidity_2m!=null?(curW.relative_humidity_2m+'%'):'—',
+    curW.wind_speed_10m!=null?(curW.wind_speed_10m+' m/s'):'—'
+  ].join(' / ');
+  $('#curBusanTime').textContent=curW.time?('更新：'+curW.time):'';
+  $('#curRain').textContent=curW.precipitation??'—';
+  $('#curRainTime').textContent=curW.time?('更新：'+curW.time):'';
+
+  // 趋势图
+  const lastN=48;
+  const labelsH=mh.hourly.time.slice(-lastN);
+  sstChart=lineChart($('#chartSST').getContext('2d'),labelsH,[
+    {label:'海云台 SST (°C)',data:mh.hourly.sea_surface_temperature.slice(-lastN)},
+    {label:'机张 SST (°C)',data:mg.hourly.sea_surface_temperature.slice(-lastN)}
+  ]);
+  waveChart=lineChart($('#chartWave').getContext('2d'),labelsH,[
+    {label:'海云台 浪高 (m)',data:mh.hourly.wave_height.slice(-lastN)},
+    {label:'机张 浪高 (m)',data:mg.hourly.wave_height.slice(-lastN)}
+  ]);
+  const labelsW=wx.hourly.time.slice(-lastN);
+  wxChart=lineChart($('#chartWX').getContext('2d'),labelsW,[
+    {label:'气温 (°C)',data:wx.hourly.temperature_2m.slice(-lastN)},
+    {label:'湿度 (%)',data:wx.hourly.relative_humidity_2m.slice(-lastN)},
+    {label:'风速 (m/s)',data:wx.hourly.wind_speed_10m.slice(-lastN)}
+  ]);
+
+  metaEl.textContent=`数据点：${Math.min(lastN,mh.hourly.time.length)} h`;
+}
+
+async function fetchOnceSafe(){
+  if(busy)return; busy=true; setStatus('请求中…');
+  try{await fetchOnce(); setStatus('成功',true);}
+  catch(e){setStatus('失败：'+(e?.message||e),false);}
+  finally{busy=false;}
+}
+
+function startAuto(){
+  if(timer)clearInterval(timer);
+  const v=$('#interval').value;
+  let ms=10*60*1000;
+  if(v.endsWith('s'))ms=parseInt(v)*1000;
+  if(v.endsWith('m'))ms=parseInt(v)*60*1000;
+  fetchOnceSafe();
+  timer=setInterval(fetchOnceSafe,ms);
+  const next=new Date(Date.now()+ms).toLocaleString('zh-CN',{hour12:false,timeZone:'Asia/Seoul'});
+  setStatus('自动刷新；下次：'+next,true);
+}
+
+$('#btnFetch').onclick=fetchOnceSafe;
+$('#btnToggle').onclick=()=>{
+  if(timer){clearInterval(timer);timer=null;setStatus('已停止');$('#btnToggle').textContent='开始自动刷新';}
+  else{startAuto();$('#btnToggle').textContent='停止自动刷新';}
+};
+
+fetchOnceSafe();
+</script>
+</body>
+</html>
