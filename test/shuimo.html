@@ -16,7 +16,7 @@
       justify-content: center;
       align-items: center;
       min-height: 100vh;
-      background: #e8dfca; /* 仿古宣纸色 */
+      background: transparent;
       font-family: "SimSun", "STKaiti", "KaiTi", serif;
       padding: 20px;
     }
@@ -30,7 +30,7 @@
       border-radius: 2px;
       overflow: hidden;
       box-shadow: 0 5px 25px rgba(0, 0, 0, 0.15);
-      border: 1px solid #d9c7a6;
+      border: 1.5px solid #d9c7a6;
     }
     
     canvas {
@@ -42,7 +42,7 @@
     .title {
       position: absolute;
       top: 25px;
-      right: 20px;
+      right: 25px;
       color: #8c7e6b;
       font-size: 18px;
       writing-mode: vertical-rl;
@@ -54,24 +54,27 @@
     .seal {
       position: absolute;
       bottom: 30px;
-      left: 25px;
+      right: 20px;
       width: 60px;
       height: 60px;
-      border: 2px solid #8c7e6b;
+      border: 0.8px solid #aca172;
       border-radius: 2px;
       display: flex;
       justify-content: center;
       align-items: center;
-      color: #8c7e6b;
+      color: #aca172;
       font-size: 14px;
       writing-mode: vertical-rl;
       text-orientation: mixed;
       opacity: 0.7;
+      line-height: 1.6;
+      backdrop-filter: blur(5px);
+      background-color: rgba(255, 255, 255, 0.2);
     }
     
     .poem {
       position: absolute;
-      top: 40%;
+      top: 25%;
       left: 20px;
       color: #8c7e6b;
       font-size: 14px;
@@ -80,6 +83,16 @@
       line-height: 1.8;
       text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
       opacity: 0.8;
+    }
+    
+    .poem img {
+        filter: brightness(1.05) sepia(0.25) hue-rotate(-15deg);
+        mix-blend-mode: multiply;
+    }
+    
+    .title img {
+        filter: brightness(1.05) sepia(0.25) hue-rotate(-15deg);
+        mix-blend-mode: multiply;
     }
     
     .controls {
@@ -122,6 +135,31 @@
       width: 80%;
     }
     
+    .weather-info {
+      position: absolute;
+      bottom: 30px;
+      left: 20px;
+      color: #8c7e6b;
+      font-size: 12px;
+      padding: 8px 12px;
+      backdrop-filter: blur(3px);
+      background-color: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+      border: 1px solid #aca172;
+      height: 60px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    
+    .weather-item {
+      margin-bottom: 3px;
+    }
+    
+    .weather-item:last-child {
+      margin-bottom: 0;
+    }
+    
     /* 响应式调整 */
     @media (max-width: 480px) {
       .scroll-container {
@@ -141,16 +179,14 @@
 <body>
   <div class="scroll-container">
     <canvas id="c"></canvas>
-    <div class="title">水墨山韵图</div>
-    <div class="seal">水墨山房</div>
-    <div class="poem">远山含黛<br>近水如烟<br>墨韵悠长<br>意境深远</div>
-    <div class="controls">
-      <button class="control-btn" id="pauseBtn">⏸</button>
-      <button class="control-btn" id="refreshBtn">🔄</button>
-      <button class="control-btn" id="addBtn">+</button>
-      <button class="control-btn" id="removeBtn">-</button>
+    <div class="title"><img src="山海.png" alt="山海" style="width: 40px; height: auto;"></div>
+    <div class="seal"><img src="7logo.png" alt="7logo" style="width: 60px; height: 60px;"></div>
+    <div class="poem"><img src="诗.png" alt="诗句" style="width: 120px; height: auto;"></div>
+    <div class="weather-info">
+      <div class="weather-item">Temp: <span id="temp">--</span>°C</div>
+      <div class="weather-item">Humid: <span id="humidity">--</span>%</div>
+      <div class="weather-item">Wind: <span id="wind">--</span> m/s</div>
     </div>
-    <div class="info-text">点击画布可重新生成山脉</div>
   </div>
 
   <script>
@@ -371,31 +407,7 @@
   }
   initPulses();
 
-  let running = true;
-
-  // 控制按钮
-  document.getElementById('pauseBtn').addEventListener('click', () => {
-    running = !running;
-    document.getElementById('pauseBtn').textContent = running ? '⏸' : '▶';
-  });
-  
-  document.getElementById('refreshBtn').addEventListener('click', () => {
-    initPulses();
-  });
-  
-  document.getElementById('addBtn').addEventListener('click', () => {
-    if (PARAMS.lineCount < PARAMS.maxLines) {
-      PARAMS.lineCount++;
-      pulses.push(newPulse(PARAMS.lineCount - 1));
-    }
-  });
-  
-  document.getElementById('removeBtn').addEventListener('click', () => {
-    if (PARAMS.lineCount > 1) {
-      PARAMS.lineCount--;
-      pulses.pop();
-    }
-  });
+  const running = true; // 动画始终运行
 
   // 绘制单个山峰的渐变效果
   function drawPeakGradient(p, peak, t, progress, topFadeFactor, baseY) {
@@ -641,6 +653,36 @@
   canvas.addEventListener('click', () => { 
     initPulses(); 
   });
+
+  // 获取釜山天气信息
+  async function fetchBusanWeather() {
+    try {
+      // 釜山的经纬度坐标：北纬35.1796°，东经129.0756°
+      const lat = 35.1796;
+      const lon = 129.0756;
+      
+      // 调用Open-Meteo API
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&timezone=Asia/Seoul`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      // 更新天气信息
+      if (data.current) {
+        document.getElementById('temp').textContent = data.current.temperature_2m.toFixed(1);
+        document.getElementById('humidity').textContent = data.current.relative_humidity_2m;
+        document.getElementById('wind').textContent = data.current.wind_speed_10m.toFixed(1);
+      }
+    } catch (error) {
+      console.error('获取天气信息失败:', error);
+    }
+  }
+
+  // 初始化时获取一次天气信息
+  fetchBusanWeather();
+  
+  // 每10分钟更新一次天气信息
+  setInterval(fetchBusanWeather, 10 * 60 * 1000);
   </script>
 </body>
 </html>
