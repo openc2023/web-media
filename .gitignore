@@ -1,0 +1,6 @@
+# 忽略除test目录外的所有内容
+*
+!.gitignore
+!/test/
+/test/*
+!/test/*.*

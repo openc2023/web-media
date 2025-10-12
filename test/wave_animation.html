@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>山海 - 苍山如海</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: linear-gradient(to bottom, #0a2e36, #1a5a6c, #0a2e36);
+      font-family: "SimSun", "STKaiti", "KaiTi", serif;
+      padding: 20px;
+    }
+    
+    .scroll-container {
+      position: relative;
+      width: 100%;
+      max-width: 420px; /* 稍宽的比例，适合山海意境 */
+      aspect-ratio: 3/4;
+      background: #0a2e36; /* 深蓝色背景，象征海 */
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+      border: 2px solid #2a7a8c;
+    }
+    
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    
+    .title {
+      position: absolute;
+      top: 30px;
+      right: 25px;
+      color: #c8d8dc;
+      font-size: 24px;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      letter-spacing: 8px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+      z-index: 10;
+    }
+    
+
+    
+    .seal {
+      position: absolute;
+      bottom: 35px;
+      left: 30px;
+      width: 70px;
+      height: 70px;
+      border: 2px solid #7aa8b0;
+      border-radius: 4px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #a8c8cc;
+      font-size: 16px;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      opacity: 0.8;
+      z-index: 10;
+    }
+    
+    .poem {
+      position: absolute;
+      top: 45%;
+      left: 25px;
+      color: #a8c8cc;
+      font-size: 15px;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      line-height: 1.8;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.4);
+      opacity: 0.9;
+      z-index: 10;
+    }
+    
+
+    
+    .water-effect {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 20%;
+      background: linear-gradient(to top, rgba(10, 46, 54, 0.8), transparent);
+      pointer-events: none;
+      z-index: 5;
+    }
+    
+    /* 响应式调整 */
+    @media (max-width: 480px) {
+      .scroll-container {
+        max-width: 340px;
+      }
+      
+      .title {
+        font-size: 20px;
+      }
+      
+      .poem {
+        font-size: 13px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="scroll-container">
+    <canvas id="c"></canvas>
+    <div class="title">山海</div>
+    <div class="seal">山海之间</div>
+    <div class="poem">山峦叠嶂<br>如海波涛<br>气势磅礴<br>意境深远</div>
+    <div class="water-effect"></div>
+  </div>
+
+  <script>
+  // 控制变量
+  let running = true;
+  
+  // ======================== 参数 ========================
+  const PARAMS = {
+    minSpeed: 50, maxSpeed: 100,      // 稍快的速度，体现海的动感
+    minAmp: 30,  maxAmp: 80,          // 增加幅度，创造更宏伟的山海
+
+    // 每个峰的宽度（相对画布宽度，越大越"胖"）
+    minSigma: 0.03, maxSigma: 0.12,   // 增加宽度，创造更连绵的山脉
+
+    // ——重点：一次出现 3~6 个峰，创造更多层次——
+    minPeaks: 3, maxPeaks: 6,
+
+    // 峰与峰的最小"建议间隔"（相对宽度）
+    minSeparation: 0.04,
+
+    fadeAlpha: 0.025,    // 减少残影，更持久
+    lineWidth: 1.2,      // 线条粗细
+
+    // 轻量"噪声"用于上下抖动
+    noiseAmp: 4,         // 增加噪声幅度，创造更多变化
+    noiseFreq1: 4.0, noiseFreq2: 8.0,
+    noiseSpeed1: 0.4, noiseSpeed2: 0.7,
+
+    // 峰中心的轻微左右漂移（每个峰独立相位）
+    centerDriftAmp: 0.025,
+    centerDriftSpeed: 0.15,
+
+    topFlattenStart: 0.88, // 稍晚开始拉直，创造更高的山峰
+    
+    // 多线参数
+    lineCount: 4,          // 增加线条数量，创造更多层次
+    maxLines: 7,
+    inkStyle: "mountain"   // "mountain", "ocean", "deep"
+  };
+
+  // ======================== 画布/状态 ========================
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+  let W = 0, H = 0;
+  
+  function resize(){
+    // 获取容器尺寸
+    const container = canvas.parentElement;
+    W = Math.floor(container.clientWidth);
+    H = Math.floor(container.clientHeight);
+    
+    // 设置画布尺寸
+    canvas.width = Math.floor(W * dpr);
+    canvas.height = Math.floor(H * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  
+  // 初始化和窗口大小变化时调整
+  resize();
+  window.addEventListener('resize', resize);
+
+  // 工具函数
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const lerp = (a,b,t) => a + (b-a)*t;
+  const smooth01 = x => { x = clamp(x,0,1); return x*x*(3-2*x); };
+  const gauss = (u, mu, sigma) => { const d=(u-mu)/sigma; return Math.exp(-0.5*d*d); };
+
+  // 两个正弦叠加的轻量"噪声"
+  function noise1(u, t, seed){
+    const a = Math.sin( (u * PARAMS.noiseFreq1 + t * PARAMS.noiseSpeed1 + seed) * Math.PI * 2 );
+    const b = Math.sin( (u * PARAMS.noiseFreq2 + t * PARAMS.noiseSpeed2 + seed*1.718) * Math.PI * 2 );
+    return a * 0.66 + b * 0.34;
+  }
+  
+  // 水墨风格噪声函数 - 更柔和的噪声
+  function inkNoise(u, t, seed, amp) {
+    const n1 = Math.sin((u * 0.012 + t * 0.25 + seed) * Math.PI * 2);
+    const n2 = Math.sin((u * 0.028 + t * 0.45 + seed*2.3) * Math.PI * 2);
+    const n3 = Math.sin((u * 0.055 + t * 0.65 + seed*5.7) * Math.PI * 2);
+    return (n1 * 0.5 + n2 * 0.3 + n3 * 0.2) * amp;
+  }
+
+  // 生成水墨颜色 - 山海颜色
+  function getInkColors(lineIndex, total, style) {
+    // 山海颜色
+    let baseColors;
+    switch(style) {
+      case "ocean": // 海洋色调
+        baseColors = [
+          {r: 120, g: 160, b: 180},
+          {r: 100, g: 140, b: 160},
+          {r: 80, g: 120, b: 140},
+          {r: 60, g: 100, b: 120}
+        ];
+        break;
+      case "deep": // 深色调
+        baseColors = [
+          {r: 40, g: 60, b: 70},
+          {r: 60, g: 80, b: 90},
+          {r: 80, g: 100, b: 110},
+          {r: 100, g: 120, b: 130}
+        ];
+        break;
+      default: // 山脉色调
+        baseColors = [
+          {r: 160, g: 180, b: 190},
+          {r: 140, g: 160, b: 170},
+          {r: 120, g: 140, b: 150},
+          {r: 100, g: 120, b: 130}
+        ];
+    }
+    
+    // 为每个线条创建不同的深浅和透明度变化
+    const depthVariation = 0.3 + Math.pow(lineIndex / total, 1.2) * 0.7;
+    const opacityVariation = 0.3 + Math.pow(lineIndex / total, 0.8) * 0.7;
+    
+    // 创建渐变颜色
+    return [
+      {
+        pos: 0.0, 
+        color: `rgba(${baseColors[0].r * depthVariation}, ${baseColors[0].g * depthVariation}, ${baseColors[0].b * depthVariation}, 0.0)`
+      },
+      {
+        pos: 0.3, 
+        color: `rgba(${baseColors[1].r * depthVariation}, ${baseColors[1].g * depthVariation}, ${baseColors[1].b * depthVariation}, ${0.4 * opacityVariation})`
+      },
+      {
+        pos: 0.7, 
+        color: `rgba(${baseColors[2].r * depthVariation}, ${baseColors[2].g * depthVariation}, ${baseColors[2].b * depthVariation}, ${0.7 * opacityVariation})`
+      },
+      {
+        pos: 1.0, 
+        color: `rgba(${baseColors[3].r * depthVariation}, ${baseColors[3].g * depthVariation}, ${baseColors[3].b * depthVariation}, ${0.9 * opacityVariation})`
+      }
+    ];
+  }
+
+  // 生成一个"多峰脉冲"
+  function newPulse(lineIndex = 0){
+    const speed = lerp(PARAMS.minSpeed, PARAMS.maxSpeed, Math.random());
+    const amp   = lerp(PARAMS.minAmp,  PARAMS.maxAmp,  Math.random());
+
+    // 峰数：3~6 随机
+    const k = Math.floor(lerp(PARAMS.minPeaks, PARAMS.maxPeaks + 1, Math.random()));
+
+    // 生成 k 个峰：位置/宽度/权重/相位随机（不平均）
+    const peaks = [];
+    const marginL = 0.12, marginR = 0.88; // 增加边距，避免太靠近边缘
+    const triesPerPeak = 12;
+
+    for(let m=0; m<k; m++){
+      let chosen = null;
+      for(let tries=0; tries<triesPerPeak; tries++){
+        const mu = lerp(marginL, marginR, Math.random());
+        const ok = PARAMS.minSeparation <= 0
+          || peaks.every(p => Math.abs(mu - p.mu) >= PARAMS.minSeparation)
+          || Math.random() < 0.25; // 增加无视间隔的概率，创造更自然的分布
+        if(ok){
+          chosen = {
+            mu,
+            sigma: lerp(PARAMS.minSigma, PARAMS.maxSigma, Math.random()),
+            w: 0.6 + Math.random() * 0.8, // 调整权重范围
+            seed: Math.random() * 10,
+            // 每个山峰的独立渐变参数
+            gradientHeight: 0,
+            maxGradientHeight: 100 + Math.random() * 120, // 增加高度，创造更宏伟的山脉
+            bottomSeed: Math.random() * 100,
+            topSeed: Math.random() * 100,
+            inkSpread: 0.4 + Math.random() * 0.6,
+            peakOpacity: 0.4 + Math.random() * 0.5
+          };
+          break;
+        }
+      }
+      if(!chosen){
+        chosen = {
+          mu: lerp(marginL, marginR, Math.random()),
+          sigma: lerp(PARAMS.minSigma, PARAMS.maxSigma, Math.random()),
+          w: 0.6 + Math.random() * 0.8,
+          seed: Math.random() * 10,
+          gradientHeight: 0,
+          maxGradientHeight: 100 + Math.random() * 120,
+          bottomSeed: Math.random() * 100,
+          topSeed: Math.random() * 100,
+          inkSpread: 0.4 + Math.random() * 0.6,
+          peakOpacity: 0.4 + Math.random() * 0.5
+        };
+      }
+      peaks.push(chosen);
+    }
+
+    // 归一化权重
+    const sumW = peaks.reduce((s,p)=>s+p.w, 0);
+    for(const p of peaks) p.w /= sumW;
+
+    // 为每条线设置不同的起始位置
+    const startY = H + 25 + (lineIndex * 70); // 调整间距
+
+    // 每条线条的整体透明度变化
+    const lineOpacity = 0.3 + Math.random() * 0.6;
+
+    return { 
+      y: startY, 
+      speed, 
+      amp, 
+      peaks, 
+      born: performance.now()/1000,
+      inkColors: getInkColors(lineIndex, PARAMS.lineCount, PARAMS.inkStyle),
+      lineOpacity: lineOpacity
+    };
+  }
+
+  // 创建多条脉冲线
+  let pulses = [];
+  function initPulses() {
+    pulses = [];
+    for (let i = 0; i < PARAMS.lineCount; i++) {
+      pulses.push(newPulse(i));
+    }
+  }
+  initPulses();
+
+  // 绘制单个山峰的渐变效果
+  function drawPeakGradient(p, peak, t, progress, topFadeFactor, baseY) {
+    const N = Math.max(60, Math.floor(W/5)); // 增加采样点数，创造更精细的山脉
+    const step = W / (N-1);
+    
+    // 计算山峰的渐变高度
+    const progressToGrow = clamp(1 - (p.y / (H + 30)), 0, 1);
+    
+    if (progress < PARAMS.topFlattenStart) {
+      peak.gradientHeight = peak.maxGradientHeight * smooth01(progressToGrow);
+    } else {
+      const tt = (progress - PARAMS.topFlattenStart) / (1 - PARAMS.topFlattenStart);
+      peak.gradientHeight = peak.maxGradientHeight * (1 - Math.sqrt(tt));
+    }
+    
+    // 计算山峰的顶部曲线
+    let peakTopPoints = [];
+    let minPeakY = H;
+    
+    for(let i=0; i<N; i++){
+      const x = i * step;
+      const u = (N===1?0:i/(N-1));
+      
+      // 计算单个山峰的高斯分布
+      const drift = Math.sin((t - p.born) * PARAMS.centerDriftSpeed * Math.PI * 2 + peak.seed) * PARAMS.centerDriftAmp;
+      const mu = clamp(peak.mu + drift, 0.0, 1.0);
+      const gval = gauss(u, mu, peak.sigma);
+      
+      // 计算山峰的抖动
+      const jitter = noise1(u, t, 7.7) * PARAMS.noiseAmp * (1 - topFadeFactor);
+      
+      // 计算山峰的Y坐标
+      const y = baseY - (p.amp * peak.w * gval) - jitter;
+      peakTopPoints.push({x, y});
+      
+      if (y < minPeakY) minPeakY = y;
+    }
+    
+    // 创建山峰的渐变 - 顶部颜色深，底部透明
+    const gradient = ctx.createLinearGradient(0, minPeakY, 0, minPeakY + peak.gradientHeight);
+    
+    // 根据水墨风格调整渐变颜色
+    const baseColor = p.inkColors[p.inkColors.length-1].color;
+    const transparentColor = baseColor.replace(/[\d\.]+\)$/g, '0.0)');
+    const midColor = baseColor.replace(/[\d\.]+\)$/g, '0.5)');
+    
+    gradient.addColorStop(0.0, baseColor);
+    gradient.addColorStop(0.3, midColor);
+    gradient.addColorStop(0.7, midColor.replace(/[\d\.]+\)$/g, '0.2)'));
+    gradient.addColorStop(1.0, transparentColor);
+    
+    // 构建山峰的渐变区域
+    ctx.beginPath();
+    
+    // 从山峰顶部左侧开始
+    ctx.moveTo(0, peakTopPoints[0].y);
+    
+    // 沿着山峰顶部曲线
+    for(let i=1; i<peakTopPoints.length; i++){
+      ctx.lineTo(peakTopPoints[i].x, peakTopPoints[i].y);
+    }
+    
+    // 沿着不规则下边界从右到左
+    for(let i=peakTopPoints.length-1; i>=0; i--){
+      const x = peakTopPoints[i].x;
+      const u = (N===1?0:i/(N-1));
+      
+      // 计算底部位置 - 基于山峰顶部加上渐变高度和噪声
+      const baseBottomY = peakTopPoints[i].y + peak.gradientHeight;
+      const noiseAmp = 18 * peak.inkSpread * (1 - Math.sqrt(topFadeFactor));
+      const noiseOffset = inkNoise(u, t, peak.bottomSeed, noiseAmp);
+      const bottomY = Math.min(H, baseBottomY + noiseOffset);
+      
+      ctx.lineTo(x, bottomY);
+    }
+    
+    ctx.closePath();
+
+    // 填充山峰渐变
+    const opacityFactor = 1 - Math.pow(topFadeFactor, 1.5);
+    ctx.globalAlpha = p.lineOpacity * peak.peakOpacity * opacityFactor;
+    ctx.fillStyle = gradient;
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+    
+    // 绘制山峰轮廓 - 顶部线条明显
+    ctx.beginPath();
+    ctx.moveTo(peakTopPoints[0].x, peakTopPoints[0].y);
+    for(let i=1; i<peakTopPoints.length; i++){
+      ctx.lineTo(peakTopPoints[i].x, peakTopPoints[i].y);
+    }
+    
+    // 山峰轮廓效果
+    const outlineColor = `rgba(180, 200, 210, ${0.8 * p.lineOpacity * peak.peakOpacity * opacityFactor})`;
+    ctx.shadowColor = outlineColor;
+    ctx.shadowBlur = 10;
+    ctx.strokeStyle = outlineColor;
+    
+    const lineWidthFactor = 1 - Math.pow(topFadeFactor, 2.0);
+    ctx.lineWidth = PARAMS.lineWidth * 1.3 * lineWidthFactor;
+    
+    ctx.globalAlpha = 1.0;
+    ctx.stroke();
+    ctx.globalAlpha = 1.0;
+    ctx.shadowBlur = 0;
+    
+    return peakTopPoints;
+  }
+
+  // 绘制水墨风格山脉
+  function drawInkMountain(p){
+    const t = performance.now()/1000;
+    const N = Math.max(120, Math.floor(W/3)); // 增加采样点数
+    const step = W / (N-1);
+
+    // 进度（0→1）
+    const progress = clamp(1 - (p.y / H), 0, 1);
+
+    // 在 88% 处把"峰+抖动"同时压扁到 0，顶端真正变直线
+    let ampScale = 1.0;
+    let topFadeFactor = 0.0;
+    
+    if(progress >= PARAMS.topFlattenStart){
+      const tt = (progress - PARAMS.topFlattenStart) / (1 - PARAMS.topFlattenStart);
+      ampScale = 1.0 - smooth01(tt);
+      topFadeFactor = smooth01(tt);
+    }
+
+    // 计算整体山脉线（上边界）
+    let topPoints = [];
+    let minTopY = H;
+    
+    for(let i=0;i<N;i++){
+      const x = i * step;
+      const u = (N===1?0:i/(N-1));
+
+      // 多峰叠加
+      let gsum = 0;
+      for(const pk of p.peaks){
+        const drift = Math.sin((t - p.born) * PARAMS.centerDriftSpeed * Math.PI * 2 + pk.seed) * PARAMS.centerDriftAmp;
+        const mu = clamp(pk.mu + drift, 0.0, 1.0);
+        gsum += pk.w * gauss(u, mu, pk.sigma);
+      }
+
+      const jitter = noise1(u, t, 7.7) * PARAMS.noiseAmp * ampScale;
+      const y = p.y - (p.amp * ampScale * gsum) - jitter;
+      topPoints.push({x, y});
+      
+      if (y < minTopY) minTopY = y;
+    }
+
+    // 绘制每个山峰的独立渐变
+    for(const peak of p.peaks){
+      drawPeakGradient(p, peak, t, progress, topFadeFactor, p.y);
+    }
+    
+    // 绘制整体山脉线轮廓
+    ctx.beginPath();
+    ctx.moveTo(topPoints[0].x, topPoints[0].y);
+    for(let i=1; i<topPoints.length; i++){
+      ctx.lineTo(topPoints[i].x, topPoints[i].y);
+    }
+    
+    // 整体轮廓效果
+    const outlineColor = `rgba(180, 200, 210, ${0.8 * p.lineOpacity * (1 - Math.pow(topFadeFactor, 2.0))})`;
+    ctx.shadowColor = outlineColor;
+    ctx.shadowBlur = 12;
+    ctx.strokeStyle = outlineColor;
+    
+    const lineWidthFactor = 1 - Math.pow(topFadeFactor, 2.0);
+    ctx.lineWidth = PARAMS.lineWidth * 1.7 * lineWidthFactor;
+    
+    ctx.globalAlpha = 1.0;
+    ctx.stroke();
+    ctx.globalAlpha = 1.0;
+    ctx.shadowBlur = 0;
+    
+    // 如果处于顶部消失阶段，添加水墨顶部不规则消失效果
+    if (topFadeFactor > 0) {
+      // 创建顶部遮罩路径
+      ctx.beginPath();
+      
+      // 从左上角开始
+      ctx.moveTo(0, 0);
+      
+      // 沿着不规则顶部边界从左到右
+      for(let i=0; i<topPoints.length; i++){
+        const x = topPoints[i].x;
+        const u = (N===1?0:i/(N-1));
+        
+        const noiseOffset = inkNoise(u, t, p.peaks[0].topSeed, 15 * p.peaks[0].inkSpread) * topFadeFactor;
+        const topY = Math.max(0, topPoints[i].y - noiseOffset);
+        
+        ctx.lineTo(x, topY);
+      }
+      
+      ctx.lineTo(W, 0);
+      ctx.closePath();
+      
+      ctx.fillStyle = '#0a2e36';
+      ctx.globalAlpha = 0.7 * Math.sqrt(topFadeFactor);
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+    }
+  }
+
+  // 主循环
+  let lastT = performance.now()/1000;
+  function tick(){
+    const now = performance.now()/1000;
+    const dt = now - lastT; lastT = now;
+
+    if(running){
+      // 残影
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = `rgba(10, 46, 54, ${PARAMS.fadeAlpha})`;
+      ctx.fillRect(0,0,W,H);
+
+      // 更新所有脉冲的位置
+      for (let i = 0; i < pulses.length; i++) {
+        const p = pulses[i];
+        p.y -= p.speed * dt;
+        
+        // 绘制
+        drawInkMountain(p);
+
+        // 顶部就换新
+        if(p.y < -30){
+          pulses[i] = newPulse(i);
+        }
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // 初始清屏并启动
+  ctx.fillStyle = '#0a2e36';
+  ctx.fillRect(0,0,W,H);
+  requestAnimationFrame(tick);
+
+  // 点击：立即换所有脉冲
+  canvas.addEventListener('click', () => { 
+    initPulses(); 
+  });
+  </script>
+</body>
+</html>

@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>多峰山脉脉冲线 - 恢复底部不规则渐变</title>
+  <style>
+    html, body { 
+      height: 100%; 
+      margin: 0; 
+      background: #000; /* 黑色背景 */
+      overflow: hidden; 
+      font-family: "SimSun", "STKaiti", "KaiTi", serif;
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      height: 100vh; 
+      overscroll-behavior: none; /* 防止页面弹性滚动 */
+    }
+    /* 强制 9:16 居中容器（四周留黑边） */
+    #wrap {
+      position: relative;
+      will-change: transform; /* 提示浏览器这个元素会有变换，优化渲染 */
+    }
+    canvas { 
+      display: block; 
+      width: 100%; 
+      height: 100%;
+      will-change: transform; /* 优化画布渲染性能 */
+    }
+    .hud {
+      position: absolute; 
+      left: 10px; 
+      bottom: 10px; 
+      color: #9aa0a6;
+      font: 12px/1.4 system-ui, -apple-system, Segoe UI, Roboto, PingFang SC, Noto Sans SC, sans-serif;
+      background: rgba(0,0,0,.35); 
+      border: 1px solid rgba(255,255,255,.08);
+      padding: 8px 10px; 
+      border-radius: 8px; 
+      user-select: none;
+      pointer-events: none; /* 允许点击穿透HUD到画布 */
+      display: none;
+    }
+    .hud b { 
+      color: #e8eaed;
+    }
+    .title {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      color: #aaa;
+      font-size: 16px;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      letter-spacing: 4px;
+      pointer-events: none;
+    }
+    /* 底部半透明圆角磨砂框 */
+    .glass-panel {
+      position: absolute;
+      bottom: 10px;
+      left: 10%;
+      right: 10%;
+      margin: 0 auto;
+      padding: 8px 10px; /* 增加内边距，使玻璃框稍微高一点 */
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      z-index: 1000;
+      text-align: center;
+      box-sizing: border-box;
+      max-width: 280px;
+    }
+    
+    .glass-content {
+      color: #ffffff;
+      font: 15px system-ui, -apple-system, Segoe UI, Roboto, PingFang SC, Noto Sans SC, sans-serif;
+      opacity: 0.9;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px; /* 增加内容间距 */
+    }
+    
+    .mini-visualizer {
+      display: block;
+      margin: 0 auto;
+      background-color: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+      max-height: 100px; /* 增加最大高度，确保所有内容都能显示 */
+    }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="c"></canvas>
+    <div class="hud">
+      <div><b>空格</b> 暂停/继续 · <b>R</b> 新脉冲 · <b>+/-</b> 增减线条</div>
+      <div>速度=<span id="sp"></span> · 残影=<span id="fd"></span> · 峰数=<span id="pk"></span></div>
+      <div>线条数=<span id="lc"></span> · 水墨风格=<span id="cm"></span></div>
+    </div>
+    <div class="title">山海</div>
+    
+    <!-- 底部半透明圆角磨砂框 -->
+    <div class="glass-panel">
+      <div class="glass-content">
+           <!-- 山海 -->
+           <canvas id="miniVisualizer" class="mini-visualizer"></canvas>
+         </div>
+    </div>
+  </div>
+
+  <script>
+  // ======================== 参数 ========================
+  const PARAMS = {
+    minSpeed: 80, maxSpeed: 150,     // 降低速度，更符合水墨意境
+    minAmp: 40,  maxAmp: 120,        // 减小幅度，更柔和
+
+    // 每个峰的宽度（相对画布宽度，越大越"胖"）
+    minSigma: 0.025, maxSigma: 0.10, // 减小宽度，更细致
+
+    // ——重点：一次出现 2~5 个峰，不平均——
+    minPeaks: 2, maxPeaks: 5,
+
+    // 峰与峰的最小"建议间隔"（相对宽度）。设 0 则完全自由随机。
+    // 我们再加 30% 概率无视间隔，让分布更自然、不均匀。
+    minSeparation: 0.04,
+
+    fadeAlpha: 0.03,     // 减少残影强度，更持久
+    lineWidth: 1.5,      // 减小线条粗细，更细致
+
+    // 轻量"噪声"用于上下抖动
+    noiseAmp: 5,         // 减少噪声幅度
+    noiseFreq1: 4.5, noiseFreq2: 9.0,
+    noiseSpeed1: 0.5, noiseSpeed2: 0.9,
+
+    // 峰中心的轻微左右漂移（每个峰独立相位）
+    centerDriftAmp: 0.03,    // 减小漂移幅度
+    centerDriftSpeed: 0.18,  // 降低漂移速度
+
+    topFlattenStart: 0.90, // 到达高度 90% 开始"拉直"（峰与噪声同步为 0）
+    
+    // 多线参数
+    lineCount: 4,          // 增加初始线条数量
+    maxLines: 8,           // 增加最大线条数量
+    inkStyle: "white"      // "white", "light", "gray"
+  };
+
+  // ======================== 画布/状态 ========================
+  const wrap = document.getElementById('wrap');
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+  let W = 0, H = 0;
+  
+  // 小型音频可视化画布
+  let miniCanvas = null;
+  let miniCtx = null;
+  let miniW = 0, miniH = 0;
+  
+  // 初始化小型音频可视化器
+  function initMiniVisualizer() {
+    try {
+      miniCanvas = document.getElementById('miniVisualizer');
+      if (miniCanvas) {
+        miniCtx = miniCanvas.getContext('2d');
+        // 设置画布尺寸
+        const glassPanel = document.querySelector('.glass-panel');
+        if (glassPanel) {
+          const rect = glassPanel.getBoundingClientRect();
+          miniW = rect.width * 0.8; // 占玻璃面板宽度的80%
+          miniH = 40; // 调整高度为40px，确保温度信息完整显示
+          miniCanvas.width = miniW * dpr;
+          miniCanvas.height = miniH * dpr;
+          miniCanvas.style.width = `${miniW}px`;
+          miniCanvas.style.height = `${miniH}px`;
+          miniCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+      }
+    } catch (error) {
+      console.error('小型音频可视化器初始化失败:', error);
+    }
+  }
+  
+  function resize() {
+    const aspect = 6/16; // 竖版比例
+    const vw = Math.floor(window.innerWidth);
+    const vh = Math.floor(window.innerHeight);
+
+    let cssW, cssH;
+    if (vw / vh > aspect) { 
+      cssH = vh; 
+      cssW = Math.floor(cssH * aspect); 
+    } else { 
+      cssW = vw; 
+      cssH = Math.floor(cssW / aspect); 
+    }
+
+    wrap.style.width = cssW + 'px';
+    wrap.style.height = cssH + 'px';
+
+    canvas.width = Math.floor(cssW * dpr);
+    canvas.height = Math.floor(cssH * dpr);
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    W = cssW; 
+    H = cssH;
+    
+    // 重新初始化小型可视化器
+    initMiniVisualizer();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // 工具函数
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const lerp = (a,b,t) => a + (b-a)*t;
+  const smooth01 = x => { x = clamp(x,0,1); return x*x*(3-2*x); };
+  const gauss = (u, mu, sigma) => { const d=(u-mu)/sigma; return Math.exp(-0.5*d*d); };
+
+  // 两个正弦叠加的轻量"噪声"
+  function noise1(u, t, seed){
+    const a = Math.sin( (u * PARAMS.noiseFreq1 + t * PARAMS.noiseSpeed1 + seed) * Math.PI * 2 );
+    const b = Math.sin( (u * PARAMS.noiseFreq2 + t * PARAMS.noiseSpeed2 + seed*1.718) * Math.PI * 2 );
+    return a * 0.66 + b * 0.34;
+  }
+  
+  // 釜山天气数据 - 由于是模拟环境，使用模拟数据
+  let busanWeatherData = {
+    temperature: 22, // 温度(°C)
+    humidity: 65,    // 湿度(%))
+    windSpeed: 15,   // 风速(km/h)
+    lastUpdate: new Date().toLocaleTimeString()
+  };
+  
+  // 更新天气数据的函数 - 优化版
+  let lastWeatherUpdateTime = 0;
+  const weatherUpdateFrequency = 1000; // 1秒更新一次，足够平滑且不过于频繁
+  
+  function updateBusanWeather() {
+    const now = performance.now();
+    if (now - lastWeatherUpdateTime < weatherUpdateFrequency) {
+      return; // 跳过更新
+    }
+    
+    lastWeatherUpdateTime = now;
+    
+    // 在实际应用中，这里会调用天气API获取实时数据
+    // 由于是模拟环境，我们随机生成一些接近实际值的波动数据
+    const simulationTime = now / 1000;
+    
+    // 添加小波动来模拟实时变化
+    const tempVariation = Math.sin(simulationTime * 0.1) * 0.5;
+    const humidityVariation = Math.sin(simulationTime * 0.2 + 1) * 2;
+    const windVariation = Math.sin(simulationTime * 0.3 + 2) * 1.5;
+    
+    // 更新数据
+    busanWeatherData = {
+      temperature: Math.round((22 + tempVariation) * 10) / 10,
+      humidity: Math.round(65 + humidityVariation),
+      windSpeed: Math.round((15 + windVariation) * 10) / 10,
+      lastUpdate: new Date().toLocaleTimeString()
+    };
+  }
+  
+  // 绘制天气数据可视化线条 - 优化版
+  function drawMiniVisualizer() {
+    if (!miniCtx) return;
+    
+    // 清除画布
+    miniCtx.clearRect(0, 0, miniW, miniH);
+    
+    // 更新天气数据
+    updateBusanWeather();
+    
+    // 配置可视化参数
+    const lineCount = 3; // 线条数量
+    
+    // 为三条线条设置对应的颜色 - 温度(红色)、湿度(蓝色)、风速(绿色)
+    const lineColors = [
+      'rgba(255, 120, 120, 0.7)', // 温度 - 红色
+      'rgba(120, 150, 255, 0.6)', // 湿度 - 蓝色
+      'rgba(120, 255, 120, 0.5)'  // 风速 - 绿色
+    ];
+    // 磨砂玻璃效果(阴影)颜色与线条颜色对应
+    const glowColors = [
+      'rgba(255, 120, 120, 0.4)', // 温度阴影 - 红色
+      'rgba(120, 150, 255, 0.3)', // 湿度阴影 - 蓝色
+      'rgba(120, 255, 120, 0.2)'  // 风速阴影 - 绿色
+    ];
+    const lineWidths = [2, 1.5, 1.2]; // 线条宽度
+    const maxLineHeight = miniH * 0.5; // 进一步减少最大线条高度，确保与文本分离
+    const lineSpacing = miniH * 0.15; // 增加线条间距，提高可读性
+    
+    // 性能优化：预先计算共享值
+    const simulationTime = performance.now() / 1000;
+    
+    // 绘制三条天气数据线条
+    for (let l = 0; l < lineCount; l++) {
+      const lineColor = lineColors[l];
+      const glowColor = glowColors[l];
+      const lineWidth = lineWidths[l];
+      const yOffset = (lineCount - l - 1) * lineSpacing; // 线条垂直偏移
+      
+      // 优化上下文状态设置
+      miniCtx.shadowColor = glowColor;
+      miniCtx.shadowBlur = 3; // 减少模糊效果提高性能
+      miniCtx.strokeStyle = lineColor;
+      miniCtx.lineWidth = lineWidth;
+      miniCtx.beginPath();
+      
+      // 减少点数提高性能
+      const pointCount = 15; // 每条线的点数
+      
+      // 性能优化：批量计算点位置
+      for (let i = 0; i < pointCount; i++) {
+        // 根据线条类型获取相应的天气数据值
+        let weatherValue = 0;
+        let minValue = 0;
+        let maxValue = 100;
+        
+        // 根据线条索引选择不同的天气指标
+        if (l === 0) { // 温度
+          weatherValue = busanWeatherData.temperature;
+          minValue = 0;    // 最低温度范围
+          maxValue = 40;   // 最高温度范围
+        } else if (l === 1) { // 湿度
+          weatherValue = busanWeatherData.humidity;
+          minValue = 0;    // 最低湿度范围
+          maxValue = 100;  // 最高湿度范围
+        } else if (l === 2) { // 风速
+          weatherValue = busanWeatherData.windSpeed;
+          minValue = 0;    // 最低风速范围
+          maxValue = 30;   // 最高风速范围
+        }
+        
+        // 将天气值标准化到0-1范围
+        const normalizedValue = (weatherValue - minValue) / (maxValue - minValue);
+        
+        // 添加波动来创建更自然的波形
+        const waveFactor = 0.1; // 波动幅度
+        const wave = Math.sin(i * 1.0 + simulationTime * 0.5 + l * 1.5) * waveFactor;
+        
+        // 计算线条高度
+        const lineHeight = Math.max(0, Math.min(maxLineHeight, (normalizedValue + wave) * maxLineHeight));
+        
+        // 计算点的位置
+        const x = (i / (pointCount - 1)) * miniW;
+        const y = miniH - lineHeight - yOffset - (miniH - maxLineHeight) / 2; // 再稍微向下移动线条，确保与文本分离
+        
+        // 绘制线条
+        if (i === 0) {
+          miniCtx.moveTo(x, y);
+        } else {
+          miniCtx.lineTo(x, y);
+        }
+      }
+      
+      miniCtx.stroke();
+    }
+    
+    // 绘制天气数据文本
+    miniCtx.font = '8px Arial'; // 减小字体大小，确保完整显示
+    miniCtx.textAlign = 'center';
+    
+    // 显示温度 - 颜色与温度线条对应，移动到线条下方，确保不重叠
+    miniCtx.fillStyle = 'rgba(255, 120, 120, 0.9)'; // 增加不透明度提高可读性
+    miniCtx.fillText(`TEMP: ${busanWeatherData.temperature}°C`, miniW * 0.2, miniH - 5);
+    
+    // 显示湿度 - 颜色与湿度线条对应，移动到线条下方，确保不重叠
+    miniCtx.fillStyle = 'rgba(120, 150, 255, 0.9)'; // 增加不透明度提高可读性
+    miniCtx.fillText(`HUM: ${busanWeatherData.humidity}%`, miniW * 0.5, miniH - 5);
+    
+    // 显示风速 - 颜色与风速线条对应，移动到线条下方，确保不重叠
+    miniCtx.fillStyle = 'rgba(120, 255, 120, 0.9)'; // 增加不透明度提高可读性
+    miniCtx.fillText(`WIND: ${busanWeatherData.windSpeed}km/h`, miniW * 0.8, miniH - 5);
+  
+    // 重置阴影效果
+    miniCtx.shadowBlur = 0;
+  }
+  
+  // 水墨风格噪声函数 - 更柔和的噪声
+  function inkNoise(u, t, seed, amp) {
+    const n1 = Math.sin((u * 0.015 + t * 0.3 + seed) * Math.PI * 2);
+    const n2 = Math.sin((u * 0.032 + t * 0.5 + seed*2.3) * Math.PI * 2);
+    const n3 = Math.sin((u * 0.068 + t * 0.8 + seed*5.7) * Math.PI * 2);
+    return (n1 * 0.5 + n2 * 0.3 + n3 * 0.2) * amp;
+  }
+
+  // 生成水墨颜色 - 白色水墨，不同深浅
+  function getInkColors(lineIndex, total, style) {
+    // 基础白色和灰色
+    let baseColors;
+    switch(style) {
+      case "light": // 浅灰
+        baseColors = [
+          {r: 180, g: 180, b: 180},
+          {r: 200, g: 200, b: 200},
+          {r: 220, g: 220, b: 220},
+          {r: 240, g: 240, b: 240}
+        ];
+        break;
+      case "gray": // 中灰
+        baseColors = [
+          {r: 120, g: 120, b: 120},
+          {r: 150, g: 150, b: 150},
+          {r: 180, g: 180, b: 180},
+          {r: 210, g: 210, b: 210}
+        ];
+        break;
+      default: // 白色
+        baseColors = [
+          {r: 220, g: 220, b: 220},
+          {r: 230, g: 230, b: 230},
+          {r: 240, g: 240, b: 240},
+          {r: 255, g: 255, b: 255}
+        ];
+    }
+    
+    // 为每个线条创建更大的深浅和透明度变化
+    // 使用非线性分布，使线条间差异更大
+    const depthVariation = 0.2 + Math.pow(lineIndex / total, 1.5) * 0.8; // 更大的深浅变化
+    const opacityVariation = 0.2 + Math.pow(lineIndex / total, 0.7) * 0.8; // 更大的透明度变化
+    
+    // 创建渐变颜色
+    return [
+      {
+        pos: 0.0, 
+        color: `rgba(${baseColors[0].r * depthVariation}, ${baseColors[0].g * depthVariation}, ${baseColors[0].b * depthVariation}, 0.0)`
+      },
+      {
+        pos: 0.3, 
+        color: `rgba(${baseColors[1].r * depthVariation}, ${baseColors[1].g * depthVariation}, ${baseColors[1].b * depthVariation}, ${0.3 * opacityVariation})`
+      },
+      {
+        pos: 0.7, 
+        color: `rgba(${baseColors[2].r * depthVariation}, ${baseColors[2].g * depthVariation}, ${baseColors[2].b * depthVariation}, ${0.6 * opacityVariation})`
+      },
+      {
+        pos: 1.0, 
+        color: `rgba(${baseColors[3].r * depthVariation}, ${baseColors[3].g * depthVariation}, ${baseColors[3].b * depthVariation}, ${0.9 * opacityVariation})`
+      }
+    ];
+  }
+
+  // 生成一个"多峰脉冲"
+  function newPulse(lineIndex = 0){
+    const speed = lerp(PARAMS.minSpeed, PARAMS.maxSpeed, Math.random());
+    const amp   = lerp(PARAMS.minAmp,  PARAMS.maxAmp,  Math.random());
+
+    // 峰数：2~5 随机
+    const k = Math.floor(lerp(PARAMS.minPeaks, PARAMS.maxPeaks + 1, Math.random()));
+
+    // 生成 k 个峰：位置/宽度/权重/相位随机（不平均）
+    const peaks = [];
+    const marginL = 0.10, marginR = 0.90;
+    const triesPerPeak = 12;
+
+    for(let m=0; m<k; m++){
+      let chosen = null;
+      for(let tries=0; tries<triesPerPeak; tries++){
+        const mu = lerp(marginL, marginR, Math.random());
+        const ok = PARAMS.minSeparation <= 0
+          || peaks.every(p => Math.abs(mu - p.mu) >= PARAMS.minSeparation)
+          || Math.random() < 0.30; // 30% 概率无视间隔，打破"平均"
+        if(ok){
+          chosen = {
+            mu,
+            sigma: lerp(PARAMS.minSigma, PARAMS.maxSigma, Math.random()),
+            w: 0.6 + Math.random(),         // 初始权重不均匀
+            seed: Math.random() * 10,       // 漂移相位种子
+            // 每个山峰的独立渐变参数 - 更大的差异
+            gradientHeight: 0,
+            maxGradientHeight: 120 + Math.random() * 180, // 更大的高度差异
+            bottomSeed: Math.random() * 100,
+            topSeed: Math.random() * 100,
+            inkSpread: 0.3 + Math.random() * 0.7, // 更大的扩散差异
+            // 每个山峰的透明度变化 - 更大的差异
+            peakOpacity: 0.3 + Math.random() * 0.6
+          };
+          break;
+        }
+      }
+      if(!chosen){ // 放宽限制兜底
+        chosen = {
+          mu: lerp(marginL, marginR, Math.random()),
+          sigma: lerp(PARAMS.minSigma, PARAMS.maxSigma, Math.random()),
+          w: 0.6 + Math.random(),
+          seed: Math.random() * 10,
+          // 每个山峰的独立渐变参数 - 更大的差异
+          gradientHeight: 0,
+          maxGradientHeight: 120 + Math.random() * 180,
+          bottomSeed: Math.random() * 100,
+          topSeed: Math.random() * 100,
+          inkSpread: 0.3 + Math.random() * 0.7,
+          // 每个山峰的透明度变化 - 更大的差异
+          peakOpacity: 0.3 + Math.random() * 0.6
+        };
+      }
+      peaks.push(chosen);
+    }
+
+    // 归一化权重，避免总幅度失控
+    const sumW = peaks.reduce((s,p)=>s+p.w, 0);
+    for(const p of peaks) p.w /= sumW;
+
+    // 为每条线设置不同的起始位置，避免重叠
+    const startY = H + 30 + (lineIndex * 100); // 增加间距
+
+    // 每条线条的整体透明度变化 - 更大的差异
+    const lineOpacity = 0.2 + Math.random() * 0.7;
+
+    return { 
+      y: startY, 
+      speed, 
+      amp, 
+      peaks, 
+      born: performance.now()/1000,
+      inkColors: getInkColors(lineIndex, PARAMS.lineCount, PARAMS.inkStyle),
+      // 线条整体透明度
+      lineOpacity: lineOpacity
+    };
+  }
+
+  // 创建多条脉冲线
+  let pulses = [];
+  function initPulses() {
+    pulses = [];
+    for (let i = 0; i < PARAMS.lineCount; i++) {
+      pulses.push(newPulse(i));
+    }
+  }
+  initPulses();
+
+  let running = true;
+
+  // HUD
+  const spEl = document.getElementById('sp');
+  const fdEl = document.getElementById('fd');
+  const pkEl = document.getElementById('pk');
+  const lcEl = document.getElementById('lc');
+  const cmEl = document.getElementById('cm');
+  function updateHud(){
+    spEl.textContent = pulses[0]?.speed.toFixed(0) || "0";
+    fdEl.textContent = PARAMS.fadeAlpha.toFixed(2);
+    pkEl.textContent = pulses[0]?.peaks.length || "0";
+    lcEl.textContent = PARAMS.lineCount;
+    cmEl.textContent = PARAMS.inkStyle === "white" ? "白色" : 
+                      PARAMS.inkStyle === "light" ? "浅灰" : "中灰";
+  }
+  updateHud();
+
+  // 键盘控制
+  window.addEventListener('keydown', (e)=>{
+    if(e.code === 'Space'){ 
+      running = !running; 
+      e.preventDefault();
+    }
+    else if(e.key === 'r' || e.key === 'R'){ 
+      initPulses(); 
+      updateHud(); 
+    }
+    else if(e.key === '+' || e.code === 'Equal') {
+      if (PARAMS.lineCount < PARAMS.maxLines) {
+        PARAMS.lineCount++;
+        pulses.push(newPulse(PARAMS.lineCount - 1));
+        updateHud();
+      }
+    }
+    else if(e.key === '-' || e.code === 'Minus') {
+      if (PARAMS.lineCount > 1) {
+        PARAMS.lineCount--;
+        pulses.pop();
+        updateHud();
+      }
+    }
+    else if(e.key === 'c' || e.key === 'C') {
+      // 切换水墨风格
+      const styles = ["white", "light", "gray"];
+      const currentIndex = styles.indexOf(PARAMS.inkStyle);
+      PARAMS.inkStyle = styles[(currentIndex + 1) % styles.length];
+      
+      // 更新所有脉冲的水墨颜色
+      pulses.forEach((pulse, index) => {
+        pulse.inkColors = getInkColors(index, PARAMS.lineCount, PARAMS.inkStyle);
+      });
+      
+      updateHud();
+    }
+  });
+
+  // 绘制单个山峰的渐变效果 - 修复底部不规则渐变
+  function drawPeakGradient(p, peak, t, progress, topFadeFactor, baseY) {
+    const N = Math.max(80, Math.floor(W/10)); // 每个山峰的采样点数
+    const step = W / (N-1);
+    
+    // 计算山峰的渐变高度
+    const progressToGrow = clamp(1 - (p.y / (H + 30)), 0, 1);
+    
+    if (progress < PARAMS.topFlattenStart) {
+      peak.gradientHeight = peak.maxGradientHeight * smooth01(progressToGrow);
+    } else {
+      const tt = (progress - PARAMS.topFlattenStart) / (1 - PARAMS.topFlattenStart);
+      peak.gradientHeight = peak.maxGradientHeight * (1 - Math.sqrt(tt));
+    }
+    
+    // 计算山峰的顶部曲线
+    let peakTopPoints = [];
+    let minPeakY = H;
+    
+    for(let i=0; i<N; i++){
+      const x = i * step;
+      const u = (N===1?0:i/(N-1));
+      
+      // 计算单个山峰的高斯分布
+      const drift = Math.sin((t - p.born) * PARAMS.centerDriftSpeed * Math.PI * 2 + peak.seed) * PARAMS.centerDriftAmp;
+      const mu = clamp(peak.mu + drift, 0.0, 1.0);
+      const gval = gauss(u, mu, peak.sigma);
+      
+      // 计算山峰的抖动
+      const jitter = noise1(u, t, 7.7) * PARAMS.noiseAmp * (1 - topFadeFactor);
+      
+      // 计算山峰的Y坐标
+      const y = baseY - (p.amp * peak.w * gval) - jitter;
+      peakTopPoints.push({x, y});
+      
+      if (y < minPeakY) minPeakY = y;
+    }
+    
+    // 创建山峰的渐变 - 顶部颜色深，底部透明
+    const gradient = ctx.createLinearGradient(0, minPeakY, 0, minPeakY + peak.gradientHeight);
+    
+    // 根据水墨风格调整渐变颜色
+    const baseColor = p.inkColors[p.inkColors.length-1].color;
+    const transparentColor = baseColor.replace(/[\d\.]+\)$/g, '0.0)');
+    const midColor = baseColor.replace(/[\d\.]+\)$/g, '0.5)');
+    
+    gradient.addColorStop(0.0, baseColor);
+    gradient.addColorStop(0.3, midColor);
+    gradient.addColorStop(0.7, midColor.replace(/[\d\.]+\)$/g, '0.2)'));
+    gradient.addColorStop(1.0, transparentColor);
+    
+    // 构建山峰的渐变区域 - 修复底部不规则形状
+    ctx.beginPath();
+    
+    // 从山峰顶部左侧开始
+    ctx.moveTo(0, peakTopPoints[0].y);
+    
+    // 沿着山峰顶部曲线
+    for(let i=1; i<peakTopPoints.length; i++){
+      ctx.lineTo(peakTopPoints[i].x, peakTopPoints[i].y);
+    }
+    
+    // 关键修复：确保底部使用不规则形状
+    // 沿着不规则下边界从右到左
+    for(let i=peakTopPoints.length-1; i>=0; i--){
+      const x = peakTopPoints[i].x;
+      const u = (N===1?0:i/(N-1));
+      
+      // 计算底部位置 - 基于山峰顶部加上渐变高度和噪声
+      const baseBottomY = peakTopPoints[i].y + peak.gradientHeight;
+      
+      // 增加底部噪声幅度，使不规则效果更明显
+      const noiseAmp = 25 * peak.inkSpread * (1 - Math.sqrt(topFadeFactor));
+      const noiseOffset = inkNoise(u, t, peak.bottomSeed, noiseAmp);
+      const bottomY = Math.min(H, baseBottomY + noiseOffset);
+      
+      ctx.lineTo(x, bottomY);
+    }
+    
+    ctx.closePath();
+
+    // 填充山峰渐变 - 使用线条和山峰的混合透明度
+    const opacityFactor = 1 - Math.pow(topFadeFactor, 1.5);
+    ctx.globalAlpha = p.lineOpacity * peak.peakOpacity * opacityFactor;
+    ctx.fillStyle = gradient;
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+    
+    // 绘制山峰轮廓 - 顶部线条明显
+    ctx.beginPath();
+    ctx.moveTo(peakTopPoints[0].x, peakTopPoints[0].y);
+    for(let i=1; i<peakTopPoints.length; i++){
+      ctx.lineTo(peakTopPoints[i].x, peakTopPoints[i].y);
+    }
+    
+    // 山峰轮廓效果 - 特别强化顶部线条
+    const outlineColor = `rgba(255, 255, 255, ${0.9 * p.lineOpacity * peak.peakOpacity * opacityFactor})`;
+    ctx.shadowColor = outlineColor;
+    ctx.shadowBlur = 12;
+    ctx.strokeStyle = outlineColor;
+    
+    // 关键修改：在顶部阶段减少线条变细的程度
+    const lineWidthFactor = 1 - Math.pow(topFadeFactor, 2.0); // 使用更平缓的变细曲线
+    ctx.lineWidth = PARAMS.lineWidth * 1.5 * lineWidthFactor; // 增加基础线宽
+    
+    ctx.globalAlpha = 1.0; // 轮廓使用最高透明度
+    ctx.stroke();
+    ctx.globalAlpha = 1.0;
+    ctx.shadowBlur = 0;
+    
+    return peakTopPoints;
+  }
+
+  // 绘制水墨风格山脉 - 每个山峰独立渐变
+  function drawInkMountain(p){
+    const t = performance.now()/1000;
+    const N = Math.max(160, Math.floor(W/5)); // 整体山脉采样点数
+    const step = W / (N-1);
+
+    // 进度（0→1）
+    const progress = clamp(1 - (p.y / H), 0, 1);
+
+    // 在 90% 处把"峰+抖动"同时压扁到 0，顶端真正变直线
+    let ampScale = 1.0;
+    let topFadeFactor = 0.0; // 顶部渐变消失因子
+    
+    if(progress >= PARAMS.topFlattenStart){
+      const tt = (progress - PARAMS.topFlattenStart) / (1 - PARAMS.topFlattenStart);
+      ampScale = 1.0 - smooth01(tt);
+      topFadeFactor = smooth01(tt); // 顶部渐变消失因子从0到1
+    }
+
+    // 计算整体山脉线（上边界）- 用于绘制整体轮廓
+    let topPoints = [];
+    let minTopY = H; // 记录山脉线的最低点
+    
+    for(let i=0;i<N;i++){
+      const x = i * step;
+      const u = (N===1?0:i/(N-1));
+
+      // 多峰叠加（每个峰中心带独立漂移）
+      let gsum = 0;
+      for(const pk of p.peaks){
+        const drift = Math.sin((t - p.born) * PARAMS.centerDriftSpeed * Math.PI * 2 + pk.seed) * PARAMS.centerDriftAmp;
+        const mu = clamp(pk.mu + drift, 0.0, 1.0);
+        gsum += pk.w * gauss(u, mu, pk.sigma);
+      }
+
+      const jitter = noise1(u, t, 7.7) * PARAMS.noiseAmp * ampScale; // 抖动也随 ampScale 衰减
+      const y = p.y - (p.amp * ampScale * gsum) - jitter;
+      topPoints.push({x, y});
+      
+      // 更新最低点
+      if (y < minTopY) minTopY = y;
+    }
+
+    // 绘制每个山峰的独立渐变
+    for(const peak of p.peaks){
+      drawPeakGradient(p, peak, t, progress, topFadeFactor, p.y);
+    }
+    
+    // 绘制整体山脉线轮廓 - 特别强化顶部线条
+    ctx.beginPath();
+    ctx.moveTo(topPoints[0].x, topPoints[0].y);
+    for(let i=1; i<topPoints.length; i++){
+      ctx.lineTo(topPoints[i].x, topPoints[i].y);
+    }
+    
+    // 整体轮廓效果 - 特别强化顶部线条
+    const outlineColor = `rgba(255, 255, 255, ${0.9 * p.lineOpacity * (1 - Math.pow(topFadeFactor, 2.0))})`;
+    ctx.shadowColor = outlineColor;
+    ctx.shadowBlur = 15;
+    ctx.strokeStyle = outlineColor;
+    
+    // 关键修改：在顶部阶段保持线条粗度
+    const lineWidthFactor = 1 - Math.pow(topFadeFactor, 2.0); // 使用更平缓的变细曲线
+    ctx.lineWidth = PARAMS.lineWidth * 2.0 * lineWidthFactor; // 增加基础线宽
+    
+    ctx.globalAlpha = 1.0; // 使用最高透明度
+    ctx.stroke();
+    ctx.globalAlpha = 1.0;
+    ctx.shadowBlur = 0;
+    
+    // 如果处于顶部消失阶段，添加水墨顶部不规则消失效果
+    if (topFadeFactor > 0) {
+      // 创建顶部遮罩路径
+      ctx.beginPath();
+      
+      // 从左上角开始
+      ctx.moveTo(0, 0);
+      
+      // 沿着不规则顶部边界从左到右
+      for(let i=0; i<topPoints.length; i++){
+        const x = topPoints[i].x;
+        const u = (N===1?0:i/(N-1));
+        
+        // 计算顶部边界位置 - 基于山脉线减去噪声
+        const noiseOffset = inkNoise(u, t, p.peaks[0].topSeed, 20 * p.peaks[0].inkSpread) * topFadeFactor;
+        const topY = Math.max(0, topPoints[i].y - noiseOffset);
+        
+        ctx.lineTo(x, topY);
+      }
+      
+      // 完成遮罩路径
+      ctx.lineTo(W, 0);
+      ctx.closePath();
+      
+      // 使用黑色填充遮罩，实现顶部不规则消失
+      ctx.fillStyle = '#000';
+      ctx.globalAlpha = 0.8 * Math.sqrt(topFadeFactor);
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+    }
+  }
+
+  // 主循环
+  let lastT = performance.now()/1000;
+  function tick(){
+    const now = performance.now()/1000;
+    const dt = now - lastT; lastT = now;
+
+    if(running){
+      // 残影 - 使用黑色半透明覆盖，模拟水墨在黑色背景上的停留
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = `rgba(0, 0, 0, ${PARAMS.fadeAlpha})`;
+      ctx.fillRect(0,0,W,H);
+
+      // 更新所有脉冲的位置
+      for (let i = 0; i < pulses.length; i++) {
+        const p = pulses[i];
+        p.y -= p.speed * dt;
+        
+        // 绘制
+        drawInkMountain(p);
+
+        // 顶部就换新
+        if(p.y < -30){
+          pulses[i] = newPulse(i);
+        }
+      }
+    }
+    
+    // 绘制底部小型可视化器
+    drawMiniVisualizer();
+    
+    requestAnimationFrame(tick);
+  }
+
+  // 初始清屏并启动
+  ctx.fillStyle = '#000'; // 黑色背景
+  ctx.fillRect(0,0,W,H);
+  requestAnimationFrame(tick);
+
+  // 点击：立即换所有脉冲
+  canvas.addEventListener('click', ()=>{ 
+    initPulses(); 
+    updateHud(); 
+  });
+  </script>
+</body>
+</html>
