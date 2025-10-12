@@ -743,8 +743,8 @@
   // 初始化时获取一次天气信息
   fetchBusanWeather();
   
-  // 每10分钟更新一次天气信息
-  setInterval(fetchBusanWeather, 10 * 60 * 1000);
+  // 每秒更新一次天气信息
+  setInterval(fetchBusanWeather, 1000);
   </script>
 </body>
 </html>
