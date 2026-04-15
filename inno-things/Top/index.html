@@ -48,16 +48,27 @@
     </main>
 
     <section class="camera-modal" id="camera-modal" hidden>
-        <div class="camera-shell">
+        <div class="camera-shell" id="camera-shell">
             <button class="camera-close" id="close-camera" type="button" aria-label="关闭识别">关闭</button>
             <div class="camera-copy">
                 <p class="eyebrow">MindAR Recognition</p>
                 <h2 id="camera-title">准备启动识别。</h2>
                 <p id="camera-overlay-status">正在启动摄像头...</p>
+                <pre class="debug-log" id="debug-log" hidden></pre>
             </div>
             <div class="camera-stage">
                 <div id="ar-container"></div>
+                <!-- 扫描线动画 -->
+                <div class="scan-line-wrap" aria-hidden="true">
+                    <div class="scan-line"></div>
+                </div>
+                <!-- 取景框 -->
                 <div class="camera-target-frame" aria-hidden="true"></div>
+                <!-- 底部状态徽标 -->
+                <div class="scan-badge" id="scan-badge" aria-live="polite">
+                    <span class="scan-badge-dot"></span>
+                    <span id="scan-badge-text">扫描中…</span>
+                </div>
             </div>
         </div>
     </section>

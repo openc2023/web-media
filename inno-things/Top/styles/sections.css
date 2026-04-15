@@ -112,6 +112,20 @@
     color: rgba(255, 255, 255, 0.72);
 }
 
+.debug-log {
+    margin: 14px 0 0;
+    padding: 12px;
+    border: 1px solid rgba(184, 196, 194, 0.18);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.22);
+    color: #ffd8d8;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    line-height: 1.55;
+}
+
 .camera-stage {
     position: relative;
     overflow: hidden;
@@ -186,4 +200,103 @@ body.camera-open {
         width: 100%;
         max-height: 68dvh;
     }
+}
+
+/* ── 扫描线 ─────────────────────────────────────────────── */
+.scan-line-wrap {
+    position: absolute;
+    inset: 14%;
+    pointer-events: none;
+    overflow: hidden;
+    border-radius: 18px;
+    z-index: 5;
+}
+
+.scan-line {
+    position: absolute;
+    left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #00ed64, transparent);
+    top: 0;
+    animation: scan-sweep 2.2s ease-in-out infinite;
+}
+
+@keyframes scan-sweep {
+    0%   { top: 0%;   opacity: 0; }
+    8%   { opacity: 1; }
+    92%  { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
+}
+
+/* ── 取景框脉冲（扫描中） ───────────────────────────────── */
+.camera-target-frame {
+    animation: frame-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes frame-pulse {
+    0%, 100% { border-color: rgba(0, 237, 100, 0.5); }
+    50%      { border-color: rgba(0, 237, 100, 1);
+               box-shadow: 0 0 0 999px rgba(0,0,0,0.24), 0 0 16px rgba(0,237,100,0.45); }
+}
+
+/* ── 识别成功状态 ────────────────────────────────────────── */
+[data-state="found"] .scan-line-wrap  { display: none; }
+[data-state="found"] .camera-target-frame {
+    animation: none;
+    border-color: #00ff88;
+    box-shadow: 0 0 0 999px rgba(0,0,0,0.10), 0 0 24px rgba(0,255,136,0.55);
+}
+
+/* ── 目标丢失状态 ────────────────────────────────────────── */
+[data-state="lost"] .camera-target-frame {
+    animation: frame-lost 1s ease-in-out infinite;
+}
+@keyframes frame-lost {
+    0%, 100% { border-color: rgba(255,170,0,0.5); }
+    50%      { border-color: rgba(255,170,0,1);
+               box-shadow: 0 0 0 999px rgba(0,0,0,0.24), 0 0 14px rgba(255,170,0,0.4); }
+}
+
+/* ── 加载中隐藏扫描线 ────────────────────────────────────── */
+[data-state="loading"] .scan-line-wrap { display: none; }
+
+/* ── 状态徽标 ────────────────────────────────────────────── */
+.scan-badge {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 14px 5px 10px;
+    border-radius: 20px;
+    background: rgba(0, 0, 0, 0.68);
+    color: #f4f6f5;
+    font-size: 0.8rem;
+    font-family: var(--font-mono, monospace);
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 10;
+    backdrop-filter: blur(6px);
+    transition: background 0.3s;
+}
+
+[data-state="found"] .scan-badge { background: rgba(0, 80, 40, 0.82); }
+[data-state="lost"]  .scan-badge { background: rgba(80, 50, 0, 0.82); }
+
+.scan-badge-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: background 0.3s;
+    animation: dot-blink 1.2s ease-in-out infinite;
+}
+
+[data-state="found"] .scan-badge-dot,
+[data-state="loading"] .scan-badge-dot { animation: none; }
+
+@keyframes dot-blink {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.25; }
 }
