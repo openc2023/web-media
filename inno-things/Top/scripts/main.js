@@ -18,8 +18,6 @@ let mindarThree    = null;
 let animationId    = null;
 let anchor         = null;
 let boxModel       = null;
-let mixer          = null;
-let action         = null;
 const imageTargetSrc = "./assets/targets/000-top.mind";
 
 // ── Helpers ───────────────────────────────────────────────
@@ -113,13 +111,6 @@ const setupMindAR = async () => {
     boxModel.visible = false;           // ← 初始隐藏，识别到才显示
     anchor.group.add(boxModel);
 
-    // 处理模型动画
-    if (gltf.animations && gltf.animations.length > 0) {
-        mixer = new THREE.AnimationMixer(boxModel);
-        action = mixer.clipAction(gltf.animations[0]);
-        action.play();
-    }
-
     // ── 识别回调（用 opacity 软隐藏，避免 visible 切换闪烁）────
     let lostTimer = null;
 
@@ -211,13 +202,7 @@ const startMindAR = async () => {
             renderer.domElement.style.zIndex = "1";
         }
 
-        const clock = new THREE.Clock();
-        renderer.setAnimationLoop(() => {
-            if (mixer) {
-                mixer.update(clock.getDelta());
-            }
-            renderer.render(scene, camera);
-        });
+        renderer.setAnimationLoop(() => renderer.render(scene, camera));
 
     } catch (error) {
         console.error("MindAR start failed:", error);
@@ -254,8 +239,6 @@ const stopMindAR = () => {
     mindarThree = null;
     anchor      = null;
     boxModel    = null;
-    mixer       = null;
-    action      = null;
 };
 
 const closeCameraModal = () => {
