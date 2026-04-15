@@ -18,6 +18,9 @@ let mindarThree    = null;
 let animationId    = null;
 let anchor         = null;
 let boxModel       = null;
+let mixer          = null;          // THREE.AnimationMixer
+let mixerActions   = [];            // AnimationAction[]
+const clock        = new THREE.Clock(false); // 手动控制，识别到才 start
 const imageTargetSrc = "./assets/targets/000-top.mind";
 
 // ── Helpers ───────────────────────────────────────────────
@@ -108,8 +111,19 @@ const setupMindAR = async () => {
     boxModel = gltf.scene;
     boxModel.position.set(0, 0.38, 0.12);
     boxModel.scale.set(0.18, 0.18, 0.18);
-    boxModel.visible = false;           // ← 初始隐藏，识别到才显示
+    boxModel.visible = false;
     anchor.group.add(boxModel);
+
+    // ── 动画 Mixer ────────────────────────────────────────
+    if (gltf.animations && gltf.animations.length > 0) {
+        mixer = new THREE.AnimationMixer(boxModel);
+        mixerActions = gltf.animations.map((clip) => {
+            const action = mixer.clipAction(clip);
+            action.loop = THREE.LoopRepeat;
+            action.clampWhenFinished = false;
+            return action;
+        });
+    }
 
     // ── 识别回调（用 opacity 软隐藏，避免 visible 切换闪烁）────
     let lostTimer = null;
@@ -128,6 +142,16 @@ const setupMindAR = async () => {
             if (lostTimer) { clearTimeout(lostTimer); lostTimer = null; }
             boxModel.visible = true;
             setModelOpacity(1);
+
+            // 播放 / 续播动画
+            if (mixer && mixerActions.length > 0) {
+                clock.start();
+                mixerActions.forEach((action) => {
+                    if (!action.isRunning()) action.play();
+                    else action.paused = false;
+                });
+            }
+
             setState("found");
             setStatus("已识别到 000-top，3D 模型已显示。");
         };
@@ -135,13 +159,20 @@ const setupMindAR = async () => {
         anchor.onTargetLost = () => {
             setState("lost");
             setStatus("目标暂时离开画面，请重新对准 000-top 画作。");
-        // 延迟 800ms 再隐藏，给 missTolerance 后续可能重新找到留余量
-        lostTimer = setTimeout(() => {
-            setModelOpacity(0);
-            boxModel.visible = false;
-            lostTimer = null;
-        }, 800);
-    };
+
+            // 暂停动画（不重置进度，重新识别后继续）
+            if (mixer) {
+                mixerActions.forEach((action) => { action.paused = true; });
+                clock.stop();
+            }
+
+            // 延迟 800ms 再隐藏模型
+            lostTimer = setTimeout(() => {
+                setModelOpacity(0);
+                boxModel.visible = false;
+                lostTimer = null;
+            }, 800);
+        };
 };
 
 // ── 启动 ──────────────────────────────────────────────────
@@ -202,7 +233,13 @@ const startMindAR = async () => {
             renderer.domElement.style.zIndex = "1";
         }
 
-        renderer.setAnimationLoop(() => renderer.render(scene, camera));
+        renderer.setAnimationLoop(() => {
+            // 只在 clock 运行时（识别到画作）更新动画
+            if (mixer && clock.running) {
+                mixer.update(clock.getDelta());
+            }
+            renderer.render(scene, camera);
+        });
 
     } catch (error) {
         console.error("MindAR start failed:", error);
@@ -236,6 +273,16 @@ const stopMindAR = () => {
         mindarThree.renderer.setAnimationLoop(null);
         mindarThree.stop();
     } catch (_) { /* ignore */ }
+
+    // 清理动画资源
+    if (mixer) {
+        mixer.stopAllAction();
+        mixer.uncacheRoot(boxModel);
+        mixer = null;
+    }
+    mixerActions = [];
+    clock.stop();
+
     mindarThree = null;
     anchor      = null;
     boxModel    = null;
