@@ -99,17 +99,7 @@
 }
 
 .camera-copy {
-    margin-bottom: 18px;
-    padding-right: 80px;
-    color: #f4f6f5;
-}
-
-.camera-copy .eyebrow {
-    color: var(--green);
-}
-
-.camera-copy p:last-child {
-    color: rgba(255, 255, 255, 0.72);
+    margin-bottom: 8px;
 }
 
 .debug-log {
@@ -131,9 +121,9 @@
     overflow: hidden;
     border-radius: 18px;
     background: #000000;
-    aspect-ratio: 3 / 4;
-    width: min(100%, 420px);
-    max-height: 76vh;
+    aspect-ratio: 9 / 16;
+    width: min(100%, 560px);
+    max-height: 84vh;
     margin: 0 auto;
 }
 
@@ -144,7 +134,7 @@
 
 .camera-target-frame {
     position: absolute;
-    inset: 14%;
+    inset: 6%;
     border: 2px solid rgba(0, 237, 100, 0.88);
     border-radius: 24px;
     box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.24);
@@ -192,20 +182,19 @@ body.camera-open {
     }
 
     .camera-copy {
-        padding-right: 0;
-        margin-top: 40px;
+        margin-top: 20px;
     }
 
     .camera-stage {
         width: 100%;
-        max-height: 68dvh;
+        max-height: 80dvh;
     }
 }
 
 /* ── 扫描线 ─────────────────────────────────────────────── */
 .scan-line-wrap {
     position: absolute;
-    inset: 14%;
+    inset: 6%;
     pointer-events: none;
     overflow: hidden;
     border-radius: 18px;

@@ -9,8 +9,6 @@ const cameraModal       = document.querySelector("#camera-modal");
 const cameraShell       = document.querySelector("#camera-shell");
 const arContainer       = document.querySelector("#ar-container");
 const cameraStatus      = document.querySelector("#camera-status");
-const cameraTitle       = document.querySelector("#camera-title");
-const cameraOverlayStatus = document.querySelector("#camera-overlay-status");
 const debugLog          = document.querySelector("#debug-log");
 const scanBadge         = document.querySelector("#scan-badge");
 const scanBadgeText     = document.querySelector("#scan-badge-text");
@@ -50,8 +48,6 @@ const withTimeout = (promise, ms, label) =>
 
 const setStatus = (message, title) => {
     if (cameraStatus)      cameraStatus.textContent      = message;
-    if (cameraOverlayStatus) cameraOverlayStatus.textContent = message;
-    if (title && cameraTitle) cameraTitle.textContent    = title;
 };
 
 // ── 扫描状态 UI ───────────────────────────────────────────
@@ -128,17 +124,17 @@ const setupMindAR = async () => {
         });
     };
 
-    anchor.onTargetFound = () => {
-        if (lostTimer) { clearTimeout(lostTimer); lostTimer = null; }
-        boxModel.visible = true;
-        setModelOpacity(1);
-        setState("found");
-        setStatus("已识别到 000-top，3D 模型已显示。", "识别成功。");
-    };
+        anchor.onTargetFound = () => {
+            if (lostTimer) { clearTimeout(lostTimer); lostTimer = null; }
+            boxModel.visible = true;
+            setModelOpacity(1);
+            setState("found");
+            setStatus("已识别到 000-top，3D 模型已显示。");
+        };
 
-    anchor.onTargetLost = () => {
-        setState("lost");
-        setStatus("目标暂时离开画面，请重新对准 000-top 画作。", "等待重新识别。");
+        anchor.onTargetLost = () => {
+            setState("lost");
+            setStatus("目标暂时离开画面，请重新对准 000-top 画作。");
         // 延迟 800ms 再隐藏，给 missTolerance 后续可能重新找到留余量
         lostTimer = setTimeout(() => {
             setModelOpacity(0);
@@ -171,7 +167,7 @@ const startMindAR = async () => {
     document.body.classList.add("camera-open");
     startButton.disabled = true;
     setState("loading");
-    setStatus("正在加载识别引擎，请稍候…", "正在准备识别。");
+    setStatus("正在加载识别引擎，请稍候…");
 
     // 让浏览器先绘制出 modal，再做重操作
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -180,7 +176,7 @@ const startMindAR = async () => {
         await withTimeout(setupMindAR(), 25000, "setupMindAR");
 
         setState("scanning");
-        setStatus("摄像头已就绪，请将镜头对准 000-top 画作。", "正在识别画作。");
+        setStatus("摄像头已就绪，请将镜头对准 000-top 画作。");
 
         await withTimeout(mindarThree.start(), 20000, "mindarThree.start");
 
@@ -218,12 +214,12 @@ const startMindAR = async () => {
         ].join("\n"));
 
         const name = error?.name ?? "";
-        if      (name === "NotAllowedError")  setStatus("未获得摄像头权限，请在浏览器里允许相机访问。", "无法启动识别。");
-        else if (name === "NotReadableError") setStatus("摄像头被其他应用占用，关闭后再试。", "无法启动识别。");
-        else if (name === "AbortError")       setStatus("相机启动被系统中断，请重新点击开始识别。", "无法启动识别。");
-        else if (error?.message?.includes("000-top.mind")) setStatus("找不到 000-top.mind，请确认 target 文件已上传到服务器。", "无法启动识别。");
-        else if (error?.message?.includes("timeout"))      setStatus("启动超时，MindAR 初始化或相机握手卡住，请刷新重试。", "无法启动识别。");
-        else setStatus(`启动失败：${error?.message ?? "未知错误"}，请刷新后重试。`, "无法启动识别。");
+        if      (name === "NotAllowedError")  setStatus("未获得摄像头权限，请在浏览器里允许相机访问。");
+        else if (name === "NotReadableError") setStatus("摄像头被其他应用占用，关闭后再试。");
+        else if (name === "AbortError")       setStatus("相机启动被系统中断，请重新点击开始识别。");
+        else if (error?.message?.includes("000-top.mind")) setStatus("找不到 000-top.mind，请确认 target 文件已上传到服务器。");
+        else if (error?.message?.includes("timeout"))      setStatus("启动超时，MindAR 初始化或相机握手卡住，请刷新重试。");
+        else setStatus(`启动失败：${error?.message ?? "未知错误"}，请刷新后重试。`);
 
         // 重置，允许重新点击
         mindarThree = null;
@@ -254,7 +250,7 @@ const closeCameraModal = () => {
     arContainer.innerHTML = "";
     startButton.disabled  = false;
     setState("scanning"); // 重置 badge
-    setStatus("识别已关闭，可以重新开始。", "准备启动识别。");
+    setStatus("识别已关闭，可以重新开始。");
 };
 
 // ── 事件 ──────────────────────────────────────────────────
