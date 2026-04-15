@@ -89,14 +89,15 @@ const setupMindAR = async () => {
         container: arContainer,
         imageTargetSrc,
         maxTrack: 1,
-        warmupTolerance: 5,
-        filterMinCF: 0.001,
-        filterBeta: 300,       // 降低抖动：1000 对速度过于敏感，轻微移动就跳
-        missTolerance: 10,
+        warmupTolerance: 15,   // 更长的暖机期，初始追踪更稳
+        filterMinCF: 0.001,    // 静止时极平滑
+        filterBeta: 100,       // 低速度系数，减少移动时抖动
+        missTolerance: 60,     // 丢失 60 帧才触发 onTargetLost，防止反复闪烁
     });
 
+    // ⚠️ 不调用 setPixelRatio：MindAR 初始化后改 canvas 分辨率会导致
+    //    投影矩阵与图像识别坐标错位 → 模型偏移 + 抽动
     const { renderer, scene, camera } = mindarThree;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
     // 灯光
     scene.add(new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1.25));
@@ -114,17 +115,36 @@ const setupMindAR = async () => {
     boxModel.visible = false;           // ← 初始隐藏，识别到才显示
     anchor.group.add(boxModel);
 
-    // ── 识别回调 ──────────────────────────────────────────
+    // ── 识别回调（用 opacity 软隐藏，避免 visible 切换闪烁）────
+    let lostTimer = null;
+
+    const setModelOpacity = (opacity) => {
+        boxModel.traverse((obj) => {
+            if (obj.isMesh && obj.material) {
+                obj.material.transparent = true;
+                obj.material.opacity = opacity;
+                obj.material.needsUpdate = true;
+            }
+        });
+    };
+
     anchor.onTargetFound = () => {
+        if (lostTimer) { clearTimeout(lostTimer); lostTimer = null; }
         boxModel.visible = true;
+        setModelOpacity(1);
         setState("found");
         setStatus("已识别到 000-top，3D 模型已显示。", "识别成功。");
     };
 
     anchor.onTargetLost = () => {
-        boxModel.visible = false;
         setState("lost");
         setStatus("目标暂时离开画面，请重新对准 000-top 画作。", "等待重新识别。");
+        // 延迟 800ms 再隐藏，给 missTolerance 后续可能重新找到留余量
+        lostTimer = setTimeout(() => {
+            setModelOpacity(0);
+            boxModel.visible = false;
+            lostTimer = null;
+        }, 800);
     };
 };
 
@@ -226,6 +246,8 @@ const stopMindAR = () => {
 };
 
 const closeCameraModal = () => {
+    // 清理延迟定时器
+    // lostTimer 在 anchor 闭包里，关闭时 anchor 也会销毁，无需单独清
     cameraModal.hidden = true;
     document.body.classList.remove("camera-open");
     stopMindAR();
