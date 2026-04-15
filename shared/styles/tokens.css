@@ -1,0 +1,22 @@
+:root {
+    color-scheme: light;
+    --bg: #f6f1e7;
+    --surface: #fffdf8;
+    --surface-soft: #f2ebe0;
+    --forest: #001e2b;
+    --deep-teal: #1c2d38;
+    --dark-green: #00684a;
+    --green: #00ed64;
+    --text: #10212b;
+    --muted: #5c6c75;
+    --line: #b8c4c2;
+    --shadow: rgba(0, 30, 43, 0.12) 0px 26px 44px, rgba(0, 0, 0, 0.13) 0px 7px 13px;
+    --shadow-soft: rgba(0, 0, 0, 0.08) 0px 8px 24px;
+    --font-serif: Georgia, "Times New Roman", serif;
+    --font-sans: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --font-mono: Consolas, "Source Code Pro", "Courier New", monospace;
+    --radius-button: 8px;
+    --radius-card: 16px;
+    --radius-panel: 24px;
+    --radius-pill: 999px;
+}

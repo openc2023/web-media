@@ -3,84 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Top - 精选项目</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #333;
-            text-align: center;
-        }
-        .project-list {
-            margin-top: 30px;
-        }
-        .project-item {
-            margin-bottom: 20px;
-            padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            transition: transform 0.3s ease;
-        }
-        .project-item:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        .project-item h2 {
-            margin-top: 0;
-            color: #4CAF50;
-        }
-        .project-item p {
-            color: #666;
-        }
-        .project-item a {
-            display: inline-block;
-            margin-top: 10px;
-            padding: 8px 16px;
-            background-color: #4CAF50;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            transition: background-color 0.3s ease;
-        }
-        .project-item a:hover {
-            background-color: #45a049;
-        }
-        .back-link {
-            display: inline-block;
-            margin-top: 20px;
-            padding: 8px 16px;
-            background-color: #3498db;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-        }
-        .back-link:hover {
-            background-color: #2980b9;
-        }
-    </style>
+    <title>TOP | Recognition Entry</title>
+    <meta name="description" content="进入页面后先查看画作与简要提示，点击开始识别后启动手机摄像头。">
+    <link rel="stylesheet" href="./styles/main.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Top - 精选项目</h1>
-        <p>这里展示了精选的优质项目。</p>
-        
-        <div class="project-list">
-            <!-- 精选项目将在这里添加 -->
+    <header class="site-header">
+        <a class="brand" href="../index.html">Inno Things</a>
+        <span class="status-tag">Recognition Entry</span>
+    </header>
+
+    <main>
+        <section class="entry section">
+            <div class="section-inner entry-layout">
+                <section class="intro-panel surface-panel">
+                    <p class="eyebrow">TOP</p>
+                    <h1>先看画作，再开始识别。</h1>
+                    <p class="lead">
+                        把手机对准画面，点击开始识别后会调用摄像头。识别成功后，后面的 3D 内容就接在这个入口后面。
+                    </p>
+
+                    <div class="hero-actions">
+                        <button class="button button-primary" id="start-recognition" type="button">开始识别</button>
+                    </div>
+
+                    <div class="entry-note">
+                        <p class="entry-note-title">识别前提示</p>
+                        <ul class="entry-note-list">
+                            <li>尽量让整幅画作完整进入镜头</li>
+                            <li>保持手机稳定，避免快速晃动</li>
+                            <li>优先在手机浏览器的 HTTPS 页面里测试</li>
+                        </ul>
+                    </div>
+
+                    <p class="camera-status" id="camera-status">待机中，点击按钮后启动摄像头。</p>
+                </section>
+
+                <figure class="artwork-panel">
+                    <img src="./assets/images/000-top.png" alt="TOP 画作预览">
+                    <figcaption>当前识别画作</figcaption>
+                </figure>
+            </div>
+        </section>
+    </main>
+
+    <section class="camera-modal" id="camera-modal" hidden>
+        <div class="camera-shell">
+            <button class="camera-close" id="close-camera" type="button" aria-label="关闭识别">关闭</button>
+            <div class="camera-copy">
+                <p class="eyebrow">Camera Recognition</p>
+                <h2 id="camera-title">准备启动识别。</h2>
+                <p id="camera-overlay-status">正在启动摄像头...</p>
+            </div>
+            <div class="camera-stage">
+                <video id="camera-video" autoplay playsinline muted></video>
+                <div class="camera-target-frame" aria-hidden="true"></div>
+                <div class="model-anchor" id="model-anchor" hidden>
+                    <model-viewer
+                        id="box-model"
+                        src="./assets/3d/gltf/box.glb"
+                        camera-controls
+                        disable-pan
+                        autoplay
+                        shadow-intensity="1"
+                        exposure="1.1"
+                        interaction-prompt="none"
+                        ar-modes="webxr scene-viewer quick-look"
+                    ></model-viewer>
+                </div>
+            </div>
         </div>
-        
-        <a href="../index.html" class="back-link">返回上一级</a>
-    </div>
+    </section>
+
+    <img id="target-image" src="./assets/images/000-top.png" alt="" hidden>
+    <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <script src="./scripts/main.js"></script>
 </body>
 </html>

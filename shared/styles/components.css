@@ -1,0 +1,77 @@
+.brand,
+.status-tag {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 14px;
+    border: 1px solid rgba(184, 196, 194, 0.28);
+    border-radius: var(--radius-pill);
+    background: var(--forest);
+    text-decoration: none;
+}
+
+.brand {
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.status-tag {
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.95rem;
+}
+
+.eyebrow {
+    margin: 0 0 8px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--dark-green);
+    font-family: var(--font-mono);
+}
+
+.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 46px;
+    padding: 0 20px;
+    border-radius: var(--radius-button);
+    border: 1px solid transparent;
+    text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
+    font: inherit;
+}
+
+.button-primary {
+    background: var(--dark-green);
+    color: #ffffff;
+    border-color: var(--dark-green);
+}
+
+.button-secondary {
+    border-color: var(--line);
+    background: transparent;
+    color: var(--forest);
+}
+
+.button-ghost {
+    border-color: var(--line);
+    background: transparent;
+    color: var(--forest);
+}
+
+.surface-card {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+}
+
+.surface-panel {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-panel);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+}
