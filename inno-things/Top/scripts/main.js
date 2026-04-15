@@ -266,6 +266,16 @@ const detectTarget = async () => {
 };
 
 const startCamera = async () => {
+    if (window.location.protocol === "file:") {
+        setStatus("不能直接双击本地 HTML 打开相机，请用 HTTPS 页面访问。", "当前无法启动识别。");
+        return;
+    }
+
+    if (window.isSecureContext === false) {
+        setStatus("当前不是安全环境，请改用 HTTPS 或 localhost 打开。", "当前无法启动识别。");
+        return;
+    }
+
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         setStatus("当前浏览器不支持摄像头调用。");
         return;
@@ -276,7 +286,6 @@ const startCamera = async () => {
     setStatus("正在启动摄像头...", "正在准备识别。");
 
     try {
-        await ensureTargetFeatures();
         activeStream = await navigator.mediaDevices.getUserMedia({
             video: {
                 facingMode: {
@@ -288,11 +297,18 @@ const startCamera = async () => {
 
         cameraVideo.srcObject = activeStream;
         await cameraVideo.play();
+        setStatus("摄像头已启动，正在加载识别能力...", "正在准备识别。");
+        await ensureTargetFeatures();
         setStatus("摄像头已启动，正在寻找 000-top 画作。", "正在识别画作。");
         detectTarget();
     } catch (error) {
         cameraModal.hidden = false;
         document.body.classList.add("camera-open");
+
+        if (error && error.name === "AbortError") {
+            setStatus("摄像头启动被中断，请重新点击开始识别。", "当前无法启动识别。");
+            return;
+        }
 
         if (window.isSecureContext === false) {
             setStatus("摄像头需要在 HTTPS 或 localhost 环境下打开。", "当前无法启动识别。");
@@ -306,6 +322,16 @@ const startCamera = async () => {
 
         if (error && error.name === "NotAllowedError") {
             setStatus("未获得摄像头权限，请允许浏览器访问相机。", "当前无法启动识别。");
+            return;
+        }
+
+        if (error && error.name === "NotReadableError") {
+            setStatus("摄像头被其他应用占用，先关闭占用相机的程序再试。", "当前无法启动识别。");
+            return;
+        }
+
+        if (error && error.name === "OverconstrainedError") {
+            setStatus("当前设备后置摄像头不可用，建议切到系统浏览器再试。", "当前无法启动识别。");
             return;
         }
 
