@@ -86,16 +86,26 @@
 
 .camera-close {
     position: absolute;
-    top: 18px;
-    right: 18px;
-    min-height: 38px;
-    padding: 0 14px;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
     border: 1px solid rgba(184, 196, 194, 0.2);
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.06);
     color: #f4f6f5;
-    font: inherit;
+    font-size: 18px;
+    line-height: 1;
     cursor: pointer;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.camera-close::before {
+    content: '×';
 }
 
 .camera-copy {
