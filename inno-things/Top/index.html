@@ -51,33 +51,26 @@
         <div class="camera-shell">
             <button class="camera-close" id="close-camera" type="button" aria-label="关闭识别">关闭</button>
             <div class="camera-copy">
-                <p class="eyebrow">Camera Recognition</p>
+                <p class="eyebrow">MindAR Recognition</p>
                 <h2 id="camera-title">准备启动识别。</h2>
                 <p id="camera-overlay-status">正在启动摄像头...</p>
             </div>
             <div class="camera-stage">
-                <video id="camera-video" autoplay playsinline muted></video>
+                <div id="ar-container"></div>
                 <div class="camera-target-frame" aria-hidden="true"></div>
-                <div class="model-anchor" id="model-anchor" hidden>
-                    <model-viewer
-                        id="box-model"
-                        src="./assets/3d/gltf/box.glb"
-                        camera-controls
-                        disable-pan
-                        autoplay
-                        shadow-intensity="1"
-                        exposure="1.1"
-                        interaction-prompt="none"
-                        ar-modes="webxr scene-viewer quick-look"
-                    ></model-viewer>
-                </div>
             </div>
         </div>
     </section>
 
-    <img id="target-image" src="./assets/images/000-top.png" alt="" hidden>
-    <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
-    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
-    <script src="./scripts/main.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+            }
+        }
+    </script>
+    <script type="module" src="./scripts/main.js"></script>
 </body>
 </html>
