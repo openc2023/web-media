@@ -91,7 +91,7 @@ const setupMindAR = async () => {
         maxTrack: 1,
         warmupTolerance: 5,
         filterMinCF: 0.001,
-        filterBeta: 1000,
+        filterBeta: 300,       // 降低抖动：1000 对速度过于敏感，轻微移动就跳
         missTolerance: 10,
     });
 
@@ -164,8 +164,28 @@ const startMindAR = async () => {
 
         await withTimeout(mindarThree.start(), 20000, "mindarThree.start");
 
-        // 渲染循环
+        // ── 修复黑屏：MindAR canvas 覆盖在 video 上，确保 canvas 透明 + video 可见
         const { renderer, scene, camera } = mindarThree;
+        renderer.setClearColor(0x000000, 0);       // canvas 背景全透明，video 透上来
+
+        // 找到 MindAR 注入的 video 元素，强制保证它可见并在 canvas 下方
+        const videoEl = arContainer.querySelector("video");
+        if (videoEl) {
+            Object.assign(videoEl.style, {
+                position: "absolute",
+                inset: "0",
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+                zIndex: "0",
+            });
+        }
+        // canvas 在 video 上方，用透明背景叠加 3D 模型
+        if (renderer.domElement) {
+            renderer.domElement.style.zIndex = "1";
+        }
+
         renderer.setAnimationLoop(() => renderer.render(scene, camera));
 
     } catch (error) {

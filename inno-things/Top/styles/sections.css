@@ -300,3 +300,22 @@ body.camera-open {
     0%, 100% { opacity: 1; }
     50%      { opacity: 0.25; }
 }
+
+/* ── MindAR 黑屏兜底修复 ──────────────────────────────── */
+#ar-container video {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    display: block !important;
+    z-index: 0 !important;
+}
+#ar-container canvas {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 1 !important;
+    background: transparent !important;
+}
