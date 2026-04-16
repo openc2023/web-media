@@ -58,11 +58,21 @@ canvas {
 
 .panel-toggle {
   justify-self: start;
-  padding: 10px 14px;
+  padding: 8px;
   background: rgba(12, 17, 15, 0.84);
   color: var(--text);
   border: 1px solid var(--line);
+  border-radius: 8px;
   backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel-logo {
+  width: 48px;
+  height: auto;
+  display: block;
 }
 
 .control-panel {

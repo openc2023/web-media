@@ -19,7 +19,6 @@ export function createUiController() {
   function syncPanelState() {
     panelDock.classList.toggle("is-collapsed", collapsed);
     panelToggle.setAttribute("aria-expanded", String(!collapsed));
-    panelToggle.textContent = collapsed ? "Show Panel" : "Hide Panel";
   }
 
   function setCollapsed(nextCollapsed) {
