@@ -6,6 +6,7 @@ export function createAudioController() {
   const state = {
     active: false,
     mode: "demo",
+    noiseReductionEnabled: true,
     stream: null,
     context: null,
     analyser: null,
@@ -21,9 +22,9 @@ export function createAudioController() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
+          echoCancellation: state.noiseReductionEnabled,
+          noiseSuppression: state.noiseReductionEnabled,
+          autoGainControl: state.noiseReductionEnabled,
         },
       });
 
@@ -43,7 +44,9 @@ export function createAudioController() {
       state.freqData = new Uint8Array(analyser.frequencyBinCount);
       state.active = true;
       state.mode = "live";
-      state.message = "Live control is on. Keep talking and watch it respond.";
+      state.message = state.noiseReductionEnabled
+        ? "Live control is on. Noise reduction is enabled."
+        : "Live control is on. Noise reduction is disabled.";
     } catch (error) {
       state.message = "Microphone access was denied, so demo mode stays on.";
       console.error(error);
@@ -76,6 +79,25 @@ export function createAudioController() {
       return;
     }
 
+    await start();
+  }
+
+  async function setNoiseReductionEnabled(enabled) {
+    const nextEnabled = Boolean(enabled);
+    if (state.noiseReductionEnabled === nextEnabled) {
+      return;
+    }
+
+    state.noiseReductionEnabled = nextEnabled;
+
+    if (!state.active) {
+      state.message = nextEnabled
+        ? "Noise reduction is enabled for the next microphone session."
+        : "Noise reduction is disabled for the next microphone session.";
+      return;
+    }
+
+    stop();
     await start();
   }
 
@@ -133,10 +155,12 @@ export function createAudioController() {
       energy: state.energy,
       brightness: state.brightness,
       message: state.message,
+      noiseReductionEnabled: state.noiseReductionEnabled,
     };
   }
 
   return {
+    setNoiseReductionEnabled,
     stop,
     toggle,
     update,

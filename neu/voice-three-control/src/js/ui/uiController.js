@@ -5,6 +5,7 @@ export function createUiController() {
   const panelToggle = document.querySelector("#panelToggle");
   const micButton = document.querySelector("#micButton");
   const baseSpeedInput = document.querySelector("#baseSpeed");
+  const noiseReductionInput = document.querySelector("#noiseReduction");
   const statusText = document.querySelector("#statusText");
   const energyBar = document.querySelector("#energyBar");
   const brightnessBar = document.querySelector("#brightnessBar");
@@ -55,15 +56,32 @@ export function createUiController() {
     baseSpeedInput.addEventListener("input", handler);
   }
 
+  function bindNoiseReductionChange(handler) {
+    noiseReductionInput.addEventListener("change", () => {
+      handler(noiseReductionInput.checked);
+    });
+  }
+
   function getBaseSpeed() {
     return Number(baseSpeedInput.value);
+  }
+
+  function getNoiseReductionEnabled() {
+    return noiseReductionInput.checked;
+  }
+
+  function setNoiseReductionEnabled(enabled) {
+    noiseReductionInput.checked = enabled;
   }
 
   return {
     update,
     bindToggle,
     bindBaseSpeedChange,
+    bindNoiseReductionChange,
     getBaseSpeed,
+    getNoiseReductionEnabled,
     setCollapsed,
+    setNoiseReductionEnabled,
   };
 }

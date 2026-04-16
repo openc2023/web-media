@@ -41,10 +41,16 @@ async function handleMicrophoneToggle() {
   ui.update(getFrameState());
 }
 
+async function handleNoiseReductionChange(enabled) {
+  await audio.setNoiseReductionEnabled(enabled);
+  ui.update(getFrameState());
+}
+
 ui.bindToggle(handleMicrophoneToggle);
 ui.bindBaseSpeedChange(() => {
   ui.update(getFrameState());
 });
+ui.bindNoiseReductionChange(handleNoiseReductionChange);
 
 window.addEventListener("resize", world.resize);
 window.addEventListener("beforeunload", () => {
@@ -70,5 +76,6 @@ ui.update({
   ...audio.getReactiveState(),
   speed,
 });
+ui.setNoiseReductionEnabled(audio.getReactiveState().noiseReductionEnabled);
 
 animate();

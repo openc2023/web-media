@@ -129,9 +129,24 @@ button:active {
   margin-bottom: 16px;
 }
 
-.slider-row span {
+.slider-row span,
+.switch-row span {
   font-size: 0.88rem;
   color: var(--muted);
+}
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.switch-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--teal);
 }
 
 input[type="range"] {
