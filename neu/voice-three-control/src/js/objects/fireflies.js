@@ -1,7 +1,7 @@
 import * as THREE from "three";
 
 export function createFireflies(scene) {
-  const count = 120;
+  const count = 150;
   const positions = new Float32Array(count * 3);
   const basePositions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
