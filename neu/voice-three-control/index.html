@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Voice-Controlled Three.js Motion</title>
+    <link rel="icon" href="./assets/images/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./src/css/main.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three/build/three.module.js",
+          "three/addons/": "./vendor/three/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <div id="panelDock" class="panel-dock">
+        <button
+          id="panelToggle"
+          class="panel-toggle"
+          type="button"
+          aria-controls="controlPanel"
+          aria-expanded="true"
+        >
+          Hide Panel
+        </button>
+
+        <section id="controlPanel" class="control-panel">
+          <p class="eyebrow">Voice x Three.js</p>
+          <h1>Sound Drive</h1>
+          <p class="lead">
+            Talk, clap, or hum into the mic. The windmill animation speeds up
+            with louder input.
+          </p>
+
+          <div class="actions">
+            <button id="micButton" type="button">Enable Microphone</button>
+          </div>
+
+          <label class="slider-row" for="baseSpeed">
+            <span>Mic Boost</span>
+            <input
+              id="baseSpeed"
+              type="range"
+              min="0.4"
+              max="2"
+              value="0.85"
+              step="0.01"
+            />
+          </label>
+
+          <div class="meter-list">
+            <div class="meter-row">
+              <span>Level</span>
+              <div class="meter-track">
+                <div id="energyBar" class="meter-fill"></div>
+              </div>
+              <strong id="energyText">0%</strong>
+            </div>
+
+            <div class="meter-row">
+              <span>Tone</span>
+              <div class="meter-track">
+                <div id="brightnessBar" class="meter-fill alt"></div>
+              </div>
+              <strong id="brightnessText">0%</strong>
+            </div>
+
+            <div class="meter-row">
+              <span>Speed</span>
+              <div class="meter-track">
+                <div id="speedBar" class="meter-fill warm"></div>
+              </div>
+              <strong id="speedText">0.85x</strong>
+            </div>
+          </div>
+
+          <p id="statusText" class="status">
+            Demo mode is running. Turn on the mic for live control.
+          </p>
+        </section>
+      </div>
+
+      <section class="hint-strip" aria-label="Quick hints">
+        <p>Quiet input keeps the windmill still.</p>
+        <p>Tone also nudges the scene lighting.</p>
+        <p>Drag the scene to change the angle.</p>
+      </section>
+    </main>
+
+    <script type="module" src="./src/js/main.js"></script>
+  </body>
+</html>
