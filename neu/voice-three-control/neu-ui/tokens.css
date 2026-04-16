@@ -1,0 +1,55 @@
+:root {
+  color-scheme: dark;
+
+  --ui-font-sans: "Geist", Inter, "Segoe UI", Arial, sans-serif;
+  --ui-font-mono: "Geist Mono", "Cascadia Code", Consolas, monospace;
+
+  --ui-bg: #040506;
+  --ui-bg-elevated: #0a0d0e;
+  --ui-surface-1: rgba(10, 13, 14, 0.88);
+  --ui-surface-2: rgba(12, 17, 15, 0.74);
+  --ui-surface-3: rgba(16, 20, 22, 0.9);
+
+  --ui-text: #f6f4ee;
+  --ui-text-muted: rgba(246, 244, 238, 0.72);
+  --ui-text-faint: rgba(246, 244, 238, 0.48);
+
+  --ui-line: rgba(255, 255, 255, 0.12);
+  --ui-line-strong: rgba(255, 255, 255, 0.2);
+
+  --ui-teal: #39d0b6;
+  --ui-mint: #8cf0c8;
+  --ui-coral: #ff7a59;
+  --ui-gold: #f4bf4f;
+  --ui-cyan: #65dfff;
+  --ui-violet: #8a7cff;
+
+  --ui-gradient-primary: linear-gradient(90deg, var(--ui-teal), var(--ui-coral));
+  --ui-gradient-signal: linear-gradient(90deg, var(--ui-mint), var(--ui-gold));
+  --ui-gradient-glow: linear-gradient(135deg, var(--ui-cyan), var(--ui-violet), var(--ui-coral));
+
+  --ui-radius-xs: 6px;
+  --ui-radius-sm: 8px;
+  --ui-radius-md: 10px;
+
+  --ui-shadow-line: 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --ui-shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.24);
+  --ui-shadow-panel:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 12px 28px rgba(0, 0, 0, 0.28);
+  --ui-shadow-glow: 0 0 24px rgba(101, 223, 255, 0.22);
+
+  --ui-space-1: 4px;
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-space-4: 16px;
+  --ui-space-5: 20px;
+  --ui-space-6: 24px;
+  --ui-space-7: 32px;
+  --ui-space-8: 40px;
+
+  --ui-logo-button-size: 56px;
+  --ui-logo-button-padding: 8px;
+  --ui-rank-scale-height: 240px;
+  --ui-rank-track-width: 12px;
+}

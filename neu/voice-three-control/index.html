@@ -16,29 +16,29 @@
     </script>
   </head>
   <body>
-    <main class="app-shell">
-      <div id="panelDock" class="panel-dock">
+    <main class="app-shell ui-app-shell">
+      <div id="panelDock" class="panel-dock ui-panel-dock">
         <button
           id="panelToggle"
-          class="panel-toggle"
+          class="panel-toggle ui-icon-button ui-logo-button"
           type="button"
           aria-controls="controlPanel"
           aria-expanded="true"
           aria-label="Toggle Panel"
         >
-          <img src="./assets/images/neulogo.png" alt="NEU Logo" class="panel-logo">
+          <img src="./assets/images/neulogo.png" alt="NEU Logo" class="panel-logo ui-logo-button-image">
         </button>
 
-        <section id="controlPanel" class="control-panel">
-          <p class="eyebrow">Voice x Three.js</p>
-          <h1>Sound Drive</h1>
-          <p class="lead">
+        <section id="controlPanel" class="control-panel ui-panel">
+          <p class="eyebrow ui-eyebrow">Voice x Three.js</p>
+          <h1 class="ui-title-xl">Sound Drive</h1>
+          <p class="lead ui-text-muted">
             Talk, clap, or hum into the mic. The windmill animation speeds up
             with louder input.
           </p>
 
           <div class="actions">
-            <button id="micButton" type="button">Enable Microphone</button>
+            <button id="micButton" class="ui-button ui-button-primary" type="button">Enable Microphone</button>
           </div>
 
           <label class="slider-row" for="baseSpeed">
@@ -58,42 +58,64 @@
             <input id="noiseReduction" type="checkbox" checked />
           </label>
 
-          <div class="meter-list">
-            <div class="meter-row">
+          <div class="meter-list ui-meter-list">
+            <div class="meter-row ui-meter-row">
               <span>Level</span>
-              <div class="meter-track">
-                <div id="energyBar" class="meter-fill"></div>
+              <div class="meter-track ui-meter-track">
+                <div id="energyBar" class="meter-fill ui-meter-fill"></div>
               </div>
               <strong id="energyText">0%</strong>
             </div>
 
-            <div class="meter-row">
+            <div class="meter-row ui-meter-row">
               <span>Tone</span>
-              <div class="meter-track">
-                <div id="brightnessBar" class="meter-fill alt"></div>
+              <div class="meter-track ui-meter-track">
+                <div id="brightnessBar" class="meter-fill ui-meter-fill alt"></div>
               </div>
               <strong id="brightnessText">0%</strong>
             </div>
 
-            <div class="meter-row">
+            <div class="meter-row ui-meter-row">
               <span>Speed</span>
-              <div class="meter-track">
-                <div id="speedBar" class="meter-fill warm"></div>
+              <div class="meter-track ui-meter-track">
+                <div id="speedBar" class="meter-fill ui-meter-fill warm"></div>
               </div>
               <strong id="speedText">0.85x</strong>
             </div>
           </div>
 
-          <p id="statusText" class="status">
+          <p id="statusText" class="status ui-text-muted">
             Demo mode is running. Turn on the mic for live control.
           </p>
         </section>
       </div>
 
-      <section class="hint-strip" aria-label="Quick hints">
+      <section class="hint-strip ui-hint-strip" aria-label="Quick hints">
         <p>Quiet input keeps the windmill still.</p>
         <p>Tone also nudges the scene lighting.</p>
         <p>Drag the scene to change the angle.</p>
+      </section>
+
+      <section class="voice-rank ui-panel" aria-label="Voice rank scale">
+        <div class="ui-rank-scale">
+          <div class="ui-rank-scale-head">
+            <strong id="voiceRankTime" class="ui-rank-scale-time">0.0s</strong>
+          </div>
+
+          <div class="ui-rank-scale-body">
+            <div class="ui-rank-scale-track" aria-hidden="true">
+              <div id="voiceRankFill" class="ui-rank-scale-fill"></div>
+            </div>
+
+            <ol class="ui-rank-scale-steps">
+              <li class="ui-rank-scale-step" data-rank-level="4">개좋음</li>
+              <li class="ui-rank-scale-step" data-rank-level="3">좋음</li>
+              <li class="ui-rank-scale-step" data-rank-level="2">보통</li>
+              <li class="ui-rank-scale-step" data-rank-level="1">아쉬움</li>
+              <li class="ui-rank-scale-step" data-rank-level="0">별로</li>
+            </ol>
+          </div>
+        </div>
       </section>
     </main>
 

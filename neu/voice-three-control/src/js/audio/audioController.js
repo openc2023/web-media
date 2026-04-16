@@ -14,6 +14,7 @@ export function createAudioController() {
     timeData: null,
     freqData: null,
     energy: 0.12,
+    instantEnergy: 0,
     brightness: 0.28,
     message: DEFAULT_MESSAGE,
   };
@@ -70,6 +71,7 @@ export function createAudioController() {
     state.source = null;
     state.timeData = null;
     state.freqData = null;
+    state.instantEnergy = 0;
     state.message = DEFAULT_MESSAGE;
   }
 
@@ -129,6 +131,7 @@ export function createAudioController() {
     const centroid = total > 0 ? weighted / total : 0;
     const normalizedBrightness = clamp(centroid / state.freqData.length, 0, 1);
 
+    state.instantEnergy = normalizedEnergy;
     state.energy = mix(state.energy, normalizedEnergy, 0.18);
     state.brightness = mix(state.brightness, normalizedBrightness, 0.14);
   }
@@ -136,6 +139,7 @@ export function createAudioController() {
   function sampleDemo(elapsedTime) {
     const pulse = (Math.sin(elapsedTime * 1.8) + 1) * 0.5;
     const shimmer = (Math.sin(elapsedTime * 2.7 + 1.1) + 1) * 0.5;
+    state.instantEnergy = 0;
     state.energy = mix(state.energy, 0.14 + pulse * 0.36, 0.05);
     state.brightness = mix(state.brightness, 0.24 + shimmer * 0.4, 0.05);
   }
@@ -153,6 +157,7 @@ export function createAudioController() {
     return {
       active: state.active,
       energy: state.energy,
+      instantEnergy: state.instantEnergy,
       brightness: state.brightness,
       message: state.message,
       noiseReductionEnabled: state.noiseReductionEnabled,
