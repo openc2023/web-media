@@ -10,6 +10,11 @@
 <body>
     <header class="site-header">
         <a class="brand" href="../index.html">Inno Things</a>
+        <div class="locale-switcher" aria-label="Language switcher">
+            <button class="locale-button" type="button" data-locale="zh-CN">zh-CN</button>
+            <button class="locale-button" type="button" data-locale="en">en</button>
+            <button class="locale-button" type="button" data-locale="ko">ko</button>
+        </div>
     </header>
 
     <main>
@@ -18,50 +23,50 @@
                 <section class="intro-panel surface-panel">
                     <div class="intro-top">
                         <div>
-                            <p class="eyebrow">TOP</p>
-                            <p class="intro-code">000-top</p>
+                            <p class="eyebrow" data-i18n="top.eyebrow">TOP</p>
+                            <p class="intro-code" data-i18n="top.code">000-top</p>
                         </div>
-                        <p class="intro-index" aria-hidden="true">01</p>
+                        <p class="intro-index" aria-hidden="true" data-i18n="top.index">01</p>
                     </div>
 
                     <div class="intro-head">
-                        <h1>先看画作</h1>
-                        <p class="lead">确认画作后，再开始识别。</p>
+                        <h1 data-i18n="top.heading">先看画作</h1>
+                        <p class="lead" data-i18n="top.lead">确认画作后，再开始识别。</p>
                     </div>
 
                     <div class="hero-actions">
-                        <button class="button button-primary" id="start-recognition" type="button">开始识别</button>
+                        <button class="button button-primary" id="start-recognition" type="button" data-i18n="top.start">开始识别</button>
                     </div>
 
-                    <div class="intro-meta" aria-label="作品信息">
+                    <div class="intro-meta" aria-label="Artwork Info">
                         <div class="intro-meta-item">
-                            <span class="intro-meta-label">识别图</span>
-                            <span class="intro-meta-value">000-top</span>
+                            <span class="intro-meta-label" data-i18n="top.metaTargetLabel">识别图</span>
+                            <span class="intro-meta-value" data-i18n="top.metaTargetValue">000-top</span>
                         </div>
                         <div class="intro-meta-item">
-                            <span class="intro-meta-label">模型</span>
-                            <span class="intro-meta-value">box.glb</span>
+                            <span class="intro-meta-label" data-i18n="top.metaModelLabel">模型</span>
+                            <span class="intro-meta-value" data-i18n="top.metaModelValue">box.glb</span>
                         </div>
                         <div class="intro-meta-item">
-                            <span class="intro-meta-label">模式</span>
-                            <span class="intro-meta-value">AR</span>
+                            <span class="intro-meta-label" data-i18n="top.metaModeLabel">模式</span>
+                            <span class="intro-meta-value" data-i18n="top.metaModeValue">AR</span>
                         </div>
                     </div>
 
                     <div class="entry-note">
-                        <p class="entry-note-title">识别前</p>
+                        <p class="entry-note-title" data-i18n="top.noteTitle">识别前</p>
                         <ul class="entry-note-list">
-                            <li>尽量让整幅画进入取景框</li>
-                            <li>保持镜头稳定，慢慢靠近</li>
+                            <li data-i18n="top.noteItem1">尽量让整幅画进入取景框</li>
+                            <li data-i18n="top.noteItem2">保持镜头稳定，慢慢靠近</li>
                         </ul>
                     </div>
 
-                    <p class="camera-status" id="camera-status">等待开始识别。</p>
+                    <p class="camera-status" id="camera-status" data-i18n="top.statusIdle">等待开始识别。</p>
                 </section>
 
                 <figure class="artwork-panel">
-                    <img src="./assets/images/000-top.png" alt="000-top 画作">
-                    <figcaption>000-top</figcaption>
+                    <img src="./assets/images/000-top.png" data-i18n-alt="top.artworkAlt" alt="000-top 画作">
+                    <figcaption data-i18n="top.artworkCaption">000-top</figcaption>
                 </figure>
             </div>
         </section>
@@ -69,7 +74,7 @@
 
     <section class="camera-modal" id="camera-modal" hidden>
         <div class="camera-shell" id="camera-shell">
-            <button class="camera-close" id="close-camera" type="button" aria-label="关闭识别"></button>
+            <button class="camera-close" id="close-camera" type="button" data-i18n-aria-label="top.closeAria" aria-label="关闭识别"></button>
             <div class="camera-copy">
                 <pre class="debug-log" id="debug-log" hidden></pre>
             </div>
@@ -81,7 +86,7 @@
                 <div class="camera-target-frame" aria-hidden="true"></div>
                 <div class="scan-badge" id="scan-badge" aria-live="polite">
                     <span class="scan-badge-dot"></span>
-                    <span id="scan-badge-text">扫描中…</span>
+                    <span id="scan-badge-text" data-i18n="top.badgeScanning">扫描中，请对准画作</span>
                 </div>
             </div>
         </div>

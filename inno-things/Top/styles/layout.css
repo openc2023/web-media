@@ -8,6 +8,32 @@
     gap: 16px;
 }
 
+.locale-switcher {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.locale-button {
+    min-height: 34px;
+    padding: 0 10px;
+    border: 1px solid rgba(184, 196, 194, 0.28);
+    border-radius: 8px;
+    background: rgba(255, 252, 247, 0.72);
+    color: var(--forest);
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.locale-button.is-active {
+    border-color: var(--dark-green);
+    background: var(--dark-green);
+    color: #ffffff;
+}
+
 .section {
     padding: 28px 0;
 }
@@ -86,6 +112,17 @@ main {
 
     .site-header {
         padding-top: 18px;
+        gap: 12px;
+    }
+
+    .locale-switcher {
+        gap: 6px;
+    }
+
+    .locale-button {
+        min-height: 30px;
+        padding: 0 8px;
+        font-size: 0.74rem;
     }
 
     .section {

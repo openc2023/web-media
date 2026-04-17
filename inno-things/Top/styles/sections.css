@@ -17,9 +17,22 @@
 
 .intro-top {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     gap: 16px;
+}
+
+.intro-top > div {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.intro-panel .eyebrow {
+    margin-bottom: 4px;
+    font-size: 1.48rem;
+    font-weight: 700;
+    letter-spacing: 0.4px;
 }
 
 .intro-code {
@@ -63,6 +76,8 @@
     margin-top: 22px;
     padding-top: 16px;
     border-top: 1px solid rgba(0, 104, 74, 0.14);
+    justify-items: center;
+    text-align: center;
 }
 
 .intro-meta-item {
@@ -302,8 +317,8 @@ body.camera-open {
         font-size: 2.4rem;
     }
 
-    .intro-meta {
-        grid-template-columns: 1fr;
+    .intro-panel .eyebrow {
+        font-size: 1.24rem;
     }
 
     .hero-actions {
