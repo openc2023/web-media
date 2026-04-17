@@ -232,15 +232,16 @@
     position: fixed;
     top: calc(env(safe-area-inset-top, 0px) + 12px);
     right: calc(env(safe-area-inset-right, 0px) + 12px);
-    width: 32px;
-    height: 32px;
+    /* 视觉 36×36，触控热区通过 padding 扩展到 44×44 */
+    width: 36px;
+    height: 36px;
     padding: 0;
     border: none;
     border-radius: var(--r-sm);
     background: rgba(255,255,255,0.08);
     box-shadow: rgba(255,255,255,0.12) 0px 0px 0px 1px;
     color: rgba(255,255,255,0.75);
-    font-size: 18px;
+    font-size: 20px;
     line-height: 1;
     cursor: pointer;
     z-index: 120;
@@ -248,9 +249,27 @@
     align-items: center;
     justify-content: center;
     transition: background 0.15s;
+    /* 扩展触控热区（不改变视觉大小） */
+    touch-action: manipulation;
+}
+.camera-close::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
 }
 .camera-close:hover { background: rgba(255,255,255,0.14); }
 .camera-close::before { content: "\00D7"; }
+
+/* ── 开始识别按钮：加载中状态 ─────────────────────────── */
+.button[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+.button[aria-busy="true"] {
+    opacity: 0.7;
+    cursor: wait;
+}
 
 .camera-copy { margin-bottom: 8px; }
 

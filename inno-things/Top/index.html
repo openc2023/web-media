@@ -2,9 +2,21 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- viewport-fit=cover：让 safe-area-inset 在 iPhone 刘海/全面屏生效 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>TOP | Recognition Entry</title>
     <meta name="description" content="TOP 画作识别入口。">
+
+    <!-- 移动端体验 -->
+    <meta name="theme-color" content="#f6f1e7">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="TOP AR">
+
+    <!-- Geist 字体预连接：减少 FOUT -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
     <link rel="stylesheet" href="./styles/main.css">
 </head>
 <body>
@@ -72,9 +84,14 @@
         </section>
     </main>
 
-    <section class="camera-modal" id="camera-modal" hidden>
+    <!-- role="dialog" + aria-modal：屏幕阅读器正确识别弹层；aria-labelledby 关联标题 -->
+    <section class="camera-modal" id="camera-modal"
+             role="dialog" aria-modal="true" aria-labelledby="camera-dialog-title"
+             hidden>
         <div class="camera-shell" id="camera-shell">
-            <button class="camera-close" id="close-camera" type="button" data-i18n-aria-label="top.closeAria" aria-label="关闭识别"></button>
+            <span id="camera-dialog-title" class="sr-only" data-i18n="top.dialogTitle">AR 识别</span>
+            <button class="camera-close" id="close-camera" type="button"
+                    data-i18n-aria-label="top.closeAria" aria-label="关闭识别"></button>
             <div class="camera-copy">
                 <pre class="debug-log" id="debug-log" hidden></pre>
             </div>

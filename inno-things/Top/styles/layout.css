@@ -17,7 +17,7 @@
 }
 
 .locale-button {
-    min-height: 28px;
+    min-height: 36px;
     padding: 0 8px;
     border: none;
     border-radius: var(--r-xs);
@@ -91,4 +91,10 @@ main      { width: 100%; }
     .section-inner { width: min(1120px, calc(100% - 20px)); }
     .site-header { padding-top: 14px; gap: 8px; }
     .section { padding: 14px 0; }
+
+    /* 触控目标放大到 44px（Apple HIG 推荐） */
+    .locale-button { min-height: 44px; padding: 0 10px; }
 }
+
+/* 相机开启时防止背景回弹 */
+body.camera-open { overscroll-behavior: none; }

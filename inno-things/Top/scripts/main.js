@@ -22,6 +22,7 @@ let anchor = null;
 let boxModel = null;
 let mixer = null;
 let mixerActions = [];
+let lostTimer = null;          // 模块级：stopMindAR 可以安全取消
 let currentState = "scanning";
 let currentStatusKey = "top.statusIdle";
 let currentStatusVars = {};
@@ -83,6 +84,18 @@ const setState = (state) => {
     if (dot) {
         dot.style.background = badge.dot;
     }
+};
+
+// 强制重启扫描 UI 的 CSS 动画（每次打开弹窗从第 0 帧开始）
+const restartScanAnimations = () => {
+    const els = cameraModal.querySelectorAll(
+        ".scan-line, .camera-target-frame, .scan-badge-dot"
+    );
+    els.forEach((el) => {
+        el.style.animationName = "none";
+        void el.offsetWidth;          // 触发 reflow，让浏览器"忘记"当前帧
+        el.style.animationName = "";  // 恢复 CSS 定义的动画名，从头播放
+    });
 };
 
 const loadBoxModel = () =>
@@ -148,8 +161,6 @@ const setupMindAR = async () => {
             return action;
         });
     }
-
-    let lostTimer = null;
 
     const setModelOpacity = (opacity) => {
         boxModel.traverse((object) => {
@@ -253,9 +264,15 @@ const startMindAR = async () => {
 
     cameraModal.hidden = false;
     document.body.classList.add("camera-open");
+    // 每次打开都重置扫描动画到第 0 帧，消除"扫描残留"
+    restartScanAnimations();
     startButton.disabled = true;
+    startButton.setAttribute("aria-busy", "true");
     setState("loading");
     setStatus("top.statusLoadingEngine");
+
+    // 焦点移入弹窗（无障碍 + 键盘用户）
+    requestAnimationFrame(() => closeButton.focus());
 
     await new Promise((resolve) => {
         requestAnimationFrame(() => requestAnimationFrame(resolve));
@@ -289,6 +306,8 @@ const startMindAR = async () => {
             renderer.domElement.style.zIndex = "1";
         }
 
+        startButton.removeAttribute("aria-busy");
+
         // Start the smoothed render loop (lerp + mixer + render)
         startLoop(camera);
     } catch (error) {
@@ -319,10 +338,17 @@ const startMindAR = async () => {
         anchor = null;
         boxModel = null;
         startButton.disabled = false;
+        startButton.removeAttribute("aria-busy");
     }
 };
 
 const stopMindAR = () => {
+    // 先取消 lostTimer，防止它在 boxModel 已置 null 后触发 → 崩溃
+    if (lostTimer) {
+        clearTimeout(lostTimer);
+        lostTimer = null;
+    }
+
     if (!mindarThree) return;
 
     try {
@@ -351,8 +377,11 @@ const closeCameraModal = () => {
     stopMindAR();
     arContainer.innerHTML = "";
     startButton.disabled = false;
+    startButton.removeAttribute("aria-busy");
     setState("scanning");
     setStatus("top.statusIdle");
+    // 焦点还原到触发按钮（键盘用户不迷失）
+    startButton.focus();
 };
 
 const syncLocaleButtons = () => {
@@ -382,12 +411,22 @@ closeButton.addEventListener("click", closeCameraModal);
 localeButtons.forEach((button) => {
     button.addEventListener("click", () => {
         i18n.setLocale(button.dataset.locale);
+        // 同步 html[lang]，让浏览器/屏幕阅读器感知语言切换
+        document.documentElement.lang = button.dataset.locale;
         refreshLocalizedUi();
     });
 });
 
+// 点击遮罩关闭
 cameraModal.addEventListener("click", (event) => {
     if (event.target === cameraModal) {
+        closeCameraModal();
+    }
+});
+
+// Escape 键关闭（桌面端体验）
+window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !cameraModal.hidden) {
         closeCameraModal();
     }
 });

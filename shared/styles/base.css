@@ -2,7 +2,12 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+html {
+    scroll-behavior: smooth;
+    /* 防止旋转/缩放时系统自动调整字号 */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
 
 body {
     margin: 0;
@@ -13,6 +18,26 @@ body {
     color: var(--text);
     line-height: 1.55;
     font-weight: 400;
+    /* 防止水平溢出导致移动端误触滚动 */
+    overflow-x: hidden;
+}
+
+/* ── 无障碍：仅视觉隐藏，屏幕阅读器可读 ─────────────── */
+.sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ── Focus 样式（键盘导航可见） ──────────────────────── */
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--r-xs);
 }
 
 img   { display: block; max-width: 100%; height: auto; }
