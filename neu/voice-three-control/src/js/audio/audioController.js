@@ -38,11 +38,8 @@ export function createAudioController() {
         return;
       }
 
-      context = new AudioContextCtor();
-      if (context.state === "suspended") {
-        await context.resume();
-      }
-
+      // Chrome 移动端要求：先拿 stream，再创建 AudioContext
+      // 顺序颠倒会导致 Android Chrome 麦克风静音
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: state.noiseReductionEnabled,
@@ -50,6 +47,11 @@ export function createAudioController() {
           autoGainControl: state.noiseReductionEnabled,
         },
       });
+
+      context = new AudioContextCtor();
+      if (context.state === "suspended") {
+        await context.resume();
+      }
 
       const analyser = context.createAnalyser();
       analyser.fftSize = 1024;

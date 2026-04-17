@@ -1,10 +1,11 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { CONFIG } from "../config.js";
 
 export function createWorld() {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x000000);
-  scene.fog = new THREE.Fog(0x000000, 55, 220);
+  scene.background = new THREE.Color(CONFIG.scene.background);
+  scene.fog = new THREE.Fog(CONFIG.scene.fog.color, CONFIG.scene.fog.near, CONFIG.scene.fog.far);
 
   const camera = new THREE.PerspectiveCamera(
     50,

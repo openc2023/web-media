@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>neu-ui Preview</title>
+    <link rel="stylesheet" href="./index.css" />
+  </head>
+  <body class="ui-app-shell">
+    <div class="ui-container" style="padding: 32px 0 56px;">
+      <div class="ui-toolbar" style="justify-content: space-between; margin-bottom: 28px;">
+        <div class="ui-chip">neu-ui</div>
+        <div class="ui-chip">Vercel structure + scene gradients</div>
+      </div>
+
+      <section class="ui-grid-2" style="align-items: stretch; margin-bottom: 24px;">
+        <article class="ui-panel ui-card-padding">
+          <p class="ui-eyebrow">Reference</p>
+          <h1 class="ui-title-xl" style="margin-top: 8px;">Dark UI That Still Has Color</h1>
+          <p class="ui-text-muted" style="margin: 14px 0 24px;">
+            Use restrained structure for layout and let gradients show up on action,
+            status, glow, and active signal.
+          </p>
+          <div class="ui-toolbar">
+            <button class="ui-button ui-button-primary">Primary Action</button>
+            <button class="ui-button ui-button-ghost">Secondary</button>
+            <span class="ui-badge">Live Signal</span>
+          </div>
+        </article>
+
+        <article class="ui-card ui-card-padding">
+          <p class="ui-eyebrow">Palette</p>
+          <div class="ui-glow-line" style="margin: 12px 0 18px;"></div>
+          <div class="ui-grid-3">
+            <div class="ui-card ui-card-padding" style="background:#0a0d0e;">
+              <div style="height: 48px; border-radius: 8px; background: var(--ui-gradient-primary);"></div>
+              <p style="margin: 10px 0 0; font-weight: 700;">Primary Gradient</p>
+            </div>
+            <div class="ui-card ui-card-padding" style="background:#0a0d0e;">
+              <div style="height: 48px; border-radius: 8px; background: var(--ui-gradient-signal);"></div>
+              <p style="margin: 10px 0 0; font-weight: 700;">Signal Gradient</p>
+            </div>
+            <div class="ui-card ui-card-padding" style="background:#0a0d0e;">
+              <div style="height: 48px; border-radius: 8px; background: var(--ui-gradient-glow);"></div>
+              <p style="margin: 10px 0 0; font-weight: 700;">Glow Gradient</p>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="ui-grid-3" style="margin-bottom: 24px;">
+        <article class="ui-card ui-card-padding">
+          <p class="ui-eyebrow">Panel</p>
+          <h2 class="ui-title-lg" style="margin-top: 8px;">Control Surface</h2>
+          <p class="ui-text-muted" style="margin: 10px 0 16px;">
+            Floating panel language for tools, simulations, or scene overlays.
+          </p>
+          <div class="ui-meter">
+            <div class="ui-meter-label"><span>Input Level</span><strong>58%</strong></div>
+            <div class="ui-meter-track"><div class="ui-meter-fill"></div></div>
+          </div>
+        </article>
+
+        <article class="ui-card ui-card-padding">
+          <p class="ui-eyebrow">State</p>
+          <h2 class="ui-title-lg" style="margin-top: 8px;">Signal Meters</h2>
+          <div class="ui-meter" style="margin-top: 18px;">
+            <div class="ui-meter-label"><span>Tone</span><strong>74%</strong></div>
+            <div class="ui-meter-track"><div class="ui-meter-fill ui-meter-fill-signal" style="width:74%;"></div></div>
+          </div>
+          <div class="ui-meter" style="margin-top: 14px;">
+            <div class="ui-meter-label"><span>Speed</span><strong>1.8x</strong></div>
+            <div class="ui-meter-track"><div class="ui-meter-fill" style="width:64%;"></div></div>
+          </div>
+        </article>
+
+        <article class="ui-card ui-card-padding">
+          <p class="ui-eyebrow">Toggle</p>
+          <h2 class="ui-title-lg" style="margin-top: 8px;">Switch Row</h2>
+          <div class="ui-switch-row" style="margin-top: 20px;">
+            <span class="ui-text-muted">Noise Reduction</span>
+            <span class="ui-switch is-on"></span>
+          </div>
+          <div class="ui-switch-row" style="margin-top: 16px;">
+            <span class="ui-text-muted">Glow Outline</span>
+            <span class="ui-switch is-on"></span>
+          </div>
+        </article>
+      </section>
+
+      <section class="ui-panel-solid ui-card-padding">
+        <p class="ui-eyebrow">Rules</p>
+        <div class="ui-grid-2" style="margin-top: 12px;">
+          <div>
+            <h2 class="ui-title-lg">Use This For</h2>
+            <p class="ui-text-muted" style="margin-top: 10px;">
+              scene tools, control panels, dashboards, media tools, simulations,
+              debug surfaces, settings drawers, floating HUDs
+            </p>
+          </div>
+          <div>
+            <h2 class="ui-title-lg">Do Not Overdo</h2>
+            <p class="ui-text-muted" style="margin-top: 10px;">
+              full-page gradients, nested glass cards, huge blur blocks, too many
+              accent hues competing in one screen
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="ui-grid-3" style="margin-top: 24px;">
+        <article class="ui-card ui-card-padding">
+          <p class="ui-eyebrow">Mobile</p>
+          <h2 class="ui-title-lg" style="margin-top: 8px;">Touch Size</h2>
+          <button class="ui-button ui-button-primary ui-touch-button" style="margin-top: 16px; width: 100%;">
+            48px Mobile Button
+          </button>
+        </article>
+
+        <article class="ui-card ui-card-padding">
+          <p class="ui-eyebrow">Mobile</p>
+          <h2 class="ui-title-lg" style="margin-top: 8px;">Stack Helper</h2>
+          <div class="ui-mobile-stack" style="margin-top: 16px;">
+            <button class="ui-button ui-button-ghost">One</button>
+            <button class="ui-button ui-button-primary">Two</button>
+          </div>
+        </article>
+
+        <article class="ui-card ui-card-padding ui-safe-bottom">
+          <p class="ui-eyebrow">Mobile</p>
+          <h2 class="ui-title-lg" style="margin-top: 8px;">Safe Bottom</h2>
+          <p class="ui-text-muted" style="margin-top: 10px;">
+            Use this for bottom toolbars, mobile drawers, and floating actions.
+          </p>
+        </article>
+      </section>
+    </div>
+  </body>
+</html>

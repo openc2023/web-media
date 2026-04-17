@@ -1,9 +1,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { clamp, mix } from "../utils/math.js";
-
-const MOGU_PATH = new URL("../../../assets/models/mogu.glb", import.meta.url).href;
-const FENGCHE_PATH = new URL("../../../assets/models/fengche.glb", import.meta.url).href;
+import { CONFIG } from "../config.js";
 
 export function createVoiceDrivenModels(scene, world) {
   const loader = new GLTFLoader();
@@ -15,13 +13,7 @@ export function createVoiceDrivenModels(scene, world) {
   const windmillOutlineMaterials = [];
   const windmillBaseMaterials = [];
   const bladeMatEntries = [];
-  const bladePalette = [
-    new THREE.Color(0x42e8ff),
-    new THREE.Color(0x7b61ff),
-    new THREE.Color(0xff4fd8),
-    new THREE.Color(0x7dff7a),
-    new THREE.Color(0xffb347),
-  ];
+  const bladePalette = CONFIG.blade.palette.map((hex) => new THREE.Color(hex));
 
   let bladeColorTimer = 0;
 
@@ -31,34 +23,26 @@ export function createVoiceDrivenModels(scene, world) {
     speed: 0,
   };
 
-  const playbackTuning = {
-    attack: 0.045,
-    release: 0.022,
-    pauseThreshold: 0.003,
-    minActiveSpeed: 0.01,
-  };
+  const playbackTuning = CONFIG.playback;
 
-  scene.add(new THREE.AmbientLight(0xffffff, 1.8));
+  const { lights } = CONFIG;
+  scene.add(new THREE.AmbientLight(lights.ambient.color, lights.ambient.intensity));
 
-  const keyLight = new THREE.DirectionalLight(0xfff1d2, 2.8);
-  keyLight.position.set(7, 10, 6);
+  const keyLight = new THREE.DirectionalLight(lights.key.color, lights.key.intensity);
+  keyLight.position.set(...lights.key.position);
   scene.add(keyLight);
 
-  const fillLight = new THREE.DirectionalLight(0x9fe9d8, 1.5);
-  fillLight.position.set(-6, 4, 5);
+  const fillLight = new THREE.DirectionalLight(lights.fill.color, lights.fill.intensity);
+  fillLight.position.set(...lights.fill.position);
   scene.add(fillLight);
 
-  const rimLight = new THREE.PointLight(0xff8d69, 18, 80, 2);
-  rimLight.position.set(6, 5, -5);
+  const rimLight = new THREE.PointLight(lights.rim.color, lights.rim.intensity, lights.rim.distance, 2);
+  rimLight.position.set(...lights.rim.position);
   scene.add(rimLight);
 
   function isBladeMesh(mesh) {
-    // 单 primitive：mesh 本身叫 "2"
-    // 多 primitive：GLTFLoader 生成 Group("2") + 多个 Mesh 子节点，子节点 parent.name === "2"
-    return (
-      mesh.isMesh &&
-      (mesh.name === "2" || (mesh.parent && mesh.parent.name === "2"))
-    );
+    const n = CONFIG.models.bladeMeshName;
+    return mesh.isMesh && (mesh.name === n || (mesh.parent && mesh.parent.name === n));
   }
 
   function optimizeModel(model) {
@@ -160,7 +144,7 @@ export function createVoiceDrivenModels(scene, world) {
     const maxSize = Math.max(size.x, size.y, size.z);
 
     if (maxSize > 0) {
-      content.scale.setScalar(14 / maxSize);
+      content.scale.setScalar(CONFIG.scene.targetSize / maxSize);
     }
 
     const normalizedBox = new THREE.Box3().setFromObject(content);
@@ -193,8 +177,8 @@ export function createVoiceDrivenModels(scene, world) {
   async function load() {
     try {
       const [mogu, fengche] = await Promise.all([
-        loadModel(MOGU_PATH),
-        loadModel(FENGCHE_PATH),
+        loadModel(CONFIG.models.background),
+        loadModel(CONFIG.models.animated),
       ]);
 
       optimizeModel(mogu.scene);
@@ -227,7 +211,7 @@ export function createVoiceDrivenModels(scene, world) {
       return;
     }
 
-    const isActive = reactiveState.energy > 0.015;
+    const isActive = reactiveState.energy > CONFIG.blade.activeThreshold;
     const colorLerp = isActive ? 0.14 + reactiveState.energy * 0.22 : 0.05;
 
     if (isActive) {

@@ -99,7 +99,7 @@ function animate() {
   audio.update(elapsedTime);
   const frameState = getFrameState(dt);
   models.update(dt, frameState);
-  fireflies.update(elapsedTime, frameState);
+  fireflies.update(dt, elapsedTime, frameState);
 
   ui.update(frameState);
   world.render();
