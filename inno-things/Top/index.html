@@ -4,44 +4,64 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TOP | Recognition Entry</title>
-    <meta name="description" content="进入页面后先查看画作与简要提示，点击开始识别后启动手机摄像头。">
+    <meta name="description" content="TOP 画作识别入口。">
     <link rel="stylesheet" href="./styles/main.css">
 </head>
 <body>
     <header class="site-header">
         <a class="brand" href="../index.html">Inno Things</a>
-        <span class="status-tag">Recognition Entry</span>
     </header>
 
     <main>
         <section class="entry section">
             <div class="section-inner entry-layout">
                 <section class="intro-panel surface-panel">
-                    <p class="eyebrow">TOP</p>
-                    <h1>先看画作，再开始识别。</h1>
-                    <p class="lead">
-                        把手机对准画面，点击开始识别后会调用摄像头。识别成功后，后面的 3D 内容就接在这个入口后面。
-                    </p>
+                    <div class="intro-top">
+                        <div>
+                            <p class="eyebrow">TOP</p>
+                            <p class="intro-code">000-top</p>
+                        </div>
+                        <p class="intro-index" aria-hidden="true">01</p>
+                    </div>
+
+                    <div class="intro-head">
+                        <h1>先看画作</h1>
+                        <p class="lead">确认画作后，再开始识别。</p>
+                    </div>
 
                     <div class="hero-actions">
                         <button class="button button-primary" id="start-recognition" type="button">开始识别</button>
                     </div>
 
+                    <div class="intro-meta" aria-label="作品信息">
+                        <div class="intro-meta-item">
+                            <span class="intro-meta-label">识别图</span>
+                            <span class="intro-meta-value">000-top</span>
+                        </div>
+                        <div class="intro-meta-item">
+                            <span class="intro-meta-label">模型</span>
+                            <span class="intro-meta-value">box.glb</span>
+                        </div>
+                        <div class="intro-meta-item">
+                            <span class="intro-meta-label">模式</span>
+                            <span class="intro-meta-value">AR</span>
+                        </div>
+                    </div>
+
                     <div class="entry-note">
-                        <p class="entry-note-title">识别前提示</p>
+                        <p class="entry-note-title">识别前</p>
                         <ul class="entry-note-list">
-                            <li>尽量让整幅画作完整进入镜头</li>
-                            <li>保持手机稳定，避免快速晃动</li>
-                            <li>优先在手机浏览器的 HTTPS 页面里测试</li>
+                            <li>尽量让整幅画进入取景框</li>
+                            <li>保持镜头稳定，慢慢靠近</li>
                         </ul>
                     </div>
 
-                    <p class="camera-status" id="camera-status">待机中，点击按钮后启动摄像头。</p>
+                    <p class="camera-status" id="camera-status">等待开始识别。</p>
                 </section>
 
                 <figure class="artwork-panel">
-                    <img src="./assets/images/000-top.png" alt="TOP 画作预览">
-                    <figcaption>当前识别画作</figcaption>
+                    <img src="./assets/images/000-top.png" alt="000-top 画作">
+                    <figcaption>000-top</figcaption>
                 </figure>
             </div>
         </section>
@@ -55,13 +75,10 @@
             </div>
             <div class="camera-stage">
                 <div id="ar-container"></div>
-                <!-- 扫描线动画 -->
                 <div class="scan-line-wrap" aria-hidden="true">
                     <div class="scan-line"></div>
                 </div>
-                <!-- 取景框 -->
                 <div class="camera-target-frame" aria-hidden="true"></div>
-                <!-- 底部状态徽标 -->
                 <div class="scan-badge" id="scan-badge" aria-live="polite">
                     <span class="scan-badge-dot"></span>
                     <span id="scan-badge-text">扫描中…</span>

@@ -153,7 +153,7 @@ const setupMindAR = async () => {
             }
 
             setState("found");
-            setStatus("已识别到 000-top，3D 模型已显示。");
+            setStatus("已识别到 000-top。");
         };
 
         anchor.onTargetLost = () => {
@@ -207,7 +207,7 @@ const startMindAR = async () => {
         await withTimeout(setupMindAR(), 25000, "setupMindAR");
 
         setState("scanning");
-        setStatus("摄像头已就绪，请将镜头对准 000-top 画作。");
+    setStatus("摄像头已就绪，请对准 000-top 画作。");
 
         await withTimeout(mindarThree.start(), 20000, "mindarThree.start");
 
@@ -297,7 +297,7 @@ const closeCameraModal = () => {
     arContainer.innerHTML = "";
     startButton.disabled  = false;
     setState("scanning"); // 重置 badge
-    setStatus("识别已关闭，可以重新开始。");
+    setStatus("等待开始识别。");
 };
 
 // ── 事件 ──────────────────────────────────────────────────
