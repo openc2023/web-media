@@ -5,7 +5,7 @@ export function createFireflies(scene) {
   const positions = new Float32Array(count * 3);
   const basePositions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
-  const seeds = new Float32Array(count * 4);
+  const seeds = new Float32Array(count * 5);
 
   const geometry = new THREE.BufferGeometry();
   const color = new THREE.Color();
@@ -29,10 +29,11 @@ export function createFireflies(scene) {
     colors[stride + 1] = color.g;
     colors[stride + 2] = color.b;
 
-    seeds[index * 4] = Math.random() * Math.PI * 2;
-    seeds[index * 4 + 1] = 0.18 + Math.random() * 0.55;
-    seeds[index * 4 + 2] = 0.12 + Math.random() * 0.4;
-    seeds[index * 4 + 3] = 0.35 + Math.random() * 0.65;
+    seeds[index * 5] = Math.random() * Math.PI * 2;
+    seeds[index * 5 + 1] = 0.18 + Math.random() * 0.55;
+    seeds[index * 5 + 2] = 0.12 + Math.random() * 0.4;
+    seeds[index * 5 + 3] = 0.35 + Math.random() * 0.65;
+    seeds[index * 5 + 4] = Math.random();
   }
 
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
@@ -56,33 +57,52 @@ export function createFireflies(scene) {
   function update(elapsedTime, reactiveState) {
     const positionArray = geometry.attributes.position.array;
     const colorArray = geometry.attributes.color.array;
+    const instantEnergy = Math.min(reactiveState.instantEnergy ?? reactiveState.energy ?? 0, 1);
+    const soundDrive = Math.min(
+      1,
+      (reactiveState.energy ?? 0) * 0.7 + instantEnergy * 1.25
+    );
+    const motionBoost = 0.58 + soundDrive * 3.4;
+    const glowBoost = 0.2 + soundDrive * 0.8;
 
     for (let index = 0; index < count; index += 1) {
       const stride = index * 3;
-      const seedStride = index * 4;
+      const seedStride = index * 5;
       const phase = seeds[seedStride];
       const driftSpeed = seeds[seedStride + 1];
       const driftAmount = seeds[seedStride + 2];
       const flicker = seeds[seedStride + 3];
+      const hueSeed = seeds[seedStride + 4];
+      const flowTime = elapsedTime * driftSpeed * motionBoost;
+      const sideAmplitude = 0.06 + driftAmount * (0.18 + soundDrive * 0.36);
+      const verticalAmplitude = 0.1 + driftAmount * (0.2 + soundDrive * 0.62);
+      const riseLift =
+        soundDrive *
+        (0.24 + driftAmount * 0.9) *
+        ((Math.sin(elapsedTime * (1.6 + flicker * 2.4) + phase) + 1) * 0.5);
 
       positionArray[stride] =
         basePositions[stride] +
-        Math.sin(elapsedTime * driftSpeed + phase) * (0.08 + driftAmount * 0.24);
+        Math.sin(flowTime + phase) * sideAmplitude;
       positionArray[stride + 1] =
         basePositions[stride + 1] +
-        Math.sin(elapsedTime * driftSpeed * 1.8 + phase) * (0.12 + driftAmount * 0.24);
+        Math.sin(flowTime * 1.7 + phase) * verticalAmplitude +
+        riseLift;
       positionArray[stride + 2] =
         basePositions[stride + 2] +
-        Math.cos(elapsedTime * driftSpeed * 1.1 + phase) * (0.08 + driftAmount * 0.24);
+        Math.cos(flowTime * 1.12 + phase) * sideAmplitude;
 
       const blink =
-        0.42 +
+        0.28 +
         ((Math.sin(elapsedTime * (0.8 + driftAmount) + phase) + 1) * 0.5) *
-          (0.42 + flicker * 0.72);
-      const glowLift = reactiveState.energy * 0.22;
-      const lightness = 0.54 + blink * 0.38 + glowLift;
+          (0.32 + flicker * (0.42 + soundDrive * 0.95));
+      const hueSwing =
+        Math.sin(elapsedTime * (0.7 + flicker * 1.8) + phase) * (0.015 + soundDrive * 0.18);
+      const hue = (0.53 + hueSeed * 0.05 + hueSwing + soundDrive * hueSeed * 0.32) % 1;
+      const saturation = Math.min(0.84 + soundDrive * 0.16 + hueSeed * 0.08, 1);
+      const lightness = Math.min(0.5 + blink * 0.28 + glowBoost * (0.16 + hueSeed * 0.18), 0.88);
 
-      color.setHSL(0.55, 0.88, Math.min(lightness, 0.9));
+      color.setHSL(hue < 0 ? hue + 1 : hue, saturation, lightness);
       colorArray[stride] = color.r;
       colorArray[stride + 1] = color.g;
       colorArray[stride + 2] = color.b;
@@ -90,8 +110,8 @@ export function createFireflies(scene) {
 
     geometry.attributes.position.needsUpdate = true;
     geometry.attributes.color.needsUpdate = true;
-    material.opacity = 0.72 + reactiveState.brightness * 0.24;
-    material.size = 0.2 + reactiveState.energy * 0.08;
+    material.opacity = 0.66 + reactiveState.brightness * 0.16 + soundDrive * 0.2;
+    material.size = 0.2 + reactiveState.energy * 0.06 + instantEnergy * 0.08;
   }
 
   return {

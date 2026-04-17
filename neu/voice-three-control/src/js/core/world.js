@@ -28,6 +28,59 @@ export function createWorld() {
   controls.maxPolarAngle = Math.PI * 0.49;
   controls.autoRotate = false;
 
+  function isMobileViewport() {
+    return window.innerWidth <= 720;
+  }
+
+  function getCurrentPolarAngle() {
+    const offset = camera.position.clone().sub(controls.target);
+    const radius = offset.length();
+    if (radius === 0) {
+      return Math.PI * 0.5;
+    }
+
+    return Math.acos(THREE.MathUtils.clamp(offset.y / radius, -1, 1));
+  }
+
+  function applyInteractionMode() {
+    const isMobile = isMobileViewport();
+    controls.enableZoom = !isMobile;
+
+    if (isMobile) {
+      const polar = getCurrentPolarAngle();
+      controls.minPolarAngle = polar;
+      controls.maxPolarAngle = polar;
+      controls.rotateSpeed = 0.85;
+    } else {
+      controls.minPolarAngle = 0;
+      controls.maxPolarAngle = Math.PI * 0.49;
+      controls.rotateSpeed = 1;
+    }
+  }
+
+  let lastTouchEnd = 0;
+  renderer.domElement.addEventListener(
+    "touchend",
+    (event) => {
+      const now = window.performance.now();
+      if (now - lastTouchEnd < 320) {
+        event.preventDefault();
+      }
+      lastTouchEnd = now;
+    },
+    { passive: false }
+  );
+
+  ["gesturestart", "gesturechange", "gestureend"].forEach((eventName) => {
+    document.addEventListener(
+      eventName,
+      (event) => {
+        event.preventDefault();
+      },
+      { passive: false }
+    );
+  });
+
   function frameObject(object, padding = 0.86) {
     const box = new THREE.Box3().setFromObject(object);
     if (box.isEmpty()) {
@@ -61,6 +114,7 @@ export function createWorld() {
     controls.target.copy(center).add(frontLift);
     controls.minDistance = Math.max(distance * 0.25, 1.5);
     controls.maxDistance = Math.max(distance * 4, 12);
+    applyInteractionMode();
     controls.update();
   }
 
@@ -69,6 +123,7 @@ export function createWorld() {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    applyInteractionMode();
   }
 
   function render() {

@@ -1,7 +1,11 @@
 @import "../../neu-ui/index.css";
 
+html,
 body {
+  height: 100%;
   overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
 }
 
 canvas {
@@ -10,11 +14,23 @@ canvas {
   top: 0;
   left: 0;
   z-index: 0;
+  touch-action: none;
 }
 
 .app-shell {
   position: relative;
   min-height: 100vh;
+  touch-action: none;
+}
+
+.control-panel,
+.panel-toggle,
+.voice-rank,
+.hint-strip,
+button,
+input,
+label {
+  touch-action: manipulation;
 }
 
 .control-panel {

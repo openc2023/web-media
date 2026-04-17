@@ -20,7 +20,29 @@ export function createAudioController() {
   };
 
   async function start() {
+    let context = null;
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        state.message = "This browser does not expose microphone access.";
+        return;
+      }
+
+      if (!window.isSecureContext) {
+        state.message = "On iPhone Safari, microphone access needs HTTPS or localhost.";
+        return;
+      }
+
+      const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextCtor) {
+        state.message = "This browser does not support Web Audio.";
+        return;
+      }
+
+      context = new AudioContextCtor();
+      if (context.state === "suspended") {
+        await context.resume();
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: state.noiseReductionEnabled,
@@ -29,7 +51,6 @@ export function createAudioController() {
         },
       });
 
-      const context = new window.AudioContext();
       const analyser = context.createAnalyser();
       analyser.fftSize = 1024;
       analyser.smoothingTimeConstant = 0.8;
@@ -49,7 +70,19 @@ export function createAudioController() {
         ? "Live control is on. Noise reduction is enabled."
         : "Live control is on. Noise reduction is disabled.";
     } catch (error) {
-      state.message = "Microphone access was denied, so demo mode stays on.";
+      if (context && context.state !== "closed") {
+        context.close();
+      }
+
+      if (error && error.name === "NotAllowedError") {
+        state.message = "Microphone permission was denied, so demo mode stays on.";
+      } else if (error && error.name === "NotFoundError") {
+        state.message = "No microphone was found on this device.";
+      } else if (error && error.name === "NotReadableError") {
+        state.message = "The microphone is busy in another app or tab.";
+      } else {
+        state.message = "Microphone access failed, so demo mode stays on.";
+      }
       console.error(error);
     }
   }
