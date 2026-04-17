@@ -1,22 +1,72 @@
+/* ── Tokens: Vercel × 水墨暖色 ───────────────────────────
+   Vercel 结构原则（shadow-as-border、Geist、负字距）
+   ×  水墨暖色调（cream / forest / warm ink）
+   ─────────────────────────────────────────────────────── */
+
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap");
+
 :root {
     color-scheme: light;
-    --bg: #f6f1e7;
-    --surface: #fffdf8;
-    --surface-soft: #f2ebe0;
-    --forest: #001e2b;
-    --deep-teal: #1c2d38;
-    --dark-green: #00684a;
-    --green: #00ed64;
-    --text: #10212b;
-    --muted: #5c6c75;
-    --line: #b8c4c2;
-    --shadow: rgba(0, 30, 43, 0.12) 0px 26px 44px, rgba(0, 0, 0, 0.13) 0px 7px 13px;
-    --shadow-soft: rgba(0, 0, 0, 0.08) 0px 8px 24px;
-    --font-serif: Georgia, "Times New Roman", serif;
-    --font-sans: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-    --font-mono: Consolas, "Source Code Pro", "Courier New", monospace;
-    --radius-button: 8px;
-    --radius-card: 16px;
-    --radius-panel: 24px;
-    --radius-pill: 999px;
+
+    /* ── 暖色 palette ─────────────────────────────────── */
+    --bg:             #f6f1e7;   /* cream 页面底色          */
+    --surface:        #fffdf8;   /* 卡片 / 面板表面         */
+    --surface-raised: #ffffff;   /* 弹层等提升表面          */
+    --text:           #10212b;   /* 主文字（近黑暖调）      */
+    --text-2:         #4a5f6a;   /* 次要文字                */
+    --text-3:         #8a9ba4;   /* 辅助 / 占位             */
+    --accent:         #00684a;   /* 绿色强调                */
+    --accent-hover:   #005a3e;
+    --green-vivid:    #00ed64;   /* 扫描 / 状态绿           */
+
+    /* legacy aliases — 不要删，子项目会用 */
+    --surface-soft:  #f2ebe0;
+    --forest:        #001e2b;
+    --deep-teal:     #1c2d38;
+    --dark-green:    var(--accent);
+    --green:         var(--green-vivid);
+    --muted:         var(--text-2);
+    --line:          rgba(16,33,43,0.12);
+
+    /* ── Vercel shadow-as-border（暖色调） ────────────── */
+    /* 替代传统 CSS border，用 box-shadow 的 0px blur 1px spread */
+    --ring:      rgba(16,33,43,0.10) 0px 0px 0px 1px;
+    --ring-soft: rgba(184,196,194,0.28) 0px 0px 0px 1px;
+
+    --shadow-sm: rgba(16,33,43,0.08) 0px 0px 0px 1px,
+                 rgba(16,33,43,0.04) 0px 2px 4px 0px;
+
+    --shadow-md: rgba(16,33,43,0.08) 0px 0px 0px 1px,
+                 rgba(16,33,43,0.04) 0px 2px 4px 0px,
+                 rgba(255,253,248,0.88) 0px 0px 0px 1px;
+
+    --shadow-lg: rgba(16,33,43,0.10) 0px 0px 0px 1px,
+                 rgba(16,33,43,0.05) 0px 4px 8px 0px,
+                 rgba(16,33,43,0.03) 0px 16px 32px -8px,
+                 rgba(255,253,248,0.88) 0px 0px 0px 1px;
+
+    /* legacy */
+    --shadow:      var(--shadow-lg);
+    --shadow-soft: var(--shadow-md);
+
+    /* ── Typography（Geist） ───────────────────────────── */
+    --font-sans:  'Geist', 'Inter', ui-sans-serif,
+                  'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    --font-mono:  'Geist Mono', ui-monospace,
+                  'JetBrains Mono', Consolas, 'Source Code Pro', monospace;
+    --font-serif: Georgia, 'Times New Roman', serif;
+
+    /* ── Radius（Vercel scale） ────────────────────────── */
+    --r-xs:   4px;
+    --r-sm:   6px;
+    --r-md:   8px;
+    --r-lg:   12px;
+    --r-xl:   16px;
+    --r-pill: 9999px;
+
+    /* legacy */
+    --radius-button: var(--r-sm);
+    --radius-card:   var(--r-md);
+    --radius-panel:  var(--r-lg);
+    --radius-pill:   var(--r-pill);
 }

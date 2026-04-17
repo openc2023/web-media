@@ -1,77 +1,99 @@
+/* ── Components: Vercel × 水墨暖色 ───────────────────────
+   Shadow-as-border 替代 CSS border；三档字重；Geist 负字距
+   ─────────────────────────────────────────────────────── */
+
+/* ── Header brand / tag ──────────────────────────────── */
 .brand,
 .status-tag {
     display: inline-flex;
     align-items: center;
-    min-height: 40px;
-    padding: 0 14px;
-    border: 1px solid rgba(184, 196, 194, 0.28);
-    border-radius: var(--radius-pill);
-    background: var(--forest);
+    min-height: 34px;
+    padding: 0 11px;
+    border-radius: var(--r-sm);
     text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    transition: opacity 0.15s;
+    /* shadow-as-border 替代 border */
+    box-shadow: var(--ring-soft);
 }
 
 .brand {
-    color: #ffffff;
-    font-weight: 700;
+    background: var(--text);
+    color: var(--surface);
+    font-weight: 600;
 }
+.brand:hover { opacity: 0.85; }
 
 .status-tag {
-    color: rgba(255, 255, 255, 0.78);
-    font-size: 0.95rem;
+    background: transparent;
+    color: var(--text-2);
+    font-size: 12px;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
+/* ── Eyebrow label ────────────────────────────────────── */
 .eyebrow {
-    margin: 0 0 8px;
-    font-size: 0.8rem;
+    margin: 0 0 6px;
+    font-size: 11px;
     font-weight: 500;
-    letter-spacing: 2px;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--dark-green);
+    color: var(--accent);
     font-family: var(--font-mono);
 }
 
+/* ── Buttons ──────────────────────────────────────────── */
 .button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 46px;
-    padding: 0 20px;
-    border-radius: var(--radius-button);
-    border: 1px solid transparent;
+    min-height: 40px;
+    padding: 0 16px;
+    border-radius: var(--r-sm);
+    border: none;
     text-decoration: none;
-    font-weight: 600;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    font-feature-settings: "liga" 1;
     cursor: pointer;
-    font: inherit;
+    transition: opacity 0.15s, box-shadow 0.15s;
 }
 
 .button-primary {
-    background: var(--dark-green);
-    color: #ffffff;
-    border-color: var(--dark-green);
+    background: var(--text);
+    color: var(--surface);
 }
+.button-primary:hover { opacity: 0.86; }
 
 .button-secondary {
-    border-color: var(--line);
-    background: transparent;
-    color: var(--forest);
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--ring);
 }
+.button-secondary:hover { box-shadow: var(--shadow-sm); }
 
 .button-ghost {
-    border-color: var(--line);
     background: transparent;
-    color: var(--forest);
+    color: var(--text);
+    box-shadow: var(--ring-soft);
 }
+.button-ghost:hover { box-shadow: var(--ring); }
 
+/* ── Cards & Panels (shadow-as-border) ───────────────── */
 .surface-card {
-    border: 1px solid var(--line);
-    border-radius: var(--radius-card);
     background: var(--surface);
-    box-shadow: var(--shadow);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-md);
 }
 
 .surface-panel {
-    border: 1px solid var(--line);
-    border-radius: var(--radius-panel);
     background: var(--surface);
-    box-shadow: var(--shadow);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-lg);
 }

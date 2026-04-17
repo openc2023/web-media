@@ -1,61 +1,48 @@
-* {
-    box-sizing: border-box;
-}
+/* ── Base: Vercel × 水墨暖色 ──────────────────────────── */
 
-html {
-    scroll-behavior: smooth;
-}
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
 
 body {
     margin: 0;
     font-family: var(--font-sans);
+    font-feature-settings: "liga" 1;   /* Geist 连字 */
+    -webkit-font-smoothing: antialiased;
     background: var(--bg);
     color: var(--text);
-    line-height: 1.6;
-    font-weight: 300;
-}
-
-img {
-    display: block;
-    max-width: 100%;
-    height: auto;
-}
-
-[hidden] {
-    display: none !important;
-}
-
-a {
-    color: inherit;
-}
-
-h1,
-h2,
-h3,
-p,
-figure,
-ul {
-    margin-top: 0;
-}
-
-h1 {
-    margin-bottom: 16px;
-    font-size: clamp(2.2rem, 5vw, 4.6rem);
-    line-height: 1.08;
-    font-family: var(--font-serif);
+    line-height: 1.55;
     font-weight: 400;
+}
+
+img   { display: block; max-width: 100%; height: auto; }
+[hidden] { display: none !important; }
+a     { color: inherit; }
+
+h1, h2, h3, p, figure, ul { margin-top: 0; }
+
+/* Vercel 压缩字距标题 —— 用 Geist Sans，不用 Serif */
+h1 {
+    margin-bottom: 14px;
+    font-family: var(--font-sans);
+    font-size: clamp(1.75rem, 4vw, 2.75rem);
+    font-weight: 600;
+    line-height: 1.10;
+    letter-spacing: -0.04em;   /* ≈ Vercel -2.4px at 48px */
 }
 
 h2 {
     margin-bottom: 0;
-    font-size: clamp(1.6rem, 3vw, 2.5rem);
-    line-height: 1.15;
-    font-weight: 500;
+    font-size: clamp(1.25rem, 2.5vw, 1.75rem);
+    font-weight: 600;
+    line-height: 1.20;
+    letter-spacing: -0.03em;
 }
 
 h3 {
-    margin-bottom: 10px;
-    font-size: 1.15rem;
-    line-height: 1.3;
-    font-weight: 500;
+    margin-bottom: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
 }

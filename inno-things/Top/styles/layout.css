@@ -1,7 +1,9 @@
+/* ── Layout: Vercel × 水墨暖色 ───────────────────────── */
+
 .site-header {
     width: min(1120px, calc(100% - 32px));
     margin: 0 auto;
-    padding: 24px 0 8px;
+    padding: 18px 0 14px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -11,54 +13,52 @@
 .locale-switcher {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
 }
 
 .locale-button {
-    min-height: 34px;
-    padding: 0 10px;
-    border: 1px solid rgba(184, 196, 194, 0.28);
-    border-radius: 8px;
-    background: rgba(255, 252, 247, 0.72);
-    color: var(--forest);
-    font: inherit;
-    font-size: 0.82rem;
-    font-weight: 600;
+    min-height: 28px;
+    padding: 0 8px;
+    border: none;
+    border-radius: var(--r-xs);
+    background: transparent;
+    color: var(--text-3);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
     cursor: pointer;
-    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    transition: background 0.12s, color 0.12s, box-shadow 0.12s;
 }
-
+.locale-button:hover {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--ring);
+}
 .locale-button.is-active {
-    border-color: var(--dark-green);
-    background: var(--dark-green);
-    color: #ffffff;
+    background: var(--text);
+    color: var(--surface);
 }
 
-.section {
-    padding: 28px 0;
-}
+/* ── Page scaffold ──────────────────────────────────── */
+body      { min-height: 100dvh; overflow-x: hidden; }
+main      { width: 100%; }
+.section  { padding: 20px 0; }
 
 .section-inner {
     width: min(1120px, calc(100% - 32px));
     margin: 0 auto;
 }
 
-body {
-    min-height: 100dvh;
-    overflow-x: hidden;
-}
-
-main {
-    width: 100%;
-}
-
 .entry-layout {
     display: grid;
-    grid-template-columns: minmax(320px, 0.78fr) minmax(0, 1fr);
-    gap: 28px;
+    grid-template-columns: minmax(300px, 0.78fr) minmax(0, 1fr);
+    gap: 20px;
     align-items: center;
 }
 
+/* ── Desktop: full-height lock ─────────────────────── */
 @media (min-width: 901px) {
     body {
         height: 100dvh;
@@ -66,66 +66,29 @@ main {
         display: grid;
         grid-template-rows: auto minmax(0, 1fr);
     }
+    main { min-height: 0; }
 
-    main {
-        min-height: 0;
-    }
-
-    .entry.section {
-        height: 100%;
-        padding: 12px 0 20px;
-    }
-
-    .entry.section .section-inner {
-        height: 100%;
-    }
+    .entry.section { height: 100%; padding: 6px 0 16px; }
+    .entry.section .section-inner { height: 100%; }
 
     .entry-layout {
         height: 100%;
         min-height: 0;
-        grid-template-columns: minmax(300px, 0.74fr) minmax(420px, 1fr);
-        gap: 20px;
+        grid-template-columns: minmax(290px, 0.72fr) minmax(400px, 1fr);
+        gap: 18px;
         align-items: stretch;
     }
 }
 
 @media (max-width: 900px) {
-    body {
-        height: auto;
-        overflow-y: auto;
-    }
-
-    main {
-        height: auto;
-    }
-
-    .entry-layout {
-        grid-template-columns: 1fr;
-    }
+    body { height: auto; overflow-y: auto; }
+    main { height: auto; }
+    .entry-layout { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 600px) {
     .site-header,
-    .section-inner {
-        width: min(1120px, calc(100% - 20px));
-    }
-
-    .site-header {
-        padding-top: 18px;
-        gap: 12px;
-    }
-
-    .locale-switcher {
-        gap: 6px;
-    }
-
-    .locale-button {
-        min-height: 30px;
-        padding: 0 8px;
-        font-size: 0.74rem;
-    }
-
-    .section {
-        padding: 18px 0;
-    }
+    .section-inner { width: min(1120px, calc(100% - 20px)); }
+    .site-header { padding-top: 14px; gap: 8px; }
+    .section { padding: 14px 0; }
 }

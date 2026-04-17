@@ -103,8 +103,8 @@ const setupMindAR = async () => {
         imageTargetSrc,
         maxTrack: 1,
         warmupTolerance: 15,
-        filterMinCF: 0.001,
-        filterBeta: 100,
+        filterMinCF: 0.0001,   // ↓ more smoothing at rest (was 0.001)
+        filterBeta: 1,          // ↓ less speed-adaptive jitter (was 100)
         missTolerance: 60,
     });
 
@@ -123,7 +123,21 @@ const setupMindAR = async () => {
     boxModel.position.set(0, 0.38, 0.12);
     boxModel.scale.set(0.18, 0.18, 0.18);
     boxModel.visible = false;
-    anchor.group.add(boxModel);
+
+    // ── Smooth proxy ──────────────────────────────────────
+    // Model lives in smoothProxy (scene-level group) rather than directly
+    // in anchor.group. Each frame we lerp/slerp smoothProxy toward the
+    // anchor's world transform, eliminating frame-to-frame jitter.
+    const smoothProxy = new THREE.Group();
+    scene.add(smoothProxy);
+    smoothProxy.add(boxModel);
+
+    // Reusable decompose targets (avoid per-frame allocations)
+    const _lerpPos   = new THREE.Vector3();
+    const _lerpQuat  = new THREE.Quaternion();
+    const _lerpScale = new THREE.Vector3();
+    // Lerp factor: 0.10 = very smooth (slight lag), 0.20 = snappier
+    const LERP_ALPHA = 0.12;
 
     if (gltf.animations && gltf.animations.length > 0) {
         mixer = new THREE.AnimationMixer(boxModel);
@@ -152,6 +166,13 @@ const setupMindAR = async () => {
             clearTimeout(lostTimer);
             lostTimer = null;
         }
+
+        // Snap proxy to current anchor position on first appear (no slide-in lag)
+        anchor.group.updateWorldMatrix(true, false);
+        anchor.group.matrixWorld.decompose(_lerpPos, _lerpQuat, _lerpScale);
+        smoothProxy.position.copy(_lerpPos);
+        smoothProxy.quaternion.copy(_lerpQuat);
+        smoothProxy.scale.copy(_lerpScale);
 
         boxModel.visible = true;
         setModelOpacity(1);
@@ -190,6 +211,26 @@ const setupMindAR = async () => {
     };
 
     renderer.setClearColor(0x000000, 0);
+
+    // Return a factory for the animation loop so startMindAR can call it
+    // after mindarThree.start() (when renderer & camera are ready).
+    return (camera) => {
+        renderer.setAnimationLoop(() => {
+            // ── Smooth proxy update ────────────────────────────────
+            if (boxModel.visible) {
+                anchor.group.updateWorldMatrix(true, false);
+                anchor.group.matrixWorld.decompose(_lerpPos, _lerpQuat, _lerpScale);
+                smoothProxy.position.lerp(_lerpPos, LERP_ALPHA);
+                smoothProxy.quaternion.slerp(_lerpQuat, LERP_ALPHA);
+                smoothProxy.scale.copy(_lerpScale); // scale is stable, no lerp needed
+            }
+            // ── Animation mixer ────────────────────────────────────
+            if (mixer && clock.running) {
+                mixer.update(clock.getDelta());
+            }
+            renderer.render(scene, camera);
+        });
+    };
 };
 
 const startMindAR = async () => {
@@ -221,14 +262,15 @@ const startMindAR = async () => {
     });
 
     try {
-        await withTimeout(setupMindAR(), 25000, "setupMindAR");
+        // setupMindAR returns startLoop(camera) — call it after mindarThree.start()
+        const startLoop = await withTimeout(setupMindAR(), 25000, "setupMindAR");
 
         setState("scanning");
         setStatus("top.statusCameraReady");
 
         await withTimeout(mindarThree.start(), 20000, "mindarThree.start");
 
-        const { renderer, scene, camera } = mindarThree;
+        const { renderer, camera } = mindarThree;
         const videoElement = arContainer.querySelector("video");
 
         if (videoElement) {
@@ -247,12 +289,8 @@ const startMindAR = async () => {
             renderer.domElement.style.zIndex = "1";
         }
 
-        renderer.setAnimationLoop(() => {
-            if (mixer && clock.running) {
-                mixer.update(clock.getDelta());
-            }
-            renderer.render(scene, camera);
-        });
+        // Start the smoothed render loop (lerp + mixer + render)
+        startLoop(camera);
     } catch (error) {
         console.error("MindAR start failed:", error);
         showDebug([
