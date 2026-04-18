@@ -140,6 +140,17 @@ const buildGifTextureUpdaters = (model) => {
                 if (img.complete) initSize();
                 else img.addEventListener("load", initSize, { once: true });
 
+                // 浏览器对不在 DOM 里的 img 会冻结 GIF 动画
+                // 把 img 挂到 DOM（完全隐藏）让浏览器持续渲染每一帧
+                const domImg = new Image();
+                domImg.src = img.src;
+                Object.assign(domImg.style, {
+                    position: "absolute", width: "1px", height: "1px",
+                    opacity: "0.001", pointerEvents: "none",
+                    top: "-9999px", left: "-9999px",
+                });
+                document.body.appendChild(domImg);
+
                 // 继承原纹理属性
                 const canvasTex = new THREE.CanvasTexture(canvas);
                 canvasTex.flipY    = tex.flipY;
@@ -153,12 +164,12 @@ const buildGifTextureUpdaters = (model) => {
                 mat.transparent = true;
                 mat.alphaTest   = mat.alphaTest ?? 0;
 
-                // 每帧调用：先清空再 drawImage，保留 GIF 透明通道
+                // 每帧：从 DOM img（浏览器正在动的帧）draw 到 canvas
                 updaters.push(() => {
                     initSize();
                     if (canvas.width > 0 && canvas.height > 0) {
                         ctx.clearRect(0, 0, canvas.width, canvas.height);
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        ctx.drawImage(domImg, 0, 0, canvas.width, canvas.height);
                         canvasTex.needsUpdate = true;
                     }
                 });
@@ -178,7 +189,7 @@ const setupMindAR = async () => {
         maxTrack: 1,
         warmupTolerance: 5,   // 5帧即触发 found，识别更快
         filterMinCF: 0.0001,  // 静止极度平滑，覆盖手颤噪声
-        filterBeta: 90,       // 移动跟手同时保留手颤过滤
+        filterBeta: 85,       // 移动跟手同时保留手颤过滤
         missTolerance: 60,
         // 关闭 MindAR 自带的扫描框/加载/错误覆盖层（我们用自己的 UI）
         uiLoading: "no",
@@ -456,10 +467,12 @@ const stopMindAR = () => {
     anchor = null;
     boxModel = null;
 
-    // 清理 MindAR 可能挂到 body 上的残留覆盖层
+    // 清理 MindAR 残留覆盖层 + GIF 动画用的隐藏 img
     document.querySelectorAll(
         ".mindar-ui-overlay, .mindar-ui-loading, .mindar-ui-scanning, .mindar-ui-error"
     ).forEach((el) => el.remove());
+    document.querySelectorAll("img[src^='blob:'][style*='-9999px']")
+        .forEach((el) => el.remove());
 };
 
 const closeCameraModal = () => {
