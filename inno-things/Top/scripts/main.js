@@ -117,8 +117,8 @@ const setupMindAR = async () => {
         imageTargetSrc,
         maxTrack: 1,
         warmupTolerance: 15,
-        filterMinCF: 0.0001,
-        filterBeta: 1,
+        filterMinCF: 0.01,    // 静止平滑
+        filterBeta: 150,      // 移动时几乎无滞后
         missTolerance: 60,
         // 关闭 MindAR 自带的扫描框/加载/错误覆盖层（我们用自己的 UI）
         uiLoading: "no",
@@ -154,8 +154,13 @@ const setupMindAR = async () => {
     const _lerpPos   = new THREE.Vector3();
     const _lerpQuat  = new THREE.Quaternion();
     const _lerpScale = new THREE.Vector3();
-    // Lerp factor: 0.10 = very smooth (slight lag), 0.20 = snappier
-    const LERP_ALPHA = 0.12;
+
+    // ── 自适应 lerp 参数 ───────────────────────────────────
+    // 距离目标近（静止）→ alpha 接近 1.0（锁死）
+    // 距离目标远（运动）→ alpha 降低（平滑追随）
+    // SNAP_DIST 以 MindAR 世界单位为准（目标图宽 ≈ 1 unit）
+    const SNAP_DIST  = 0.015;  // 小于此距离直接吸附
+    const MIN_ALPHA  = 0.65;   // 移动时最低 alpha，追随更快
 
     if (gltf.animations && gltf.animations.length > 0) {
         mixer = new THREE.AnimationMixer(boxModel);
@@ -232,13 +237,22 @@ const setupMindAR = async () => {
     // after mindarThree.start() (when renderer & camera are ready).
     return (camera) => {
         renderer.setAnimationLoop(() => {
-            // ── Smooth proxy update ────────────────────────────────
+            // ── Smooth proxy update（自适应 lerp） ────────────────
             if (boxModel.visible) {
                 anchor.group.updateWorldMatrix(true, false);
                 anchor.group.matrixWorld.decompose(_lerpPos, _lerpQuat, _lerpScale);
-                smoothProxy.position.lerp(_lerpPos, LERP_ALPHA);
-                smoothProxy.quaternion.slerp(_lerpQuat, LERP_ALPHA);
-                smoothProxy.scale.copy(_lerpScale); // scale is stable, no lerp needed
+
+                // 根据当前偏移距离动态计算 alpha：
+                //   静止（偏移小）→ alpha → 1.0，模型锁死在目标上
+                //   运动（偏移大）→ alpha 降低，过渡平滑不跳变
+                const posDist = smoothProxy.position.distanceTo(_lerpPos);
+                const alpha = posDist < SNAP_DIST
+                    ? 1.0
+                    : Math.max(MIN_ALPHA, SNAP_DIST / posDist);
+
+                smoothProxy.position.lerp(_lerpPos, alpha);
+                smoothProxy.quaternion.slerp(_lerpQuat, alpha);
+                smoothProxy.scale.copy(_lerpScale);
             }
             // ── Animation mixer ────────────────────────────────────
             if (mixer && clock.running) {
