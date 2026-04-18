@@ -117,7 +117,7 @@ const setupMindAR = async () => {
         imageTargetSrc,
         maxTrack: 1,
         warmupTolerance: 15,
-        filterMinCF: 0.01,    // 静止平滑
+        filterMinCF: 0.002,   // 静止重度平滑，消抖
         filterBeta: 150,      // 移动时几乎无滞后
         missTolerance: 60,
         // 关闭 MindAR 自带的扫描框/加载/错误覆盖层（我们用自己的 UI）
