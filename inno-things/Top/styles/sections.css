@@ -292,7 +292,6 @@
 .camera-stage {
     position: relative;
     overflow: hidden;
-    border-radius: var(--r-lg);
     background: #000;
     aspect-ratio: 9 / 16;
     width: min(100%, 560px);
@@ -405,16 +404,18 @@ body.camera-open { overflow: hidden; }
     .artwork-panel {
         height: 100%;
         min-height: 0;
-        width: min(100%, 560px);
+        /* 按画作真实比例自动计算宽度，消除左右留白 */
+        width: auto;
+        aspect-ratio: 3508 / 4961;
+        max-width: 100%;
         justify-self: end;
     }
     .artwork-panel img {
+        width: 100%;
         height: 100%;
         min-height: 0;
         aspect-ratio: auto;
-        object-fit: contain;
-        object-position: center;
-        background: rgba(255,250,242,0.6);
+        object-fit: cover;
     }
 }
 

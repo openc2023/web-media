@@ -17,7 +17,7 @@
 }
 
 .locale-button {
-    min-height: 36px;
+    min-height: 34px;
     padding: 0 8px;
     border: none;
     border-radius: var(--r-xs);
@@ -101,10 +101,8 @@ main      { width: 100%; }
     .site-header { padding-top: 14px; gap: 8px; }
     .section { padding: 14px 0; }
 
-    /* 统一 34px — 品牌和语言按钮等高 */
-    .brand,
-    .locale-button { min-height: 34px; }
-    .locale-button { padding: 0 10px; }
+    /* 手机上两者都保持 34px */
+    .locale-button { min-height: 34px; padding: 0 10px; }
 }
 
 /* 相机开启时防止背景回弹 */
