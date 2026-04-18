@@ -42,18 +42,22 @@
 }
 
 /* ── Page scaffold ──────────────────────────────────── */
-body      { min-height: 100dvh; overflow-x: hidden; }
+body      { min-height: 100dvh; }
 main      { width: 100%; }
 .section  { padding: 20px 0; }
 
 .section-inner {
     width: min(1120px, calc(100% - 32px));
     margin: 0 auto;
+    /* overflow: clip 而非 body overflow-x:hidden
+       clip 不创建滚动容器，不影响 position:fixed 的定位 */
+    overflow-x: clip;
 }
 
 .entry-layout {
     display: grid;
-    grid-template-columns: minmax(300px, 0.78fr) minmax(0, 1fr);
+    /* minmax(0,...) 代替 minmax(300px,...) — 防止窄屏列溢出 */
+    grid-template-columns: minmax(0, 0.78fr) minmax(0, 1fr);
     gap: 20px;
     align-items: center;
 }
@@ -74,26 +78,33 @@ main      { width: 100%; }
     .entry-layout {
         height: 100%;
         min-height: 0;
-        grid-template-columns: minmax(290px, 0.72fr) minmax(400px, 1fr);
+        grid-template-columns: minmax(0, 0.72fr) minmax(0, 1fr);
         gap: 18px;
         align-items: stretch;
     }
 }
 
+/* ── 平板 / 横屏手机 (601–900px) ───────────────────── */
 @media (max-width: 900px) {
     body { height: auto; overflow-y: auto; }
     main { height: auto; }
-    .entry-layout { grid-template-columns: 1fr; }
+    .entry-layout {
+        grid-template-columns: 1fr;
+        max-width: 100%;
+    }
 }
 
+/* ── 手机 (≤600px) ──────────────────────────────────── */
 @media (max-width: 600px) {
     .site-header,
     .section-inner { width: min(1120px, calc(100% - 20px)); }
     .site-header { padding-top: 14px; gap: 8px; }
     .section { padding: 14px 0; }
 
-    /* 触控目标放大到 44px（Apple HIG 推荐） */
-    .locale-button { min-height: 44px; padding: 0 10px; }
+    /* 统一 34px — 品牌和语言按钮等高 */
+    .brand,
+    .locale-button { min-height: 34px; }
+    .locale-button { padding: 0 10px; }
 }
 
 /* 相机开启时防止背景回弹 */

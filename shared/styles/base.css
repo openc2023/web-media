@@ -18,8 +18,9 @@ body {
     color: var(--text);
     line-height: 1.55;
     font-weight: 400;
-    /* 防止水平溢出导致移动端误触滚动 */
-    overflow-x: hidden;
+    /* 注意：不在 body 上用 overflow-x:hidden
+       iOS Safari 中会导致 position:fixed 弹窗定位偏移
+       改用 .section-inner 的 overflow-x:clip 来防溢出 */
 }
 
 /* ── 无障碍：仅视觉隐藏，屏幕阅读器可读 ─────────────── */
