@@ -117,7 +117,7 @@ const setupMindAR = async () => {
         imageTargetSrc,
         maxTrack: 1,
         warmupTolerance: 15,
-        filterMinCF: 0.001,   // 静止重度平滑，消抖
+        filterMinCF: 0.0001,  // 静止极度平滑，覆盖手颤噪声
         filterBeta: 150,      // 移动时几乎无滞后
         missTolerance: 60,
         // 关闭 MindAR 自带的扫描框/加载/错误覆盖层（我们用自己的 UI）
@@ -159,8 +159,8 @@ const setupMindAR = async () => {
     // 距离目标近（静止）→ alpha 接近 1.0（锁死）
     // 距离目标远（运动）→ alpha 降低（平滑追随）
     // SNAP_DIST 以 MindAR 世界单位为准（目标图宽 ≈ 1 unit）
-    const SNAP_DIST  = 0.015;  // 小于此距离直接吸附
-    const MIN_ALPHA  = 0.65;   // 移动时最低 alpha，追随更快
+    const SNAP_DIST  = 0.025;  // 扩大吸附区，覆盖自然手颤范围
+    const MIN_ALPHA  = 0.45;   // 移动时最低 alpha，微量平滑
 
     if (gltf.animations && gltf.animations.length > 0) {
         mixer = new THREE.AnimationMixer(boxModel);
