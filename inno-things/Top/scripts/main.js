@@ -117,9 +117,13 @@ const setupMindAR = async () => {
         imageTargetSrc,
         maxTrack: 1,
         warmupTolerance: 15,
-        filterMinCF: 0.0001,   // ↓ more smoothing at rest (was 0.001)
-        filterBeta: 1,          // ↓ less speed-adaptive jitter (was 100)
+        filterMinCF: 0.0001,
+        filterBeta: 1,
         missTolerance: 60,
+        // 关闭 MindAR 自带的扫描框/加载/错误覆盖层（我们用自己的 UI）
+        uiLoading: "no",
+        uiScanning: "no",
+        uiError: "no",
     });
 
     const { renderer, scene } = mindarThree;
@@ -370,6 +374,11 @@ const stopMindAR = () => {
     mindarThree = null;
     anchor = null;
     boxModel = null;
+
+    // 清理 MindAR 可能挂到 body 上的残留覆盖层
+    document.querySelectorAll(
+        ".mindar-ui-overlay, .mindar-ui-loading, .mindar-ui-scanning, .mindar-ui-error"
+    ).forEach((el) => el.remove());
 };
 
 const closeCameraModal = () => {
