@@ -98,6 +98,7 @@ const restartScanAnimations = () => {
     });
 };
 
+
 const loadBoxModel = () =>
     new Promise((resolve, reject) => {
         new GLTFLoader().load(

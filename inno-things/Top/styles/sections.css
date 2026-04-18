@@ -320,17 +320,6 @@
     background: transparent !important;
 }
 
-/* ── Target frame ─────────────────────────────────────── */
-.camera-target-frame {
-    position: absolute;
-    inset: 6%;
-    border: 2px solid rgba(0, 237, 100, 0.88);
-    border-radius: var(--r-xl);
-    box-shadow: 0 0 0 999px rgba(0,0,0,0.24);
-    pointer-events: none;
-    animation: frame-pulse 1.8s ease-in-out infinite;
-}
-
 /* ── Scan line ─────────────────────────────────────────── */
 .scan-line-wrap {
     position: absolute;
@@ -387,15 +376,6 @@
 
 /* ── AR state variants ─────────────────────────────────── */
 [data-state="found"] .scan-line-wrap  { display: none; }
-[data-state="found"] .camera-target-frame {
-    animation: none;
-    border-color: #00ff88;
-    box-shadow: 0 0 0 999px rgba(0,0,0,0.08),
-                0 0 24px rgba(0,255,136,0.5);
-}
-[data-state="lost"] .camera-target-frame {
-    animation: frame-lost 1s ease-in-out infinite;
-}
 [data-state="loading"] .scan-line-wrap { display: none; }
 
 /* ── Animations ────────────────────────────────────────── */
@@ -404,18 +384,6 @@
     8%   { opacity: 1; }
     92%  { opacity: 1; }
     100% { top: 100%; opacity: 0; }
-}
-@keyframes frame-pulse {
-    0%,100% { border-color: rgba(0,237,100,0.5); }
-    50%      { border-color: rgba(0,237,100,1);
-               box-shadow: 0 0 0 999px rgba(0,0,0,0.24),
-                           0 0 16px rgba(0,237,100,0.45); }
-}
-@keyframes frame-lost {
-    0%,100% { border-color: rgba(255,170,0,0.5); }
-    50%      { border-color: rgba(255,170,0,1);
-               box-shadow: 0 0 0 999px rgba(0,0,0,0.24),
-                           0 0 14px rgba(255,170,0,0.4); }
 }
 @keyframes dot-blink {
     0%,100% { opacity: 1; }
@@ -483,7 +451,6 @@ body.camera-open { overflow: hidden; }
         max-height: none; aspect-ratio: auto;
         border-radius: 0; margin: 0;
     }
-    .camera-target-frame,
     .scan-line-wrap { display: none; }
     .scan-badge { bottom: 24px; }
 }
