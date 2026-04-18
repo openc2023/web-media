@@ -134,6 +134,7 @@ const buildGifTextureUpdaters = (model) => {
                     if (canvas.width === 0 && img.naturalWidth > 0) {
                         canvas.width  = img.naturalWidth;
                         canvas.height = img.naturalHeight;
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
                     }
                 };
                 if (img.complete) initSize();
@@ -148,10 +149,15 @@ const buildGifTextureUpdaters = (model) => {
                 mat[slot] = canvasTex;
                 mat.needsUpdate = true;
 
-                // 每帧调用：drawImage 触发浏览器渲染 GIF 当前帧
+                // 保留原材质透明设置
+                mat.transparent = true;
+                mat.alphaTest   = mat.alphaTest ?? 0;
+
+                // 每帧调用：先清空再 drawImage，保留 GIF 透明通道
                 updaters.push(() => {
                     initSize();
                     if (canvas.width > 0 && canvas.height > 0) {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                         canvasTex.needsUpdate = true;
                     }
@@ -170,9 +176,9 @@ const setupMindAR = async () => {
         container: arContainer,
         imageTargetSrc,
         maxTrack: 1,
-        warmupTolerance: 15,
+        warmupTolerance: 5,   // 5帧即触发 found，识别更快
         filterMinCF: 0.0001,  // 静止极度平滑，覆盖手颤噪声
-        filterBeta: 95,       // 移动跟手同时保留手颤过滤
+        filterBeta: 90,       // 移动跟手同时保留手颤过滤
         missTolerance: 60,
         // 关闭 MindAR 自带的扫描框/加载/错误覆盖层（我们用自己的 UI）
         uiLoading: "no",
@@ -216,7 +222,7 @@ const setupMindAR = async () => {
     // 距离目标近（静止）→ alpha 接近 1.0（锁死）
     // 距离目标远（运动）→ alpha 降低（平滑追随）
     // SNAP_DIST 以 MindAR 世界单位为准（目标图宽 ≈ 1 unit）
-    const SNAP_DIST  = 0.035;  // 手颤死区
+    const SNAP_DIST  = 0.02;   // 手颤死区（小于 filter 噪声范围，避免噪声直透）
     const MIN_ALPHA  = 0.45;   // 移动时最低 alpha，微量平滑
 
     if (gltf.animations && gltf.animations.length > 0) {
