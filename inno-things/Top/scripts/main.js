@@ -109,6 +109,60 @@ const loadBoxModel = () =>
         );
     });
 
+// ── GIF 动图贴图支持 ───────────────────────────────────────
+// GLTFLoader 把内嵌 GIF 解析成 HTMLImageElement（只有第一帧）
+// 把它替换成 CanvasTexture，每帧 drawImage 让浏览器渲染当前帧
+const buildGifTextureUpdaters = (model) => {
+    const updaters = [];
+    const SLOTS = ["map", "emissiveMap", "alphaMap", "roughnessMap", "metalnessMap"];
+
+    model.traverse((obj) => {
+        if (!obj.isMesh) return;
+        const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+
+        mats.forEach((mat) => {
+            SLOTS.forEach((slot) => {
+                const tex = mat[slot];
+                if (!tex || !(tex.image instanceof HTMLImageElement)) return;
+
+                const img = tex.image;
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
+
+                // 初始化 canvas 尺寸（图片可能还未 load 完）
+                const initSize = () => {
+                    if (canvas.width === 0 && img.naturalWidth > 0) {
+                        canvas.width  = img.naturalWidth;
+                        canvas.height = img.naturalHeight;
+                    }
+                };
+                if (img.complete) initSize();
+                else img.addEventListener("load", initSize, { once: true });
+
+                // 继承原纹理属性
+                const canvasTex = new THREE.CanvasTexture(canvas);
+                canvasTex.flipY    = tex.flipY;
+                canvasTex.wrapS    = tex.wrapS;
+                canvasTex.wrapT    = tex.wrapT;
+                canvasTex.encoding = tex.encoding;
+                mat[slot] = canvasTex;
+                mat.needsUpdate = true;
+
+                // 每帧调用：drawImage 触发浏览器渲染 GIF 当前帧
+                updaters.push(() => {
+                    initSize();
+                    if (canvas.width > 0 && canvas.height > 0) {
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        canvasTex.needsUpdate = true;
+                    }
+                });
+            });
+        });
+    });
+
+    return updaters;
+};
+
 const setupMindAR = async () => {
     arContainer.innerHTML = "";
 
@@ -118,7 +172,7 @@ const setupMindAR = async () => {
         maxTrack: 1,
         warmupTolerance: 15,
         filterMinCF: 0.0001,  // 静止极度平滑，覆盖手颤噪声
-        filterBeta: 90,       // 移动跟手同时保留手颤过滤
+        filterBeta: 95,       // 移动跟手同时保留手颤过滤
         missTolerance: 60,
         // 关闭 MindAR 自带的扫描框/加载/错误覆盖层（我们用自己的 UI）
         uiLoading: "no",
@@ -142,6 +196,9 @@ const setupMindAR = async () => {
     boxModel.scale.set(0.18, 0.18, 0.18);
     boxModel.visible = false;
 
+    // 扫描模型所有贴图，把 GIF 贴图替换成可逐帧更新的 CanvasTexture
+    const gifUpdaters = buildGifTextureUpdaters(boxModel);
+
     // ── Smooth proxy ──────────────────────────────────────
     // Model lives in smoothProxy (scene-level group) rather than directly
     // in anchor.group. Each frame we lerp/slerp smoothProxy toward the
@@ -159,7 +216,7 @@ const setupMindAR = async () => {
     // 距离目标近（静止）→ alpha 接近 1.0（锁死）
     // 距离目标远（运动）→ alpha 降低（平滑追随）
     // SNAP_DIST 以 MindAR 世界单位为准（目标图宽 ≈ 1 unit）
-    const SNAP_DIST  = 0.03;   // 手颤死区
+    const SNAP_DIST  = 0.035;  // 手颤死区
     const MIN_ALPHA  = 0.45;   // 移动时最低 alpha，微量平滑
 
     if (gltf.animations && gltf.animations.length > 0) {
@@ -253,6 +310,10 @@ const setupMindAR = async () => {
                 smoothProxy.position.lerp(_lerpPos, alpha);
                 smoothProxy.quaternion.slerp(_lerpQuat, alpha);
                 smoothProxy.scale.copy(_lerpScale);
+            }
+            // ── GIF 贴图逐帧更新 ───────────────────────────────────
+            if (gifUpdaters.length > 0) {
+                gifUpdaters.forEach((fn) => fn());
             }
             // ── Animation mixer ────────────────────────────────────
             if (mixer && clock.running) {
