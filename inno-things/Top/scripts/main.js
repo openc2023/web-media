@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MindARThree } from "mindar-image-three";
+import { parseGIF, decompressFrames } from "gifuct-js";
 import { createI18n } from "../../i18n/index.js";
 
 const i18n = createI18n();
@@ -214,15 +215,17 @@ const attachExternalFlameGif = (model) => {
             if (!isFlameMesh) return mat;
 
             const animatedGif = createAnimatedGifTexture(resolvedFlameGifUrl, gifOffsetMs ?? 0);
-            const nextMat = mat.clone();
-            nextMat.map = animatedGif.texture;
-            nextMat.emissiveMap = animatedGif.texture;
-            nextMat.emissive = new THREE.Color(1, 1, 1);
-            nextMat.emissiveIntensity = 1.2;
-            nextMat.transparent = true;
-            nextMat.alphaTest = 0.005;
-            nextMat.depthWrite = false;
-            nextMat.side = THREE.DoubleSide;
+            const nextMat = new THREE.MeshBasicMaterial({
+                map: animatedGif.texture,
+                transparent: true,
+                alphaTest: 0.02,
+                depthWrite: false,
+                depthTest: true,
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending,
+                toneMapped: false,
+                color: 0xffffff,
+            });
             nextMat.needsUpdate = true;
             matchedMeshes.push(`${obj.name} / ${nextMat.name}`);
             updaters.push(animatedGif.update);
@@ -410,7 +413,7 @@ const setupMindAR = async () => {
 
     const gltf = await loadBoxModel();
     boxModel = gltf.scene;
-    boxModel.position.set(0, 0.38, 0.12);
+    boxModel.position.set(0, 0.38, -0.05);
     boxModel.scale.set(0.18, 0.18, 0.18);
     boxModel.visible = false;
 
