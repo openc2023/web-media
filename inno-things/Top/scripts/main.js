@@ -40,6 +40,8 @@ const flameFrameOffsetMsByMesh = new Map([
     ["Plane.005", 600],
 ]);
 const flameMaterialNames = new Set(["聚气", "聚气.001"]);
+const occluderMeshNames = new Set(["box.001"]);
+const interiorMeshNames = new Set(["Plane.004", "Plane.005", "top-2", "top-3", "Cube.001"]);
 
 const formatError = (error) => {
     if (!error) return "Unknown error";
@@ -238,6 +240,59 @@ const attachExternalFlameGif = (model) => {
     return { updaters, disposers };
 };
 
+const configureModelRendering = (model) => {
+    model.traverse((obj) => {
+        if (!obj.isMesh || !obj.material) return;
+
+        const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+        const nextMaterials = materials.map((mat) => {
+            if (!mat) return mat;
+
+            const nextMat = mat.clone();
+
+            if (occluderMeshNames.has(obj.name)) {
+                obj.userData.isOccluder = true;
+                nextMat.colorWrite = false;
+                nextMat.depthWrite = true;
+                nextMat.depthTest = true;
+                nextMat.transparent = false;
+                nextMat.opacity = 1;
+                nextMat.side = THREE.DoubleSide;
+                nextMat.needsUpdate = true;
+                return nextMat;
+            }
+
+            if (interiorMeshNames.has(obj.name)) {
+                obj.frustumCulled = false;
+                const wantsTransparency =
+                    nextMat.transparent ||
+                    flameMeshNames.has(obj.name) ||
+                    nextMat.alphaTest > 0 ||
+                    nextMat.map !== null ||
+                    nextMat.emissiveMap !== null;
+
+                nextMat.transparent = wantsTransparency;
+                nextMat.depthTest = true;
+                nextMat.depthWrite = flameMeshNames.has(obj.name) ? false : !wantsTransparency;
+                nextMat.side = THREE.DoubleSide;
+                nextMat.needsUpdate = true;
+            }
+
+            return nextMat;
+        });
+
+        obj.material = Array.isArray(obj.material) ? nextMaterials : nextMaterials[0];
+
+        if (occluderMeshNames.has(obj.name)) {
+            obj.renderOrder = 1;
+        } else if (obj.name === "box") {
+            obj.renderOrder = 2;
+        } else if (interiorMeshNames.has(obj.name)) {
+            obj.renderOrder = flameMeshNames.has(obj.name) ? 4 : 3;
+        }
+    });
+};
+
 // ── GIF 动图贴图支持 ───────────────────────────────────────
 // GLTFLoader 把内嵌 GIF 解析成 HTMLImageElement（只有第一帧）
 // 把它替换成 CanvasTexture，每帧 drawImage 让浏览器渲染当前帧
@@ -345,6 +400,7 @@ const setupMindAR = async () => {
     // 扫描模型所有贴图，把 GIF 贴图替换成可逐帧更新的 CanvasTexture
     const { updaters: gifUpdaters, disposers } = attachExternalFlameGif(boxModel);
     gifTextureDisposers = disposers;
+    configureModelRendering(boxModel);
 
     // ── Smooth proxy ──────────────────────────────────────
     // Model lives in smoothProxy (scene-level group) rather than directly
@@ -379,9 +435,37 @@ const setupMindAR = async () => {
     const setModelOpacity = (opacity) => {
         boxModel.traverse((object) => {
             if (object.isMesh && object.material) {
-                object.material.transparent = true;
-                object.material.opacity = opacity;
-                object.material.needsUpdate = true;
+                const materials = Array.isArray(object.material)
+                    ? object.material
+                    : [object.material];
+
+                materials.forEach((mat) => {
+                    if (!mat) return;
+
+                    if (object.userData.isOccluder) {
+                        mat.colorWrite = false;
+                        mat.depthWrite = true;
+                        mat.depthTest = true;
+                        mat.transparent = false;
+                        mat.opacity = 1;
+                    } else {
+                        if (interiorMeshNames.has(object.name)) {
+                            const wantsTransparency =
+                                mat.transparent ||
+                                flameMeshNames.has(object.name) ||
+                                mat.alphaTest > 0 ||
+                                mat.map !== null ||
+                                mat.emissiveMap !== null;
+
+                            mat.depthTest = true;
+                            mat.depthWrite = flameMeshNames.has(object.name) ? false : !wantsTransparency;
+                            mat.transparent = wantsTransparency;
+                        }
+                        mat.opacity = opacity;
+                    }
+
+                    mat.needsUpdate = true;
+                });
             }
         });
     };
