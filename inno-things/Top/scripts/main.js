@@ -260,16 +260,14 @@ const configureModelRendering = (model) => {
             if (occluderMeshNames.has(obj.name)) {
                 obj.userData.isOccluder = true;
                 obj.frustumCulled = false;
-                // Holdout: writes depth only, no color → camera shows through here.
-                // Interior content is blocked except through the opening in box.001's geometry.
-                nextMat.colorWrite = false;
-                nextMat.depthWrite = true;
-                nextMat.depthTest = true;
-                nextMat.transparent = false;
-                nextMat.opacity = 1;
-                nextMat.side = THREE.FrontSide;
-                nextMat.needsUpdate = true;
-                return nextMat;
+                // DEBUG: red so we can see exactly where box.001 sits
+                const debugMat = new THREE.MeshBasicMaterial({
+                    color: 0xff0000,
+                    depthWrite: true,
+                    depthTest: true,
+                    side: THREE.FrontSide,
+                });
+                return debugMat;
             }
 
             if (obj.name === "box") {
