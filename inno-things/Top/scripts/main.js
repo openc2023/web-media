@@ -30,18 +30,21 @@ let currentStatusVars = {};
 const clock = new THREE.Clock(false);
 const imageTargetSrc = "./assets/targets/000-top.mind";
 const flameGifUrl = new URL("../assets/3d/gltf/火焰旋转.gif", import.meta.url).href;
-const flameMeshNames = new Set(["Plane.004", "Plane.005"]);
+const flameMeshNames = new Set(["plane004", "plane005"]);
 const resolvedFlameGifUrl = new URL(
     "../assets/3d/gltf/%E7%81%AB%E7%84%B0%E6%97%8B%E8%BD%AC.gif",
     import.meta.url
 ).href;
 const flameFrameOffsetMsByMesh = new Map([
-    ["Plane.004", 0],
-    ["Plane.005", 600],
+    ["plane004", 0],
+    ["plane005", 600],
 ]);
 const flameMaterialNames = new Set(["聚气", "聚气.001"]);
-const occluderMeshNames = new Set(["box.001"]);
-const interiorMeshNames = new Set(["Plane.004", "Plane.005", "top-2", "top-3", "Cube.001"]);
+const occluderMeshNames = new Set(["box001"]);
+const shellMeshNames = new Set(["box", "box1", "box2"]);
+const interiorMeshNames = new Set(["plane004", "plane005", "top2", "top3", "cube001"]);
+
+const normalizeMeshName = (name = "") => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 const formatError = (error) => {
     if (!error) return "Unknown error";
@@ -198,14 +201,15 @@ const attachExternalFlameGif = (model) => {
     model.traverse((obj) => {
         if (!obj.isMesh || !obj.material) return;
 
-        const gifOffsetMs = flameFrameOffsetMsByMesh.get(obj.name);
+        const normalizedName = normalizeMeshName(obj.name);
+        const gifOffsetMs = flameFrameOffsetMsByMesh.get(normalizedName);
 
         const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
         const nextMaterials = materials.map((mat) => {
             if (!mat) return mat;
 
             const isFlameMesh =
-                flameMeshNames.has(obj.name) || flameMaterialNames.has(mat.name);
+                flameMeshNames.has(normalizedName) || flameMaterialNames.has(mat.name);
 
             if (!isFlameMesh) return mat;
 
@@ -228,7 +232,7 @@ const attachExternalFlameGif = (model) => {
 
         obj.material = Array.isArray(obj.material) ? nextMaterials : nextMaterials[0];
 
-        if (flameMeshNames.has(obj.name)) {
+        if (flameMeshNames.has(normalizedName)) {
             obj.renderOrder = 10;
         }
     });
@@ -243,13 +247,15 @@ const attachExternalFlameGif = (model) => {
 };
 
 const configureModelRendering = (model) => {
-    // Debug: log all mesh names so we can verify "box.001" matches exactly
+    // Debug: show all mesh names on screen to verify exact names
     const allMeshNames = [];
-    model.traverse((obj) => { if (obj.isMesh) allMeshNames.push(obj.name); });
-    console.info("[meshNames]", allMeshNames);
+    model.traverse((obj) => { if (obj.isMesh) allMeshNames.push(JSON.stringify(obj.name)); });
+    showDebug("meshes: " + allMeshNames.join(", "));
 
     model.traverse((obj) => {
         if (!obj.isMesh || !obj.material) return;
+
+        const normalizedName = normalizeMeshName(obj.name);
 
         const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
         const nextMaterials = materials.map((mat) => {
@@ -257,20 +263,19 @@ const configureModelRendering = (model) => {
 
             const nextMat = mat.clone();
 
-            if (occluderMeshNames.has(obj.name)) {
+            if (occluderMeshNames.has(normalizedName)) {
                 obj.userData.isOccluder = true;
                 obj.frustumCulled = false;
-                // DEBUG: red so we can see exactly where box.001 sits
-                const debugMat = new THREE.MeshBasicMaterial({
-                    color: 0xff0000,
-                    depthWrite: true,
-                    depthTest: true,
-                    side: THREE.FrontSide,
-                });
-                return debugMat;
+                nextMat.colorWrite = false;
+                nextMat.depthWrite = true;
+                nextMat.depthTest = true;
+                nextMat.transparent = false;
+                nextMat.opacity = 1;
+                nextMat.needsUpdate = true;
+                return nextMat;
             }
 
-            if (obj.name === "box") {
+            if (shellMeshNames.has(normalizedName)) {
                 // depthTest=false so box renders over box.001's depth writes,
                 // showing its own material without being blocked by the holdout layer.
                 nextMat.depthTest = false;
@@ -278,10 +283,10 @@ const configureModelRendering = (model) => {
                 return nextMat;
             }
 
-            if (interiorMeshNames.has(obj.name)) {
+            if (interiorMeshNames.has(normalizedName)) {
                 obj.frustumCulled = false;
                 nextMat.depthTest = true;
-                if (flameMeshNames.has(obj.name)) {
+                if (flameMeshNames.has(normalizedName)) {
                     nextMat.transparent = true;
                     nextMat.depthWrite = false;
                     nextMat.alphaTest = Math.max(nextMat.alphaTest ?? 0, 0.005);
@@ -295,12 +300,12 @@ const configureModelRendering = (model) => {
 
         obj.material = Array.isArray(obj.material) ? nextMaterials : nextMaterials[0];
 
-        if (occluderMeshNames.has(obj.name)) {
+        if (occluderMeshNames.has(normalizedName)) {
             obj.renderOrder = 1;
-        } else if (obj.name === "box") {
+        } else if (shellMeshNames.has(normalizedName)) {
             obj.renderOrder = 2;
-        } else if (interiorMeshNames.has(obj.name)) {
-            obj.renderOrder = flameMeshNames.has(obj.name) ? 4 : 3;
+        } else if (interiorMeshNames.has(normalizedName)) {
+            obj.renderOrder = flameMeshNames.has(normalizedName) ? 4 : 3;
         }
     });
 };
@@ -447,6 +452,7 @@ const setupMindAR = async () => {
     const setModelOpacity = (opacity) => {
         boxModel.traverse((object) => {
             if (object.isMesh && object.material) {
+                const normalizedName = normalizeMeshName(object.name);
                 const materials = Array.isArray(object.material)
                     ? object.material
                     : [object.material];
@@ -461,9 +467,9 @@ const setupMindAR = async () => {
                         mat.transparent = false;
                         mat.opacity = 1;
                     } else {
-                        if (interiorMeshNames.has(object.name)) {
+                        if (interiorMeshNames.has(normalizedName)) {
                             mat.depthTest = true;
-                            if (flameMeshNames.has(object.name)) {
+                            if (flameMeshNames.has(normalizedName)) {
                                 mat.transparent = true;
                                 mat.depthWrite = false;
                                 mat.alphaTest = Math.max(mat.alphaTest ?? 0, 0.005);
