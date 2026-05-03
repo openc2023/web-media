@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>8th Wall Tracking Test | Inno Things</title>
+    <link rel="stylesheet" href="../styles/compare.css">
+</head>
+<body>
+    <div class="page">
+        <header class="topbar">
+            <a class="brand" href="../../index.html">Inno Things</a>
+            <a class="nav-link" href="../">Back To Compare</a>
+        </header>
+
+        <main>
+            <section class="hero">
+                <div class="hero-copy panel">
+                    <p class="eyebrow">8th Wall Test</p>
+                    <h1>Image Target Experiment</h1>
+                    <p class="lead">这里用于接入 8th Wall image target。当前先保持独立，不影响现有 TOP / MindAR 页面。</p>
+                    <div class="engine-meta">
+                        <div class="metric">
+                            <span class="metric-label">SDK</span>
+                            <span class="metric-value">待确认</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Target</span>
+                            <span class="metric-value">000-top</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Model</span>
+                            <span class="metric-value">box.glb</span>
+                        </div>
+                    </div>
+                </div>
+
+                <figure class="asset-panel panel">
+                    <img src="../../Top/assets/images/000-top.png" alt="000-top target image">
+                    <figcaption class="asset-caption">Target source: <code>../../Top/assets/images/000-top.png</code></figcaption>
+                </figure>
+            </section>
+
+            <section class="test-grid">
+                <article class="test-panel panel">
+                    <p class="eyebrow">Implementation Plan</p>
+                    <h2>接入前确认</h2>
+                    <ul class="check-list">
+                        <li>确认 8th Wall 当前可用的 self-hosted / open engine package。</li>
+                        <li>确认 image target 文件生成方式。</li>
+                        <li>确认 GitHub Pages 是否能直接部署所需 engine 文件。</li>
+                        <li>把 `box.glb` 放到识别后的 anchor 上，保持和 MindAR 一样的位置目标。</li>
+                    </ul>
+                </article>
+
+                <article class="test-panel panel">
+                    <p class="eyebrow">Test Checklist</p>
+                    <h2>测试记录</h2>
+                    <table class="score-table">
+                        <tbody>
+                            <tr>
+                                <td>首次识别</td>
+                                <td><span class="status-pill">待测</span></td>
+                            </tr>
+                            <tr>
+                                <td>轻微移动抖动</td>
+                                <td><span class="status-pill">待测</span></td>
+                            </tr>
+                            <tr>
+                                <td>目标丢失恢复</td>
+                                <td><span class="status-pill">待测</span></td>
+                            </tr>
+                            <tr>
+                                <td>模型贴合</td>
+                                <td><span class="status-pill">待测</span></td>
+                            </tr>
+                            <tr>
+                                <td>iOS Safari</td>
+                                <td><span class="status-pill">待测</span></td>
+                            </tr>
+                            <tr>
+                                <td>Android Chrome</td>
+                                <td><span class="status-pill">待测</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </article>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

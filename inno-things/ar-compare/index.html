@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Tracking Compare | Inno Things</title>
+    <link rel="stylesheet" href="./styles/compare.css">
+</head>
+<body>
+    <div class="page">
+        <header class="topbar">
+            <a class="brand" href="../index.html">Inno Things</a>
+            <a class="nav-link" href="../Top/index.html">Current MindAR Page</a>
+        </header>
+
+        <main>
+            <section class="hero">
+                <div class="hero-copy panel">
+                    <p class="eyebrow">AR Compare</p>
+                    <h1>8th Wall / Zappar 稳定性对比</h1>
+                    <p class="lead">这里专门测试替代 AR 识别方案，不修改现有 TOP 页面。两个实验页都使用同一张 000-top 图和同一个 box.glb，方便对比识别速度、稳定性、画面对齐和部署成本。</p>
+                    <p class="note">当前阶段：先固定测试结构和评分表，SDK 接入时只改各自实验目录。</p>
+                </div>
+
+                <figure class="asset-panel panel">
+                    <img src="../Top/assets/images/000-top.png" alt="000-top target image">
+                    <figcaption class="asset-caption">Shared target: <code>../Top/assets/images/000-top.png</code></figcaption>
+                </figure>
+            </section>
+
+            <section class="engine-grid" aria-label="Engine options">
+                <article class="engine-card panel">
+                    <div>
+                        <p class="eyebrow">Option A</p>
+                        <h2>8th Wall</h2>
+                        <p>目标是验证商业级 image target 在浏览器里的识别稳定性。重点看首次识别速度、移动时抖动、丢失后的恢复。</p>
+                    </div>
+                    <div class="engine-meta">
+                        <div class="metric">
+                            <span class="metric-label">状态</span>
+                            <span class="metric-value">待接 SDK</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">目标</span>
+                            <span class="metric-value">Image Target</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">风险</span>
+                            <span class="metric-value">接入包确认</span>
+                        </div>
+                    </div>
+                    <div class="button-row">
+                        <a class="button" href="./8th-wall/">打开 8th Wall 测试</a>
+                        <a class="button secondary" href="./8th-wall/README.md">查看说明</a>
+                    </div>
+                </article>
+
+                <article class="engine-card panel">
+                    <div>
+                        <p class="eyebrow">Option B</p>
+                        <h2>Zappar</h2>
+                        <p>目标是验证 Zappar image tracking 和 Three.js 结合后的稳定性。重点看 target 生成流程、模型贴合度和手机浏览器表现。</p>
+                    </div>
+                    <div class="engine-meta">
+                        <div class="metric">
+                            <span class="metric-label">状态</span>
+                            <span class="metric-value">待接 SDK</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">目标</span>
+                            <span class="metric-value">Image Tracking</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">风险</span>
+                            <span class="metric-value">授权/target</span>
+                        </div>
+                    </div>
+                    <div class="button-row">
+                        <a class="button" href="./zappar/">打开 Zappar 测试</a>
+                        <a class="button secondary" href="./zappar/README.md">查看说明</a>
+                    </div>
+                </article>
+            </section>
+
+            <section class="test-grid">
+                <article class="test-panel panel">
+                    <p class="eyebrow">Test Steps</p>
+                    <h2>统一测试步骤</h2>
+                    <ol class="number-list">
+                        <li>用同一台手机，同一浏览器，同一 GitHub Pages 链接测试。</li>
+                        <li>固定光线，先从 40-60cm 距离对准整张 000-top。</li>
+                        <li>记录首次识别耗时。</li>
+                        <li>识别后慢慢上下左右移动手机，观察模型是否抖动。</li>
+                        <li>移出画作再移回来，记录恢复速度。</li>
+                        <li>检查 box.glb 是否贴在同一个画作位置。</li>
+                    </ol>
+                </article>
+
+                <article class="test-panel panel">
+                    <p class="eyebrow">Score Sheet</p>
+                    <h2>评分项</h2>
+                    <table class="score-table">
+                        <thead>
+                            <tr>
+                                <th>项目</th>
+                                <th>8th Wall</th>
+                                <th>Zappar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>首次识别速度</td>
+                                <td><span class="status-pill">待测</span></td>
+                                <td><span class="status-pill">待测</span></td>
+                            </tr>
+                            <tr>
+                                <td>慢速移动抖动</td>
+                                <td><span class="status-pill">待测</span></td>
+                                <td><span class="status-pill">待测</span></td>
+                            </tr>
+                            <tr>
+                                <td>丢失后恢复</td>
+                                <td><span class="status-pill">待测</span></td>
+                                <td><span class="status-pill">待测</span></td>
+                            </tr>
+                            <tr>
+                                <td>模型/视频对齐</td>
+                                <td><span class="status-pill">待测</span></td>
+                                <td><span class="status-pill">待测</span></td>
+                            </tr>
+                            <tr>
+                                <td>GitHub Pages 部署</td>
+                                <td><span class="status-pill">待测</span></td>
+                                <td><span class="status-pill">待测</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </article>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

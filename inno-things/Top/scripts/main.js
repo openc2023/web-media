@@ -233,8 +233,8 @@ const setupMindAR = async () => {
     // 距离目标近（静止）→ alpha 接近 1.0（锁死）
     // 距离目标远（运动）→ alpha 降低（平滑追随）
     // SNAP_DIST 以 MindAR 世界单位为准（目标图宽 ≈ 1 unit）
-    const SNAP_DIST  = 0.02;   // 手颤死区（小于 filter 噪声范围，避免噪声直透）
-    const MIN_ALPHA  = 0.45;   // 移动时最低 alpha，微量平滑
+    const SNAP_DIST  = 0.03;   // 手颤死区
+    const MIN_ALPHA  = 0.18;   // 移动时最低 alpha
 
     if (gltf.animations && gltf.animations.length > 0) {
         mixer = new THREE.AnimationMixer(boxModel);
@@ -320,9 +320,10 @@ const setupMindAR = async () => {
                 //   静止（偏移小）→ alpha → 1.0，模型锁死在目标上
                 //   运动（偏移大）→ alpha 降低，过渡平滑不跳变
                 const posDist = smoothProxy.position.distanceTo(_lerpPos);
+                // 平方衰减：超出死区后 alpha 急速下降，抑制手颤传递
                 const alpha = posDist < SNAP_DIST
                     ? 1.0
-                    : Math.max(MIN_ALPHA, SNAP_DIST / posDist);
+                    : Math.max(MIN_ALPHA, Math.pow(SNAP_DIST / posDist, 2));
 
                 smoothProxy.position.lerp(_lerpPos, alpha);
                 smoothProxy.quaternion.slerp(_lerpQuat, alpha);
