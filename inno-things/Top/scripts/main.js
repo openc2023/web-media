@@ -265,13 +265,6 @@ const configureModelRendering = (model) => {
                 return nextMat;
             }
 
-            if (obj.name === "box") {
-                nextMat.colorWrite = false;
-                nextMat.depthWrite = false;
-                nextMat.needsUpdate = true;
-                return nextMat;
-            }
-
             if (interiorMeshNames.has(obj.name)) {
                 obj.frustumCulled = false;
                 const wantsTransparency =
