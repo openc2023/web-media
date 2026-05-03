@@ -135,24 +135,57 @@ const setTextureColorSpace = (texture) => {
     }
 };
 
-const createAnimatedGifTexture = (src, startDelayMs = 0) => {
+const createAnimatedGifTexture = async (src, frameOffsetMs = 0) => {
+    const response = await fetch(src);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch animated GIF texture: ${response.status} ${response.statusText}`);
+    }
+
+    const buffer = await response.arrayBuffer();
+    const gif = parseGIF(buffer);
+    const frames = decompressFrames(gif, true);
+    const width = gif.lsd.width;
+    const height = gif.lsd.height;
+
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
-    const domImg = new Image();
+    canvas.width = width;
+    canvas.height = height;
 
-    domImg.className = "gif-texture-proxy";
-    domImg.decoding = "async";
-    Object.assign(domImg.style, {
-        position: "absolute",
-        width: "1px",
-        height: "1px",
-        opacity: "0.001",
-        pointerEvents: "none",
-        top: "-9999px",
-        left: "-9999px",
+    const workCanvas = document.createElement("canvas");
+    const workCtx = workCanvas.getContext("2d");
+    workCanvas.width = width;
+    workCanvas.height = height;
+
+    const composedFrames = [];
+    let previousFrame = null;
+
+    frames.forEach((frame) => {
+        if (previousFrame?.disposalType === 2) {
+            workCtx.clearRect(
+                previousFrame.dims.left,
+                previousFrame.dims.top,
+                previousFrame.dims.width,
+                previousFrame.dims.height
+            );
+        } else if (previousFrame?.disposalType === 3 && previousFrame._restoreImageData) {
+            workCtx.putImageData(previousFrame._restoreImageData, 0, 0);
+        }
+
+        if (frame.disposalType === 3) {
+            frame._restoreImageData = workCtx.getImageData(0, 0, width, height);
+        }
+
+        const imageData = new ImageData(frame.patch, frame.dims.width, frame.dims.height);
+        workCtx.putImageData(imageData, frame.dims.left, frame.dims.top);
+        composedFrames.push({
+            delayMs: Math.max(20, (frame.delay || 10) * 10),
+            imageData: workCtx.getImageData(0, 0, width, height),
+        });
+        previousFrame = frame;
     });
-    document.body.appendChild(domImg);
 
+    const totalDurationMs = composedFrames.reduce((sum, frame) => sum + frame.delayMs, 0);
     const texture = new THREE.CanvasTexture(canvas);
     texture.flipY = false;
     texture.wrapS = THREE.ClampToEdgeWrapping;
@@ -161,50 +194,54 @@ const createAnimatedGifTexture = (src, startDelayMs = 0) => {
     texture.magFilter = THREE.LinearFilter;
     setTextureColorSpace(texture);
 
-    const syncFrame = () => {
-        if (domImg.naturalWidth === 0 || domImg.naturalHeight === 0) return;
+    const startTime = performance.now();
 
-        if (canvas.width !== domImg.naturalWidth || canvas.height !== domImg.naturalHeight) {
-            canvas.width = domImg.naturalWidth;
-            canvas.height = domImg.naturalHeight;
-        }
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(domImg, 0, 0, canvas.width, canvas.height);
+    const drawFrameByIndex = (index) => {
+        const frame = composedFrames[index];
+        if (!frame) return;
+        ctx.putImageData(frame.imageData, 0, 0);
         texture.needsUpdate = true;
     };
 
-    const startTimer = window.setTimeout(() => {
-        domImg.src = src;
-    }, Math.max(0, startDelayMs));
-
-    domImg.addEventListener("load", syncFrame, { once: true });
-    domImg.addEventListener("error", () => {
-        console.warn("Failed to load animated GIF texture:", src);
-    }, { once: true });
+    drawFrameByIndex(0);
 
     return {
         texture,
-        update: syncFrame,
+        update: () => {
+            if (composedFrames.length === 0) return;
+
+            const elapsed = ((performance.now() - startTime) + frameOffsetMs) % totalDurationMs;
+            let cursor = 0;
+            let frameIndex = 0;
+
+            for (let i = 0; i < composedFrames.length; i += 1) {
+                cursor += composedFrames[i].delayMs;
+                if (elapsed < cursor) {
+                    frameIndex = i;
+                    break;
+                }
+            }
+
+            drawFrameByIndex(frameIndex);
+        },
         dispose: () => {
-            window.clearTimeout(startTimer);
-            domImg.remove();
             texture.dispose();
         },
     };
 };
 
-const attachExternalFlameGif = (model) => {
+const attachExternalFlameGif = async (model) => {
     const matchedMeshes = [];
     const updaters = [];
     const disposers = [];
 
+    const animatedGifCache = new Map();
+
+    const flameTargets = [];
     model.traverse((obj) => {
         if (!obj.isMesh || !obj.material) return;
 
         const normalizedName = normalizeMeshName(obj.name);
-        const gifOffsetMs = flameFrameOffsetMsByMesh.get(normalizedName);
-
         const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
         const nextMaterials = materials.map((mat) => {
             if (!mat) return mat;
@@ -214,9 +251,7 @@ const attachExternalFlameGif = (model) => {
 
             if (!isFlameMesh) return mat;
 
-            const animatedGif = createAnimatedGifTexture(resolvedFlameGifUrl, gifOffsetMs ?? 0);
             const nextMat = new THREE.MeshBasicMaterial({
-                map: animatedGif.texture,
                 transparent: true,
                 alphaTest: 0.02,
                 depthWrite: false,
@@ -226,10 +261,7 @@ const attachExternalFlameGif = (model) => {
                 toneMapped: false,
                 color: 0xffffff,
             });
-            nextMat.needsUpdate = true;
-            matchedMeshes.push(`${obj.name} / ${nextMat.name}`);
-            updaters.push(animatedGif.update);
-            disposers.push(animatedGif.dispose);
+            flameTargets.push({ obj, mat: nextMat, normalizedName });
             return nextMat;
         });
 
@@ -239,6 +271,23 @@ const attachExternalFlameGif = (model) => {
             obj.renderOrder = 10;
         }
     });
+
+    for (const target of flameTargets) {
+        const gifOffsetMs = flameFrameOffsetMsByMesh.get(target.normalizedName) ?? 0;
+        const cacheKey = String(gifOffsetMs);
+        let animatedGif = animatedGifCache.get(cacheKey);
+
+        if (!animatedGif) {
+            animatedGif = await createAnimatedGifTexture(resolvedFlameGifUrl, gifOffsetMs);
+            animatedGifCache.set(cacheKey, animatedGif);
+            updaters.push(animatedGif.update);
+            disposers.push(animatedGif.dispose);
+        }
+
+        target.mat.map = animatedGif.texture;
+        target.mat.needsUpdate = true;
+        matchedMeshes.push(`${target.obj.name}`);
+    }
 
     if (matchedMeshes.length === 0) {
         console.warn("Animated flame GIF did not match any mesh in box.glb.");
@@ -418,7 +467,7 @@ const setupMindAR = async () => {
     boxModel.visible = false;
 
     // 扫描模型所有贴图，把 GIF 贴图替换成可逐帧更新的 CanvasTexture
-    const { updaters: gifUpdaters, disposers } = attachExternalFlameGif(boxModel);
+    const { updaters: gifUpdaters, disposers } = await attachExternalFlameGif(boxModel);
     gifTextureDisposers = disposers;
     configureModelRendering(boxModel);
 
