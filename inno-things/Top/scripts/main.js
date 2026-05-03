@@ -262,6 +262,7 @@ const configureModelRendering = (model) => {
                 nextMat.depthTest = true;
                 nextMat.transparent = false;
                 nextMat.opacity = 1;
+                nextMat.side = THREE.FrontSide;
                 nextMat.needsUpdate = true;
                 return nextMat;
             }
