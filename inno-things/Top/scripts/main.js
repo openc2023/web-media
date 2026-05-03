@@ -213,9 +213,11 @@ const attachExternalFlameGif = (model) => {
             const nextMat = mat.clone();
             nextMat.map = animatedGif.texture;
             nextMat.emissiveMap = animatedGif.texture;
+            nextMat.emissive = new THREE.Color(1, 1, 1);
+            nextMat.emissiveIntensity = 1.2;
             nextMat.transparent = true;
+            nextMat.alphaTest = 0.005;
             nextMat.depthWrite = false;
-            nextMat.alphaTest = Math.max(nextMat.alphaTest ?? 0, 0.02);
             nextMat.side = THREE.DoubleSide;
             nextMat.needsUpdate = true;
             matchedMeshes.push(`${obj.name} / ${nextMat.name}`);
@@ -259,6 +261,13 @@ const configureModelRendering = (model) => {
                 nextMat.transparent = false;
                 nextMat.opacity = 1;
                 nextMat.side = THREE.FrontSide;
+                nextMat.needsUpdate = true;
+                return nextMat;
+            }
+
+            if (obj.name === "box") {
+                nextMat.colorWrite = false;
+                nextMat.depthWrite = false;
                 nextMat.needsUpdate = true;
                 return nextMat;
             }
