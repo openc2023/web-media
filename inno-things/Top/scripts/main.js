@@ -36,9 +36,11 @@ const resolvedFlameGifUrl = new URL(
     "../assets/3d/gltf/%E7%81%AB%E7%84%B0%E6%97%8B%E8%BD%AC.gif",
     import.meta.url
 ).href;
-const flameFrameOffsetMsByMesh = new Map([
+const flamePlaybackFps = 24;
+const flameFrameDurationMs = 1000 / flamePlaybackFps;
+const flameFrameOffsetByMesh = new Map([
     ["plane004", 0],
-    ["plane005", 600],
+    ["plane005", 12],
 ]);
 const flameMaterialNames = new Set(["聚气", "聚气.001"]);
 const occluderMeshNames = new Set(["box001"]);
@@ -135,7 +137,35 @@ const setTextureColorSpace = (texture) => {
     }
 };
 
-const createAnimatedGifTexture = async (src, frameOffsetMs = 0) => {
+const scrubFlameFrameAlpha = (imageData) => {
+    const data = imageData.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const a = data[i + 3];
+
+        if (a === 0) continue;
+
+        const maxChannel = Math.max(r, g, b);
+
+        // Remove near-black matte pixels so the flame can sit cleanly on top
+        // of the scene even when the GIF was exported with a dark background.
+        if (maxChannel <= 20) {
+            data[i + 3] = 0;
+            continue;
+        }
+
+        // Derive alpha from brightness to soften the dark fringe.
+        const boostedAlpha = Math.min(255, Math.max(a, Math.round((maxChannel / 255) * 255)));
+        data[i + 3] = boostedAlpha;
+    }
+
+    return imageData;
+};
+
+const createAnimatedGifTexture = async (src, frameOffsetFrames = 0) => {
     const response = await fetch(src);
     if (!response.ok) {
         throw new Error(`Failed to fetch animated GIF texture: ${response.status} ${response.statusText}`);
@@ -148,12 +178,12 @@ const createAnimatedGifTexture = async (src, frameOffsetMs = 0) => {
     const height = gif.lsd.height;
 
     const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
     canvas.width = width;
     canvas.height = height;
 
     const workCanvas = document.createElement("canvas");
-    const workCtx = workCanvas.getContext("2d");
+    const workCtx = workCanvas.getContext("2d", { willReadFrequently: true });
     workCanvas.width = width;
     workCanvas.height = height;
 
@@ -178,9 +208,12 @@ const createAnimatedGifTexture = async (src, frameOffsetMs = 0) => {
 
         const imageData = new ImageData(frame.patch, frame.dims.width, frame.dims.height);
         workCtx.putImageData(imageData, frame.dims.left, frame.dims.top);
+        const composedImageData = workCtx.getImageData(0, 0, width, height);
+        scrubFlameFrameAlpha(composedImageData);
+
         composedFrames.push({
-            delayMs: Math.max(20, (frame.delay || 10) * 10),
-            imageData: workCtx.getImageData(0, 0, width, height),
+            delayMs: flameFrameDurationMs,
+            imageData: composedImageData,
         });
         previousFrame = frame;
     });
@@ -194,7 +227,7 @@ const createAnimatedGifTexture = async (src, frameOffsetMs = 0) => {
         src,
         frames: composedFrames.length,
         totalDurationMs,
-        frameOffsetMs,
+        frameOffsetFrames,
     });
     const texture = new THREE.CanvasTexture(canvas);
     texture.flipY = false;
@@ -205,7 +238,7 @@ const createAnimatedGifTexture = async (src, frameOffsetMs = 0) => {
     setTextureColorSpace(texture);
 
     let currentFrameIndex = 0;
-    let elapsedInFrameMs = frameOffsetMs % totalDurationMs;
+    let elapsedInFrameMs = (frameOffsetFrames * flameFrameDurationMs) % totalDurationMs;
 
     while (elapsedInFrameMs >= composedFrames[currentFrameIndex].delayMs) {
         elapsedInFrameMs -= composedFrames[currentFrameIndex].delayMs;
@@ -269,11 +302,11 @@ const attachExternalFlameGif = async (model) => {
 
             const nextMat = new THREE.MeshBasicMaterial({
                 transparent: true,
-                alphaTest: 0.02,
+                alphaTest: 0.01,
                 depthWrite: false,
                 depthTest: true,
                 side: THREE.DoubleSide,
-                blending: THREE.AdditiveBlending,
+                blending: THREE.NormalBlending,
                 toneMapped: false,
                 color: 0xffffff,
             });
@@ -289,12 +322,12 @@ const attachExternalFlameGif = async (model) => {
     });
 
     for (const target of flameTargets) {
-        const gifOffsetMs = flameFrameOffsetMsByMesh.get(target.normalizedName) ?? 0;
-        const cacheKey = String(gifOffsetMs);
+        const frameOffset = flameFrameOffsetByMesh.get(target.normalizedName) ?? 0;
+        const cacheKey = String(frameOffset);
         let animatedGif = animatedGifCache.get(cacheKey);
 
         if (!animatedGif) {
-            animatedGif = await createAnimatedGifTexture(resolvedFlameGifUrl, gifOffsetMs);
+            animatedGif = await createAnimatedGifTexture(resolvedFlameGifUrl, frameOffset);
             animatedGifCache.set(cacheKey, animatedGif);
             updaters.push(animatedGif.update);
             disposers.push(animatedGif.dispose);
@@ -315,11 +348,6 @@ const attachExternalFlameGif = async (model) => {
 };
 
 const configureModelRendering = (model) => {
-    // Debug: show all mesh names on screen to verify exact names
-    const allMeshNames = [];
-    model.traverse((obj) => { if (obj.isMesh) allMeshNames.push(JSON.stringify(obj.name)); });
-    showDebug("meshes: " + allMeshNames.join(", "));
-
     model.traverse((obj) => {
         if (!obj.isMesh || !obj.material) return;
 
@@ -344,9 +372,7 @@ const configureModelRendering = (model) => {
             }
 
             if (shellMeshNames.has(normalizedName)) {
-                // depthTest=false so box renders over box.001's depth writes,
-                // showing its own material without being blocked by the holdout layer.
-                nextMat.depthTest = false;
+                nextMat.depthTest = true;
                 nextMat.needsUpdate = true;
                 return nextMat;
             }
