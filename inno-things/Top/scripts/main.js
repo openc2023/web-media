@@ -252,12 +252,13 @@ const configureModelRendering = (model) => {
 
             if (occluderMeshNames.has(obj.name)) {
                 obj.userData.isOccluder = true;
+                obj.frustumCulled = false;
                 nextMat.colorWrite = false;
                 nextMat.depthWrite = true;
                 nextMat.depthTest = true;
                 nextMat.transparent = false;
                 nextMat.opacity = 1;
-                nextMat.side = THREE.DoubleSide;
+                nextMat.side = THREE.FrontSide;
                 nextMat.needsUpdate = true;
                 return nextMat;
             }
