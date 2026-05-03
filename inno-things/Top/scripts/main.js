@@ -22,12 +22,24 @@ let anchor = null;
 let boxModel = null;
 let mixer = null;
 let mixerActions = [];
+let gifTextureDisposers = [];
 let lostTimer = null;          // 模块级：stopMindAR 可以安全取消
 let currentState = "scanning";
 let currentStatusKey = "top.statusIdle";
 let currentStatusVars = {};
 const clock = new THREE.Clock(false);
 const imageTargetSrc = "./assets/targets/000-top.mind";
+const flameGifUrl = new URL("../assets/3d/gltf/火焰旋转.gif", import.meta.url).href;
+const flameMeshNames = new Set(["Plane.004", "Plane.005"]);
+const resolvedFlameGifUrl = new URL(
+    "../assets/3d/gltf/%E7%81%AB%E7%84%B0%E6%97%8B%E8%BD%AC.gif",
+    import.meta.url
+).href;
+const flameFrameOffsetMsByMesh = new Map([
+    ["Plane.004", 0],
+    ["Plane.005", 600],
+]);
+const flameMaterialNames = new Set(["聚气", "聚气.001"]);
 
 const formatError = (error) => {
     if (!error) return "Unknown error";
@@ -108,6 +120,123 @@ const loadBoxModel = () =>
             reject
         );
     });
+
+const setTextureColorSpace = (texture) => {
+    if ("colorSpace" in texture) {
+        texture.colorSpace = THREE.SRGBColorSpace;
+    } else {
+        texture.encoding = THREE.sRGBEncoding;
+    }
+};
+
+const createAnimatedGifTexture = (src, startDelayMs = 0) => {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const domImg = new Image();
+
+    domImg.className = "gif-texture-proxy";
+    domImg.decoding = "async";
+    Object.assign(domImg.style, {
+        position: "absolute",
+        width: "1px",
+        height: "1px",
+        opacity: "0.001",
+        pointerEvents: "none",
+        top: "-9999px",
+        left: "-9999px",
+    });
+    document.body.appendChild(domImg);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.flipY = false;
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    setTextureColorSpace(texture);
+
+    const syncFrame = () => {
+        if (domImg.naturalWidth === 0 || domImg.naturalHeight === 0) return;
+
+        if (canvas.width !== domImg.naturalWidth || canvas.height !== domImg.naturalHeight) {
+            canvas.width = domImg.naturalWidth;
+            canvas.height = domImg.naturalHeight;
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(domImg, 0, 0, canvas.width, canvas.height);
+        texture.needsUpdate = true;
+    };
+
+    const startTimer = window.setTimeout(() => {
+        domImg.src = src;
+    }, Math.max(0, startDelayMs));
+
+    domImg.addEventListener("load", syncFrame, { once: true });
+    domImg.addEventListener("error", () => {
+        console.warn("Failed to load animated GIF texture:", src);
+    }, { once: true });
+
+    return {
+        texture,
+        update: syncFrame,
+        dispose: () => {
+            window.clearTimeout(startTimer);
+            domImg.remove();
+            texture.dispose();
+        },
+    };
+};
+
+const attachExternalFlameGif = (model) => {
+    const matchedMeshes = [];
+    const updaters = [];
+    const disposers = [];
+
+    model.traverse((obj) => {
+        if (!obj.isMesh || !obj.material) return;
+
+        const gifOffsetMs = flameFrameOffsetMsByMesh.get(obj.name);
+
+        const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+        const nextMaterials = materials.map((mat) => {
+            if (!mat) return mat;
+
+            const isFlameMesh =
+                flameMeshNames.has(obj.name) || flameMaterialNames.has(mat.name);
+
+            if (!isFlameMesh) return mat;
+
+            const animatedGif = createAnimatedGifTexture(resolvedFlameGifUrl, gifOffsetMs ?? 0);
+            const nextMat = mat.clone();
+            nextMat.map = animatedGif.texture;
+            nextMat.emissiveMap = animatedGif.texture;
+            nextMat.transparent = true;
+            nextMat.depthWrite = false;
+            nextMat.alphaTest = Math.max(nextMat.alphaTest ?? 0, 0.02);
+            nextMat.side = THREE.DoubleSide;
+            nextMat.needsUpdate = true;
+            matchedMeshes.push(`${obj.name} / ${nextMat.name}`);
+            updaters.push(animatedGif.update);
+            disposers.push(animatedGif.dispose);
+            return nextMat;
+        });
+
+        obj.material = Array.isArray(obj.material) ? nextMaterials : nextMaterials[0];
+
+        if (flameMeshNames.has(obj.name)) {
+            obj.renderOrder = 10;
+        }
+    });
+
+    if (matchedMeshes.length === 0) {
+        console.warn("Animated flame GIF did not match any mesh in box.glb.");
+        return { updaters: [], disposers: [] };
+    }
+
+    console.info("Animated flame GIF attached to:", matchedMeshes);
+    return { updaters, disposers };
+};
 
 // ── GIF 动图贴图支持 ───────────────────────────────────────
 // GLTFLoader 把内嵌 GIF 解析成 HTMLImageElement（只有第一帧）
@@ -214,7 +343,8 @@ const setupMindAR = async () => {
     boxModel.visible = false;
 
     // 扫描模型所有贴图，把 GIF 贴图替换成可逐帧更新的 CanvasTexture
-    const gifUpdaters = buildGifTextureUpdaters(boxModel);
+    const { updaters: gifUpdaters, disposers } = attachExternalFlameGif(boxModel);
+    gifTextureDisposers = disposers;
 
     // ── Smooth proxy ──────────────────────────────────────
     // Model lives in smoothProxy (scene-level group) rather than directly
@@ -464,6 +594,8 @@ const stopMindAR = () => {
 
     mixerActions = [];
     clock.stop();
+    gifTextureDisposers.forEach((dispose) => dispose());
+    gifTextureDisposers = [];
     mindarThree = null;
     anchor = null;
     boxModel = null;
@@ -472,7 +604,7 @@ const stopMindAR = () => {
     document.querySelectorAll(
         ".mindar-ui-overlay, .mindar-ui-loading, .mindar-ui-scanning, .mindar-ui-error"
     ).forEach((el) => el.remove());
-    document.querySelectorAll("img[src^='blob:'][style*='-9999px']")
+    document.querySelectorAll(".gif-texture-proxy")
         .forEach((el) => el.remove());
 };
 
