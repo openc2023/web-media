@@ -186,6 +186,16 @@ const createAnimatedGifTexture = async (src, frameOffsetMs = 0) => {
     });
 
     const totalDurationMs = composedFrames.reduce((sum, frame) => sum + frame.delayMs, 0);
+    if (composedFrames.length === 0 || totalDurationMs <= 0) {
+        throw new Error("Animated GIF decoded with no playable frames.");
+    }
+
+    console.info("Decoded animated GIF:", {
+        src,
+        frames: composedFrames.length,
+        totalDurationMs,
+        frameOffsetMs,
+    });
     const texture = new THREE.CanvasTexture(canvas);
     texture.flipY = false;
     texture.wrapS = THREE.ClampToEdgeWrapping;
@@ -194,7 +204,13 @@ const createAnimatedGifTexture = async (src, frameOffsetMs = 0) => {
     texture.magFilter = THREE.LinearFilter;
     setTextureColorSpace(texture);
 
-    const startTime = performance.now();
+    let currentFrameIndex = 0;
+    let elapsedInFrameMs = frameOffsetMs % totalDurationMs;
+
+    while (elapsedInFrameMs >= composedFrames[currentFrameIndex].delayMs) {
+        elapsedInFrameMs -= composedFrames[currentFrameIndex].delayMs;
+        currentFrameIndex = (currentFrameIndex + 1) % composedFrames.length;
+    }
 
     const drawFrameByIndex = (index) => {
         const frame = composedFrames[index];
@@ -203,26 +219,26 @@ const createAnimatedGifTexture = async (src, frameOffsetMs = 0) => {
         texture.needsUpdate = true;
     };
 
-    drawFrameByIndex(0);
+    drawFrameByIndex(currentFrameIndex);
+
+    let lastTick = performance.now();
 
     return {
         texture,
         update: () => {
-            if (composedFrames.length === 0) return;
+            const now = performance.now();
+            const deltaMs = now - lastTick;
+            lastTick = now;
 
-            const elapsed = ((performance.now() - startTime) + frameOffsetMs) % totalDurationMs;
-            let cursor = 0;
-            let frameIndex = 0;
+            if (!Number.isFinite(deltaMs) || deltaMs <= 0) return;
 
-            for (let i = 0; i < composedFrames.length; i += 1) {
-                cursor += composedFrames[i].delayMs;
-                if (elapsed < cursor) {
-                    frameIndex = i;
-                    break;
-                }
+            elapsedInFrameMs += deltaMs;
+
+            while (elapsedInFrameMs >= composedFrames[currentFrameIndex].delayMs) {
+                elapsedInFrameMs -= composedFrames[currentFrameIndex].delayMs;
+                currentFrameIndex = (currentFrameIndex + 1) % composedFrames.length;
+                drawFrameByIndex(currentFrameIndex);
             }
-
-            drawFrameByIndex(frameIndex);
         },
         dispose: () => {
             texture.dispose();
