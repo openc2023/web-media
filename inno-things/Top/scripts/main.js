@@ -139,6 +139,7 @@ const setTextureColorSpace = (texture) => {
 
 const scrubFlameFrameAlpha = (imageData) => {
     const data = imageData.data;
+    const matteThreshold = 28;
 
     for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
@@ -149,17 +150,20 @@ const scrubFlameFrameAlpha = (imageData) => {
         if (a === 0) continue;
 
         const maxChannel = Math.max(r, g, b);
+        const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
         // Remove near-black matte pixels so the flame can sit cleanly on top
         // of the scene even when the GIF was exported with a dark background.
-        if (maxChannel <= 20) {
+        if (maxChannel <= matteThreshold || luminance <= matteThreshold) {
             data[i + 3] = 0;
             continue;
         }
 
-        // Derive alpha from brightness to soften the dark fringe.
-        const boostedAlpha = Math.min(255, Math.max(a, Math.round((maxChannel / 255) * 255)));
-        data[i + 3] = boostedAlpha;
+        // Convert brightness into alpha so dark fringe pixels fade out instead
+        // of showing up as an opaque black card.
+        const normalized = Math.min(1, Math.max(0, (luminance - matteThreshold) / (255 - matteThreshold)));
+        const derivedAlpha = Math.round(normalized * 255);
+        data[i + 3] = Math.min(a, derivedAlpha);
     }
 
     return imageData;
@@ -302,11 +306,12 @@ const attachExternalFlameGif = async (model) => {
 
             const nextMat = new THREE.MeshBasicMaterial({
                 transparent: true,
-                alphaTest: 0.01,
+                alphaTest: 0.03,
                 depthWrite: false,
                 depthTest: true,
                 side: THREE.DoubleSide,
-                blending: THREE.NormalBlending,
+                blending: THREE.AdditiveBlending,
+                premultipliedAlpha: true,
                 toneMapped: false,
                 color: 0xffffff,
             });
