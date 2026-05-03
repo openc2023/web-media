@@ -243,6 +243,11 @@ const attachExternalFlameGif = (model) => {
 };
 
 const configureModelRendering = (model) => {
+    // Debug: log all mesh names so we can verify "box.001" matches exactly
+    const allMeshNames = [];
+    model.traverse((obj) => { if (obj.isMesh) allMeshNames.push(obj.name); });
+    console.info("[meshNames]", allMeshNames);
+
     model.traverse((obj) => {
         if (!obj.isMesh || !obj.material) return;
 
@@ -263,6 +268,14 @@ const configureModelRendering = (model) => {
                 nextMat.transparent = false;
                 nextMat.opacity = 1;
                 nextMat.side = THREE.FrontSide;
+                nextMat.needsUpdate = true;
+                return nextMat;
+            }
+
+            if (obj.name === "box") {
+                // depthTest=false so box renders over box.001's depth writes,
+                // showing its own material without being blocked by the holdout layer.
+                nextMat.depthTest = false;
                 nextMat.needsUpdate = true;
                 return nextMat;
             }
