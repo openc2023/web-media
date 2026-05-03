@@ -255,29 +255,26 @@ const configureModelRendering = (model) => {
             if (occluderMeshNames.has(obj.name)) {
                 obj.userData.isOccluder = true;
                 obj.frustumCulled = false;
+                // Holdout: writes depth only, no color → camera shows through here.
+                // Interior content is blocked except through the opening in box.001's geometry.
                 nextMat.colorWrite = false;
                 nextMat.depthWrite = true;
                 nextMat.depthTest = true;
                 nextMat.transparent = false;
                 nextMat.opacity = 1;
-                nextMat.side = THREE.FrontSide;
                 nextMat.needsUpdate = true;
                 return nextMat;
             }
 
             if (interiorMeshNames.has(obj.name)) {
                 obj.frustumCulled = false;
-                const wantsTransparency =
-                    nextMat.transparent ||
-                    flameMeshNames.has(obj.name) ||
-                    nextMat.alphaTest > 0 ||
-                    nextMat.map !== null ||
-                    nextMat.emissiveMap !== null;
-
-                nextMat.transparent = wantsTransparency;
                 nextMat.depthTest = true;
-                nextMat.depthWrite = flameMeshNames.has(obj.name) ? false : !wantsTransparency;
-                nextMat.side = THREE.DoubleSide;
+                if (flameMeshNames.has(obj.name)) {
+                    nextMat.transparent = true;
+                    nextMat.depthWrite = false;
+                    nextMat.alphaTest = Math.max(nextMat.alphaTest ?? 0, 0.005);
+                    nextMat.side = THREE.DoubleSide;
+                }
                 nextMat.needsUpdate = true;
             }
 
@@ -453,16 +450,12 @@ const setupMindAR = async () => {
                         mat.opacity = 1;
                     } else {
                         if (interiorMeshNames.has(object.name)) {
-                            const wantsTransparency =
-                                mat.transparent ||
-                                flameMeshNames.has(object.name) ||
-                                mat.alphaTest > 0 ||
-                                mat.map !== null ||
-                                mat.emissiveMap !== null;
-
                             mat.depthTest = true;
-                            mat.depthWrite = flameMeshNames.has(object.name) ? false : !wantsTransparency;
-                            mat.transparent = wantsTransparency;
+                            if (flameMeshNames.has(object.name)) {
+                                mat.transparent = true;
+                                mat.depthWrite = false;
+                                mat.alphaTest = Math.max(mat.alphaTest ?? 0, 0.005);
+                            }
                         }
                         mat.opacity = opacity;
                     }
