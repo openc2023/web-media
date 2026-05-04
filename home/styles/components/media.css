@@ -1,0 +1,37 @@
+.media-frame,
+.hero-portrait,
+.gallery-item,
+.card-media {
+    margin: 0;
+    overflow: hidden;
+    border-radius: 16px;
+    background: linear-gradient(180deg, #ffffff 0%, #f7f7f7 100%);
+    box-shadow: var(--ring);
+}
+
+.media-frame figcaption,
+.hero-portrait figcaption,
+.gallery-item figcaption {
+    padding: 10px 12px 12px;
+    color: var(--subtle);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.hero-portrait img,
+.gallery-item img,
+.card-media img {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+}
+
+.card-media {
+    margin-bottom: 16px;
+}
+
+.mini-gallery {
+    display: grid;
+    gap: 12px;
+    margin-top: 18px;
+}

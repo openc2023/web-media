@@ -1,0 +1,23 @@
+{
+  "imagePath": "image-targets/000-top_luminance.png",
+  "metadata": null,
+  "name": "000-top",
+  "type": "FLAT",
+  "properties": {
+    "left": 0,
+    "top": 142,
+    "width": 3508,
+    "height": 4677,
+    "isRotated": false,
+    "originalWidth": 3508,
+    "originalHeight": 4961
+  },
+  "resources": {
+    "originalImage": "000-top_original.png",
+    "croppedImage": "000-top_cropped.png",
+    "thumbnailImage": "000-top_thumbnail.png",
+    "luminanceImage": "000-top_luminance.png"
+  },
+  "created": 1777862663881,
+  "updated": 1777862663881
+}

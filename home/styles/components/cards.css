@@ -1,0 +1,106 @@
+.panel,
+.card,
+.timeline-item,
+.project,
+.contact {
+    background: var(--bg);
+    border-radius: 18px;
+    box-shadow: var(--card);
+}
+
+.panel,
+.card,
+.contact {
+    padding: 28px;
+}
+
+.timeline-item,
+.project {
+    padding: 22px;
+}
+
+.stat,
+.focus,
+.mini,
+.contact-row,
+.linkbox,
+.institution-card {
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+    box-shadow: var(--ring);
+}
+
+.card h3,
+.project h3,
+.timeline-item h3,
+.contact h3,
+.stat strong,
+.focus strong,
+.mini strong,
+.linkbox strong,
+.institution-card strong {
+    display: block;
+    margin: 0 0 6px;
+    letter-spacing: -0.6px;
+}
+
+.stat strong,
+.focus strong,
+.mini strong,
+.linkbox strong {
+    font-size: 15px;
+}
+
+.card p,
+.project p,
+.timeline-item p,
+.contact p,
+.stat span,
+.focus span,
+.mini span,
+.contact-row strong,
+.contact-row a,
+.linkbox span,
+.institution-card p {
+    color: var(--muted);
+}
+
+.tag {
+    display: inline-block;
+    margin-bottom: 12px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+}
+
+.tag.blue {
+    background: var(--blue-soft);
+    color: var(--blue);
+}
+
+.tag.pink {
+    background: var(--pink-soft);
+    color: var(--pink);
+}
+
+.tag.red {
+    background: var(--red-soft);
+    color: var(--red);
+}
+
+.institution-card {
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    gap: 14px;
+    align-items: center;
+}
+
+.institution-logo {
+    width: 72px;
+    height: 72px;
+    border-radius: 14px;
+    box-shadow: var(--ring);
+}

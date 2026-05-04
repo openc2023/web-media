@@ -1,0 +1,9 @@
+<svg width="960" height="640" viewBox="0 0 960 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="640" rx="36" fill="#FAFAFA"/>
+  <rect x="54" y="92" width="852" height="456" rx="28" stroke="#E4E4E4" stroke-width="2"/>
+  <rect x="110" y="170" width="180" height="260" rx="18" fill="#171717"/>
+  <rect x="320" y="170" width="180" height="260" rx="18" fill="#0A72EF"/>
+  <rect x="530" y="170" width="180" height="260" rx="18" fill="#DE1D8D"/>
+  <rect x="740" y="170" width="110" height="260" rx="18" fill="#FF5B4F"/>
+  <text x="112" y="472" fill="#666666" font-family="Arial, sans-serif" font-size="24">Paper / lecture / publication</text>
+</svg>

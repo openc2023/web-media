@@ -1,0 +1,11 @@
+<svg width="960" height="640" viewBox="0 0 960 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="640" rx="36" fill="#FFFBFE"/>
+  <rect x="84" y="112" width="792" height="416" rx="28" fill="#171717"/>
+  <circle cx="262" cy="262" r="92" fill="#0A72EF"/>
+  <circle cx="482" cy="262" r="92" fill="#DE1D8D"/>
+  <circle cx="702" cy="262" r="92" fill="#FF5B4F"/>
+  <path d="M188 434C266 396 342 396 420 434" stroke="#FFFFFF" stroke-opacity="0.48" stroke-width="10" stroke-linecap="round"/>
+  <path d="M408 434C486 396 562 396 640 434" stroke="#FFFFFF" stroke-opacity="0.48" stroke-width="10" stroke-linecap="round"/>
+  <path d="M628 434C706 396 762 396 790 434" stroke="#FFFFFF" stroke-opacity="0.48" stroke-width="10" stroke-linecap="round"/>
+  <text x="112" y="584" fill="#666666" font-family="Arial, sans-serif" font-size="28">Metaverse / AI park platform placeholder</text>
+</svg>

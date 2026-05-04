@@ -1,0 +1,23 @@
+:root {
+    --bg: #ffffff;
+    --surface: rgba(255, 255, 255, 0.82);
+    --text: #171717;
+    --muted: #4d4d4d;
+    --subtle: #666666;
+    --line: #ebebeb;
+    --soft: #fafafa;
+    --blue: #0a72ef;
+    --pink: #de1d8d;
+    --red: #ff5b4f;
+    --blue-soft: rgba(10, 114, 239, 0.1);
+    --pink-soft: rgba(222, 29, 141, 0.1);
+    --red-soft: rgba(255, 91, 79, 0.12);
+    --ring: rgba(0, 0, 0, 0.08) 0 0 0 1px;
+    --card:
+        rgba(0, 0, 0, 0.08) 0 0 0 1px,
+        rgba(0, 0, 0, 0.04) 0 2px 2px 0,
+        rgb(250, 250, 250) 0 0 0 1px;
+    --font-sans: "Geist", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --font-mono: "Geist Mono", Consolas, monospace;
+    --page-width: min(calc(100% - 40px), 1160px);
+}

@@ -110,16 +110,35 @@
         </div>
     </section>
 
+    <!-- 8th Wall engine: local self-hosted → CDN fallback -->
+    <script>
+        (function loadXR8() {
+            var local = './assets/xr/xr.js';
+            var cdn   = 'https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1/dist/xr.js';
+            var s = document.createElement('script');
+            s.src = local;
+            s.async = true;
+            s.setAttribute('data-preload-chunks', 'slam');
+            s.onerror = function () {
+                console.warn('[top-ar] local xr.js not found, falling back to CDN');
+                var f = document.createElement('script');
+                f.src = cdn;
+                f.async = true;
+                f.setAttribute('data-preload-chunks', 'slam');
+                document.head.appendChild(f);
+            };
+            document.head.appendChild(s);
+        })();
+    </script>
     <script type="importmap">
         {
             "imports": {
                 "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
                 "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-                "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js",
                 "gifuct-js": "https://esm.sh/gifuct-js@2.1.2"
             }
         }
     </script>
-    <script type="module" src="./scripts/main.js?v=20260503-gif-fix-2"></script>
+    <script type="module" src="./scripts/main.js?v=20260504-xr8"></script>
 </body>
 </html>

@@ -1,0 +1,8 @@
+<svg width="960" height="640" viewBox="0 0 960 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="640" rx="36" fill="#FCFCFC"/>
+  <circle cx="480" cy="228" r="120" fill="#171717"/>
+  <path d="M480 152L501 216H567L513 255L534 319L480 279L426 319L447 255L393 216H459L480 152Z" fill="#FFFFFF"/>
+  <rect x="312" y="380" width="336" height="34" rx="17" fill="#EBF5FF"/>
+  <rect x="248" y="434" width="464" height="18" rx="9" fill="#E7E7E7"/>
+  <text x="296" y="500" fill="#666666" font-family="Arial, sans-serif" font-size="28">Award / forum / publication placeholder</text>
+</svg>

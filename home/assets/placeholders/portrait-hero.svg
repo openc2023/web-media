@@ -1,0 +1,13 @@
+<svg width="960" height="640" viewBox="0 0 960 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="640" rx="36" fill="#F8F8F8"/>
+  <rect x="24" y="24" width="912" height="592" rx="28" stroke="#E8E8E8" stroke-width="2"/>
+  <circle cx="480" cy="244" r="108" fill="#EDEDED"/>
+  <path d="M292 534C311 431 386 386 480 386C574 386 649 431 668 534" fill="#E7E7E7"/>
+  <circle cx="736" cy="146" r="62" fill="#EBF5FF"/>
+  <circle cx="780" cy="182" r="16" fill="#0A72EF"/>
+  <rect x="92" y="92" width="204" height="30" rx="15" fill="#171717"/>
+  <rect x="92" y="470" width="252" height="16" rx="8" fill="#171717"/>
+  <rect x="92" y="500" width="340" height="14" rx="7" fill="#808080"/>
+  <rect x="92" y="528" width="280" height="14" rx="7" fill="#A0A0A0"/>
+  <text x="92" y="566" fill="#666666" font-family="Arial, sans-serif" font-size="22">Portrait Placeholder</text>
+</svg>
