@@ -13,14 +13,6 @@ const timelineItems = (items) => join(items.map((item) => `
         </div>
     </article>
 `));
-const taggedCards = (items, cardClass) => join(items.map((item) => `
-    <article class="${cardClass}">
-        ${item.media ? mediaFigure(item.media, item.title, "", "card-media") : ""}
-        <div class="tag ${item.tone}">${item.tag}</div>
-        <h3>${item.title}</h3>
-        <p>${item.body}</p>
-    </article>
-`));
 const repoLinks = (items) => join(items.map((item) => `
     <a class="linkbox" href="${item.href}">
         <strong>${item.title}</strong>
@@ -34,8 +26,41 @@ const contactRows = (items) => join(items.map((item) => `
     </div>
 `));
 const gallery = (items) => `<div class="mini-gallery">${join(items.map((item) => mediaFigure(item.src, item.alt, item.caption, "gallery-item")))}</div>`;
+const localeButtons = (content, activeLocale) => `
+    <div class="lang-switch" aria-label="${content.ui.languageLabel}">
+        ${join(content.ui.locales.map((item) => `
+            <button class="lang-button${item.key === activeLocale ? " is-active" : ""}" type="button" data-locale="${item.key}">
+                ${item.label}
+            </button>
+        `))}
+    </div>
+`;
+const projectDetails = (items) => `
+    <ul class="detail-list">
+        ${join(items.map((item) => `<li>${item}</li>`))}
+    </ul>
+`;
+const papersMeta = (items) => `
+    <div class="stats">
+        ${join(items.map((item) => textBlock(item.title, item.body, "stat")))}
+    </div>
+`;
+const papersList = (items) => `
+    <div class="papers-list">
+        ${join(items.map((item) => `
+            <article class="paper-item">
+                <div class="paper-date">${item.year}</div>
+                <div class="paper-body">
+                    <div class="paper-venue">${item.venue}</div>
+                    <h3>${item.title}</h3>
+                    <p>${item.note}</p>
+                </div>
+            </article>
+        `))}
+    </div>
+`;
 
-export function renderHeader(content) {
+export function renderHeader(content, activeLocale) {
     return `
         <header class="nav">
             <div class="nav-inner">
@@ -43,9 +68,12 @@ export function renderHeader(content) {
                     <strong>${content.brand.title}</strong>
                     <span>${content.brand.subtitle}</span>
                 </a>
-                <nav class="nav-links" aria-label="Primary navigation">
-                    ${navLinks(content.nav)}
-                </nav>
+                <div class="nav-tools">
+                    <nav class="nav-links" aria-label="Primary navigation">
+                        ${navLinks(content.nav)}
+                    </nav>
+                    ${localeButtons(content, activeLocale)}
+                </div>
             </div>
         </header>
     `;
@@ -63,7 +91,7 @@ export function renderHero(content) {
                     <div class="stats">${statCards(content.hero.stats)}</div>
                 </div>
                 <aside class="panel media-panel">
-                    ${mediaFigure(content.hero.portrait.src, content.hero.portrait.alt, "Portrait / profile image placeholder", "hero-portrait")}
+                    ${mediaFigure(content.hero.portrait.src, content.hero.portrait.alt, content.ui.portraitCaption, "hero-portrait")}
                     <div class="institution-card">
                         <img class="institution-logo" src="${content.hero.institution.logo}" alt="${content.hero.institution.alt}">
                         <div>
@@ -72,6 +100,7 @@ export function renderHero(content) {
                             <p>${content.hero.institution.body}</p>
                         </div>
                     </div>
+                    ${gallery(content.hero.gallery)}
                     ${infoList(content.hero.overview, "focus")}
                 </aside>
             </div>
@@ -108,11 +137,22 @@ export function renderTimeline(content) {
     `;
 }
 
-export function renderResearch(content) {
+export function renderPapers(content) {
     return `
-        <section class="section" id="research">
-            ${sectionHead(content.sections.research)}
-            <div class="grid2">${taggedCards(content.research, "card card-rich")}</div>
+        <section class="section" id="papers">
+            ${sectionHead(content.sections.papers)}
+            <div class="papers-grid">
+                <article class="card papers-feature">
+                    <div class="eyebrow">${content.papersFeature.badge}</div>
+                    <h3>${content.papersFeature.title}</h3>
+                    <p>${content.papersFeature.body}</p>
+                    ${mediaFigure(content.papersFeature.media, content.papersFeature.title, "", "card-media")}
+                    ${papersMeta(content.papersFeature.meta)}
+                </article>
+                <div class="papers-shell">
+                    ${papersList(content.papers)}
+                </div>
+            </div>
         </section>
     `;
 }
@@ -121,15 +161,35 @@ export function renderProjects(content) {
     return `
         <section class="section" id="projects">
             ${sectionHead(content.sections.projects)}
-            <div class="projects">${taggedCards(content.projects, "project")}</div>
+            <div class="projects">
+                ${join(content.projects.map((item) => `
+                    <article class="project">
+                        ${item.media ? mediaFigure(item.media, item.title, "", "card-media") : ""}
+                        <div class="tag ${item.tone}">${item.tag}</div>
+                        <h3>${item.title}</h3>
+                        <p>${item.body}</p>
+                        ${projectDetails(item.details)}
+                        ${item.href ? `<a class="project-link" href="${item.href}">${content.ui.projectLinkLabel}</a>` : ""}
+                    </article>
+                `))}
+            </div>
             <div class="about-grid split-gap">
                 <article class="card">
                     <h3>${content.repoLinks.title}</h3>
                     <div class="links">${repoLinks(content.repoLinks.items)}</div>
                 </article>
                 <aside class="card">
-                    <h3>${content.publishing.title}</h3>
-                    ${infoList(content.publishing.items, "mini")}
+                    <h3>${content.ui.projectMetaLabel}</h3>
+                    <div class="list">
+                        <div class="mini">
+                            <strong>${content.ui.thumbnailReadyTitle}</strong>
+                            <span>${content.ui.thumbnailReadyBody}</span>
+                        </div>
+                        <div class="mini">
+                            <strong>${content.ui.moduleFriendlyTitle}</strong>
+                            <span>${content.ui.moduleFriendlyBody}</span>
+                        </div>
+                    </div>
                 </aside>
             </div>
         </section>

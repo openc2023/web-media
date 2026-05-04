@@ -3,25 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIAN HAN</title>
-    <meta name="description" content="TIAN HAN personal homepage for animation research, media art, and urban storytelling.">
+    <title>田汉 / 티안한 / TIAN HAN</title>
+    <meta name="description" content="TIAN HAN — Animation research, media art, cross-cultural practice.">
+    <link rel="icon" type="image/svg+xml" href="home/assets/logos/favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="home/styles/base/theme.css">
-    <link rel="stylesheet" href="home/styles/base/base.css">
-    <link rel="stylesheet" href="home/styles/components/media.css">
-    <link rel="stylesheet" href="home/styles/components/cards.css">
-    <link rel="stylesheet" href="home/styles/pages/home.css">
+    <link rel="stylesheet" href="landing/styles.css">
 </head>
 <body>
-    <div id="site"></div>
-    <noscript>
-        <main class="no-script">
-            <h1>TIAN HAN</h1>
-            <p>This homepage needs JavaScript enabled to render fully.</p>
-        </main>
-    </noscript>
-    <script type="module" src="home/scripts/main.js"></script>
+    <div class="bg" aria-hidden="true">
+        <div class="bg-grad"></div>
+        <div class="bg-noise"></div>
+    </div>
+
+    <div class="cursor-glow" aria-hidden="true"></div>
+
+    <main class="shell">
+        <section class="card" data-tilt>
+            <!-- Top bar -->
+            <div class="topbar reveal-target">
+                <span class="badge">Interactive Portfolio</span>
+                <a class="link-resume" href="profile/">View Full CV →</a>
+            </div>
+
+            <div class="layout">
+                <!-- Left: Content -->
+                <section class="col-content">
+                    <p class="kicker reveal-target">Name</p>
+                    <h1 class="reveal-target">
+                        田汉
+                        <span class="name-alt">티안한 · TIAN HAN</span>
+                    </h1>
+                    <p class="lead reveal-target">
+                        动画研究 · 新媒体艺术 · 跨文化实践
+                    </p>
+
+                    <div class="scene-switch reveal-target" aria-label="Homepage scenes">
+                        <button class="scene-btn is-active" type="button" data-scene="research">Research</button>
+                        <button class="scene-btn" type="button" data-scene="projects">Projects</button>
+                        <button class="scene-btn" type="button" data-scene="connect">Contact</button>
+                    </div>
+
+                    <div class="stats reveal-target">
+                        <div class="stat">
+                            <span>Focus</span>
+                            <strong>Animation · Media Art</strong>
+                        </div>
+                        <div class="stat">
+                            <span>Workflow</span>
+                            <strong>Research + Production</strong>
+                        </div>
+                        <div class="stat">
+                            <span>Base</span>
+                            <strong>Busan · Seoul</strong>
+                        </div>
+                    </div>
+
+                    <div class="status reveal-target">
+                        <span class="status-dot" aria-hidden="true"></span>
+                        <div>
+                            <strong data-scene-title>Research Scene</strong>
+                            <p data-scene-desc>从论文和研究方向进入</p>
+                        </div>
+                    </div>
+
+                    <div class="actions reveal-target">
+                        <a class="btn-primary" href="profile/">进入履历</a>
+                        <a class="btn-ghost" href="mailto:angel1993@naver.com">发送邮件</a>
+                    </div>
+                </section>
+
+                <!-- Right: Interactive -->
+                <section class="col-visual">
+                    <div class="stage reveal-target" data-stage>
+                        <div class="stage-hud">
+                            <span>scene-engine.js</span>
+                            <span data-code-status>ready</span>
+                        </div>
+                        <canvas id="scene-canvas"></canvas>
+                        <div class="stage-note" data-status-text>选择一个场景开始探索</div>
+                    </div>
+
+                    <article class="detail-card reveal-target" data-panel="detail">
+                        <span class="chip" data-scene-label>Research</span>
+                        <h2 data-scene-heading>研究方向与学术背景</h2>
+                        <p data-scene-body>从动画研究到新媒体艺术实践，先给访客一个明确的进入路径。</p>
+                        <ul class="detail-points" data-scene-points>
+                            <li>论文、学位与研究方向可继续接入 PDF 与封面</li>
+                            <li>适合展示中韩双语和跨文化研究背景</li>
+                            <li>建立"研究型创作者"的第一印象</li>
+                        </ul>
+                    </article>
+
+                    <div class="contact-panel reveal-target" data-panel="contact">
+                        <button class="contact-row" type="button" data-contact="name" data-copy="田汉 / 티안한 / TIAN HAN">
+                            <span class="contact-label">Name</span>
+                            <strong>田汉 / 티안한 / TIAN HAN</strong>
+                        </button>
+                        <button class="contact-row" type="button" data-contact="email" data-copy="angel1993@naver.com">
+                            <span class="contact-label">Email</span>
+                            <strong>angel1993@naver.com</strong>
+                        </button>
+                        <button class="contact-row" type="button" data-contact="phone" data-copy="010-2576-9886">
+                            <span class="contact-label">Phone</span>
+                            <strong>010-2576-9886</strong>
+                        </button>
+                    </div>
+
+                    <div class="quick-actions reveal-target">
+                        <a class="quick-action" href="profile/" data-action="profile">
+                            <span>Open</span>
+                            <strong>完整履历</strong>
+                        </a>
+                        <a class="quick-action" href="profile/#projects" data-action="archive">
+                            <span>Jump</span>
+                            <strong>项目目录</strong>
+                        </a>
+                        <a class="quick-action" href="mailto:angel1993@naver.com" data-action="message">
+                            <span>Send</span>
+                            <strong>邮件联系</strong>
+                        </a>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Code panel -->
+            <section class="code-panel reveal-target">
+                <div class="code-head">
+                    <span>interactive-home.js</span>
+                    <span class="code-status" data-code-status-secondary>ready</span>
+                </div>
+                <pre><code data-code-output></code></pre>
+                <div class="code-foot" data-code-meta>scene: "research"</div>
+            </section>
+        </section>
+    </main>
+
+    <div id="copy-toast" aria-live="polite">已复制到剪贴板</div>
+
+    <script type="module" src="landing/main.js"></script>
 </body>
 </html>

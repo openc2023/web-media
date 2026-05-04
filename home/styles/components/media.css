@@ -24,10 +24,22 @@
     width: 100%;
     aspect-ratio: 16 / 10;
     object-fit: cover;
+    transition: transform 0.45s ease;
+}
+
+.hero-portrait img {
+    aspect-ratio: 4 / 3;
 }
 
 .card-media {
     margin-bottom: 16px;
+}
+
+.card:hover .card-media img,
+.project:hover .card-media img,
+.hero-portrait:hover img,
+.gallery-item:hover img {
+    transform: scale(1.03);
 }
 
 .mini-gallery {

@@ -1,0 +1,10 @@
+<svg width="960" height="640" viewBox="0 0 960 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="640" rx="36" fill="#FFFDFC"/>
+  <rect x="128" y="130" width="704" height="388" rx="28" stroke="#E6E0DD" stroke-width="2"/>
+  <rect x="176" y="176" width="92" height="278" rx="16" fill="#171717"/>
+  <rect x="292" y="176" width="92" height="278" rx="16" fill="#0A72EF" fill-opacity="0.9"/>
+  <rect x="408" y="176" width="92" height="278" rx="16" fill="#DE1D8D" fill-opacity="0.88"/>
+  <rect x="524" y="176" width="92" height="278" rx="16" fill="#FF5B4F" fill-opacity="0.82"/>
+  <rect x="640" y="176" width="144" height="278" rx="16" fill="#171717" fill-opacity="0.08"/>
+  <text x="176" y="548" fill="#666666" font-family="Arial, sans-serif" font-size="28">Library / museum animation placeholder</text>
+</svg>

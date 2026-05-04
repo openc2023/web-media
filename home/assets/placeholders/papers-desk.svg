@@ -1,0 +1,9 @@
+<svg width="960" height="640" viewBox="0 0 960 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="640" rx="36" fill="#FAFBFF"/>
+  <rect x="104" y="108" width="752" height="424" rx="28" fill="#FFFFFF" stroke="#E8E8E8" stroke-width="2"/>
+  <rect x="160" y="162" width="224" height="286" rx="20" fill="#171717"/>
+  <rect x="418" y="162" width="188" height="244" rx="20" fill="#0A72EF" fill-opacity="0.18"/>
+  <rect x="640" y="162" width="160" height="210" rx="20" fill="#DE1D8D" fill-opacity="0.16"/>
+  <rect x="418" y="426" width="382" height="22" rx="11" fill="#EDEDED"/>
+  <text x="160" y="492" fill="#666666" font-family="Arial, sans-serif" font-size="28">Selected papers / thesis / proceedings placeholder</text>
+</svg>

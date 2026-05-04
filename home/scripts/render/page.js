@@ -4,19 +4,19 @@ import {
     renderFooter,
     renderHeader,
     renderHero,
+    renderPapers,
     renderProjects,
-    renderResearch,
     renderTimeline
 } from "./sections.js";
 
-export function renderPage(content) {
+export function renderPage(content, activeLocale) {
     return `
-        ${renderHeader(content)}
+        ${renderHeader(content, activeLocale)}
         <main id="top">
             ${renderHero(content)}
             ${renderAbout(content)}
             ${renderTimeline(content)}
-            ${renderResearch(content)}
+            ${renderPapers(content)}
             ${renderProjects(content)}
             ${renderContact(content)}
         </main>
