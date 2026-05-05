@@ -582,7 +582,15 @@ const startMindAR = async () => {
         const targetRes = await fetch("./assets/targets/000-top/000-top.json");
         if (!targetRes.ok) throw new Error(`Image target JSON not found (HTTP ${targetRes.status}). Run scripts/gen-target.mjs first.`);
         const imageTargetData = await targetRes.json();
-        // Apply physical width so XR8 knows the real-world scale
+
+        // Fix imagePath: XR8 fetches the luminance image at runtime to build feature descriptors.
+        // The CLI writes a relative path ("image-targets/…") that doesn't match our actual layout.
+        // Point it to the real file so XR8 can load it.
+        if (imageTargetData.resources?.luminanceImage) {
+            imageTargetData.imagePath = `./assets/targets/000-top/${imageTargetData.resources.luminanceImage}`;
+        }
+
+        // Apply physical width so XR8 maps 1 world unit → correct meter scale.
         imageTargetData.physicalWidthInMeters = PAINTING_WIDTH_M;
         if (imageTargetData.properties) {
             imageTargetData.properties.physicalWidthInMeters = PAINTING_WIDTH_M;
