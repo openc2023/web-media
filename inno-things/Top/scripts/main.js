@@ -598,11 +598,14 @@ const startMindAR = async () => {
             imageTargetData.properties = { physicalWidthInMeters: PAINTING_WIDTH_M };
         }
 
-        // Create XR8 canvas
+        // Create XR8 canvas inside #ar-container so the camera feed fills the
+        // camera-stage element.  The CSS rule `#ar-container canvas` already
+        // sets position:absolute; inset:0; width/height 100%; z-index:1 so no
+        // inline styles needed — just append and let XR8 own the canvas.
         arCanvas = document.createElement("canvas");
-        Object.assign(arCanvas.style, { position: "absolute", inset: "0", width: "100%", height: "100%", display: "block" });
-        arContainer.innerHTML = "";
+        arCanvas.id = "xr8-canvas";
         arContainer.appendChild(arCanvas);
+        document.body.classList.add("ar-running");
 
         // iOS 13+: motion permission must be requested from a user gesture
         if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
@@ -645,6 +648,10 @@ const startMindAR = async () => {
         else setStatus("top.statusStartFailed", { message: error?.message ?? "Unknown error" });
 
         xrRunning = false;
+        // Clean up any partial canvas / state
+        const failCanvas = document.getElementById("xr8-canvas");
+        if (failCanvas) failCanvas.remove();
+        document.body.classList.remove("ar-running");
         arCanvas = null;
         boxModel = null;
         startButton.disabled = false;
@@ -671,6 +678,11 @@ const stopMindAR = () => {
     gifTextureDisposers = [];
     gifUpdaters = [];
     resetFilters();
+    // Remove canvas and clear ar-running state
+    const oldCanvas = document.getElementById("xr8-canvas");
+    if (oldCanvas) oldCanvas.remove();
+    document.body.classList.remove("ar-running");
+
     xrRunning = false;
     arCanvas = null;
     boxModel = null;
