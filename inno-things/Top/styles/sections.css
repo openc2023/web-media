@@ -394,12 +394,13 @@
 body.camera-open { overflow: hidden; }
 
 /* ══ AR running state ═════════════════════════════════
-   When XR8 is active the canvas sits inside #ar-container
-   (position:absolute; inset:0 inside .camera-stage).
-   Strip all opaque backgrounds from the modal chrome so
-   the WebGL camera feed is visible through the layers.
-   Scan UI and close button keep their z-indices and remain
-   on top of the canvas (z-index:1 per #ar-container canvas).
+   XR8 canvas lives on document.body at position:fixed z-index:0
+   (full-viewport, same pattern as reference project).
+   The camera-modal (z-index:40) sits above it but with ALL
+   opaque backgrounds stripped — the camera feed shows through.
+   Elements inside the modal stacking context (scan-badge z:10,
+   scan-line z:5) render above the canvas automatically.
+   camera-close is position:fixed z-index:120 — always on top.
    ══════════════════════════════════════════════════════ */
 body.ar-running .camera-modal {
     background: transparent !important;
@@ -412,6 +413,10 @@ body.ar-running .camera-shell {
 }
 body.ar-running .camera-stage {
     background: transparent !important;
+}
+/* camera-copy (debug bar) would obscure AR view — hide it */
+body.ar-running .camera-copy {
+    display: none !important;
 }
 
 /* ══ Desktop intro panel overrides ═══════════════════ */

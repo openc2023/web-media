@@ -487,6 +487,15 @@ const buildAppModule = () => ({
         scene.add(dir);
         scene.add(boxModel);
 
+        // Debug: confirm XR8 pipeline started and log canvas state
+        const cv = arCanvas;
+        showDebug(
+            `XR8 onStart OK\n` +
+            `canvas buf: ${cv?.width}×${cv?.height}\n` +
+            `canvas CSS: ${cv?.clientWidth}×${cv?.clientHeight}\n` +
+            `ar-running: ${document.body.classList.contains("ar-running")}`
+        );
+
         setState("scanning");
         setStatus("top.statusCameraReady");
         startButton.removeAttribute("aria-busy");
@@ -599,13 +608,20 @@ const startMindAR = async () => {
             imageTargetData.properties = { physicalWidthInMeters: PAINTING_WIDTH_M };
         }
 
-        // Create XR8 canvas inside #ar-container so the camera feed fills the
-        // camera-stage element.  The CSS rule `#ar-container canvas` already
-        // sets position:absolute; inset:0; width/height 100%; z-index:1 so no
-        // inline styles needed — just append and let XR8 own the canvas.
+        // XR8 requires a full-viewport canvas on document.body — the same
+        // pattern as the reference project (#cam: position:fixed; inset:0;
+        // 100vw/100vh).  The camera-modal (z-index:40) sits on top with
+        // transparent backgrounds (body.ar-running CSS) so the feed shows
+        // through.  FullWindowCanvas module (if available) lets XR8 manage
+        // the canvas dimensions automatically; otherwise we set them inline.
         arCanvas = document.createElement("canvas");
         arCanvas.id = "xr8-canvas";
-        arContainer.appendChild(arCanvas);
+        Object.assign(arCanvas.style, {
+            position: "fixed", inset: "0",
+            width: "100vw", height: "100vh",
+            zIndex: "0", display: "block", touchAction: "none",
+        });
+        document.body.appendChild(arCanvas);
         document.body.classList.add("ar-running");
 
         // iOS 13+: motion permission must be requested from a user gesture
@@ -629,12 +645,19 @@ const startMindAR = async () => {
             xr8Configured = true;
         }
 
-        XR8.addCameraPipelineModules([
+        const pipeModules = [
             XR8.GlTextureRenderer.pipelineModule(),
             XR8.Threejs.pipelineModule(),
             XR8.XrController.pipelineModule(),
             buildAppModule(),
-        ]);
+        ];
+        // FullWindowCanvas: lets XR8 own canvas resize (matches reference project)
+        const fwc = XR8.FullWindowCanvas || XR8.fullWindowCanvas;
+        if (fwc && typeof fwc.pipelineModule === "function") {
+            pipeModules.unshift(fwc.pipelineModule());
+            console.log("[top-ar] FullWindowCanvas registered");
+        }
+        XR8.addCameraPipelineModules(pipeModules);
 
         XR8.run({ canvas: arCanvas });
         xrRunning = true;
