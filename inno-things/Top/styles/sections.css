@@ -424,13 +424,23 @@ body.camera-open { overflow: hidden; }
    ══════════════════════════════════════════════════════ */
 body.ar-running .camera-modal {
     background: transparent !important;
+    /* backdrop-filter 会让 iOS Safari 把 fixed 后代的定位基准改为本元素；
+       改用 display:flex + 拉伸子元素，避免这个陷阱 */
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
 }
 body.preview-running .camera-modal {
     background: transparent !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
 }
 body.ar-running #xr8-canvas {
     z-index: 30;
@@ -447,18 +457,26 @@ body.preview-running .camera-shell,
 body.ar-running .camera-shell {
     background: transparent !important;
     box-shadow: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: 100% !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
 }
 body.preview-running .camera-stage,
 body.ar-running .camera-stage {
     background: transparent !important;
-    position: fixed;
-    inset: 0;
-    width: 100vw;
-    height: 100dvh;
-    max-height: none;
-    margin: 0;
-    border-radius: 0;
-    aspect-ratio: auto;
+    /* position:relative — 不用 fixed，因为 backdrop-filter 会破坏 fixed 基准 */
+    /* camera-modal 本身是 fixed inset:0，撑满它即等于全屏 */
+    position: relative !important;
+    flex: 1 1 0 !important;
+    width: 100% !important;
+    max-height: none !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    aspect-ratio: auto !important;
 }
 body.preview-running .camera-close,
 body.ar-running .camera-close {

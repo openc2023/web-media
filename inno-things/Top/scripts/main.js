@@ -33,8 +33,6 @@ let currentXrCameraDirection = "BACK";
 let xrRetryDirections = [];
 let xrRetryInFlight = false;
 let lostTimer = null;
-let poseLocked = false;       // true 后停止 imageupdated 更新，模型冻结在当前位姿
-let poseSettleTimer = null;   // imagefound 后延迟若干帧再锁定，让滤波器先沉淀
 let currentState = "scanning";
 let currentStatusKey = "top.statusIdle";
 let currentStatusVars = {};
@@ -288,13 +286,7 @@ const probeCameraDirection = async () => {
     throw lastError || new Error("No usable camera found.");
 };
 
-const clearPoseLock = () => {
-    poseLocked = false;
-    if (poseSettleTimer) { clearTimeout(poseSettleTimer); poseSettleTimer = null; }
-};
-
 const cleanupXrRuntime = ({ stopPreview = false, resetModel = false } = {}) => {
-    clearPoseLock();
     try { XR8.stop(); } catch (_) {}
     ["gltexturerenderer", "threejsrenderer", "reality", "top-ar-app"].forEach((name) => {
         try { XR8.removeCameraPipelineModule(name); } catch (_) {}
@@ -701,10 +693,7 @@ const buildAppModule = () => ({
             process: ({ detail }) => {
                 if (lostTimer) { clearTimeout(lostTimer); lostTimer = null; }
 
-                // 清除旧锁，snapPose 先精准定位
-                clearPoseLock();
                 snapPose(detail);
-
                 boxModel.visible = true;
                 setModelOpacity(1);
                 if (mixer && mixerActions.length > 0) {
@@ -713,15 +702,6 @@ const buildAppModule = () => ({
                 }
                 setState("found");
                 setStatus("top.statusFound");
-
-                // 沉淀 600ms 后锁定位姿（画挂墙上不动，冻结更省资源更稳）
-                // 如果画需要跟手持移动，把这段注释掉即可
-                poseSettleTimer = window.setTimeout(() => {
-                    poseLocked = true;
-                    poseSettleTimer = null;
-                    appendDebug("pose LOCKED");
-                    console.log("[top-ar] pose locked");
-                }, 600);
 
                 // ── 识别调试 ──────────────────────────────────────────────────
                 const { position: p, scale: s } = detail;
@@ -736,16 +716,12 @@ const buildAppModule = () => ({
         {
             event: "reality.imageupdated",
             process: ({ detail }) => {
-                // poseLocked = true 时跳过，模型冻结在最后一次良好位姿上
-                if (poseLocked) return;
                 applyPose(detail);
             },
         },
         {
             event: "reality.imagelost",
             process: () => {
-                // 解锁，下次 imagefound 重新沉淀
-                clearPoseLock();
                 setState("lost");
                 setStatus("top.statusLost");
                 if (mixer) { mixerActions.forEach((a) => { a.paused = true; }); clock.stop(); }
