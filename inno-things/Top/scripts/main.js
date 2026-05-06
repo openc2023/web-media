@@ -701,6 +701,15 @@ const buildAppModule = () => ({
                 }
                 setState("found");
                 setStatus("top.statusFound");
+
+                // ── 识别调试 ──────────────────────────────────────────────────
+                const { position: p, rotation: r, scale: s } = detail;
+                console.log("[top-ar] imagefound", {
+                    name: detail.name,
+                    pos: `(${p.x.toFixed(3)}, ${p.y.toFixed(3)}, ${p.z.toFixed(3)})`,
+                    scale: s.toFixed(4),
+                });
+                appendDebug(`FOUND scale=${s.toFixed(4)} pos=(${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)})`);
             },
         },
         {
@@ -716,6 +725,11 @@ const buildAppModule = () => ({
                 setStatus("top.statusLost");
                 if (mixer) { mixerActions.forEach((a) => { a.paused = true; }); clock.stop(); }
                 resetFilters();
+
+                // ── 识别调试 ──────────────────────────────────────────────────
+                console.log("[top-ar] imagelost");
+                appendDebug(`LOST @ ${new Date().toLocaleTimeString()}`);
+
                 lostTimer = window.setTimeout(() => {
                     setModelOpacity(0);
                     boxModel.visible = false;
