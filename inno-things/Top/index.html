@@ -110,19 +110,19 @@
         </div>
     </section>
 
-    <!-- 8th Wall engine: local self-hosted → CDN fallback -->
+    <!-- 8th Wall engine: CDN first (stable), local self-hosted as fallback -->
     <script>
         (function loadXR8() {
-            var local = './assets/xr/xr.js';
             var cdn   = 'https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1/dist/xr.js';
+            var local = './assets/xr/xr.js';
             var s = document.createElement('script');
-            s.src = local;
+            s.src = cdn;
             s.async = true;
             s.setAttribute('data-preload-chunks', 'slam');
             s.onerror = function () {
-                console.warn('[top-ar] local xr.js not found, falling back to CDN');
+                console.warn('[top-ar] CDN xr.js failed, falling back to local');
                 var f = document.createElement('script');
-                f.src = cdn;
+                f.src = local;
                 f.async = true;
                 f.setAttribute('data-preload-chunks', 'slam');
                 document.head.appendChild(f);
