@@ -1,521 +1,250 @@
 /* ═══════════════════════════════════════════════
-   PREMIUM MINIMAL — Interactive Engine
+   Premium Minimal — Interactive Engine
+   Full-screen particle field with mouse interaction
    ═══════════════════════════════════════════════ */
 
-// ── DOM refs ──
-const $ = (s) => document.querySelector(s);
-const $$ = (s) => [...document.querySelectorAll(s)];
+(function () {
+    var canvas = document.getElementById("bg-canvas");
+    var ctx = canvas ? canvas.getContext("2d") : null;
+    var glow = document.querySelector(".cursor-glow");
+    var toast = document.getElementById("toast");
+    var hint = document.getElementById("center-hint");
+    var copyItems = document.querySelectorAll("[data-copy]");
+    var reveals = document.querySelectorAll(".reveal-item");
 
-const tiltCard = $("[data-tilt]");
-const stageEl = $("[data-stage]");
-const canvas = $("#scene-canvas");
-const ctx = canvas ? canvas.getContext("2d") : null;
-const codeOutput = $("[data-code-output]");
-const codeMeta = $("[data-code-meta]");
-const codeStatuses = $$("[data-code-status], [data-code-status-secondary]");
-const statusText = $("[data-status-text]");
-const sceneTitle = $("[data-scene-title]");
-const sceneDesc = $("[data-scene-desc]");
-const sceneLabel = $("[data-scene-label]");
-const sceneHeading = $("[data-scene-heading]");
-const sceneBody = $("[data-scene-body]");
-const scenePoints = $("[data-scene-points]");
-const sceneButtons = $$("[data-scene]");
-const contactRows = $$("[data-contact]");
-const actionCards = $$("[data-action]");
-const detailPanel = $("[data-panel='detail']");
-const contactPanel = $("[data-panel='contact']");
-const cursorGlow = $(".cursor-glow");
-const copyToast = $("#copy-toast");
+    var W = 0, H = 0;
+    var mouseX = -9999, mouseY = -9999;
+    var glowX = -9999, glowY = -9999;
+    var hasMoved = false;
+    var isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
-// ── Scene data ──
-const scenes = {
-    research: {
-        label: "Research",
-        title: "Research Scene",
-        desc: "从论文和研究方向进入",
-        heading: "研究方向与学术背景",
-        body: "从动画研究到新媒体艺术实践，先给访客一个明确的进入路径。",
-        points: [
-            "论文、学位与研究方向可继续接入 PDF 与封面",
-            "适合展示中韩双语和跨文化研究背景",
-            "建立'研究型创作者'的第一印象"
-        ],
-        color: { r: 110, g: 161, b: 212 }
-    },
-    projects: {
-        label: "Projects",
-        title: "Projects Scene",
-        desc: "把项目与媒介实践做成更快的入口",
-        heading: "作品与项目入口",
-        body: "项目场景更适合快速展示视觉实践和合作经历，访客能更快感受到你做过什么。",
-        points: [
-            "适合后续接项目封面、视频缩略图和分类标签",
-            "可以把作品分成展览、影像、交互装置与研究合作",
-            "首页就能先传达'能落地执行'的气质"
-        ],
-        color: { r: 212, g: 149, b: 110 }
-    },
-    connect: {
-        label: "Contact",
-        title: "Contact Scene",
-        desc: "联系方式变成可操作模块",
-        heading: "联系信息也是交互的一部分",
-        body: "复制、跳转和联系动作直接在首页发生，不用先读完整页。",
-        points: [
-            "姓名、邮箱和电话都能直接触发反馈",
-            "适合继续接入 WeChat、Instagram 或 PDF CV 下载",
-            "让首页更像工作入口，而不只是展示页"
-        ],
-        color: { r: 94, g: 196, b: 138 }
-    }
-};
+    // ══════════════════════════════════════════
+    // Particles — more particles, richer interaction
+    // ══════════════════════════════════════════
+    var COUNT = 60;
+    var CONNECT_DIST = 140;
+    var MOUSE_RADIUS = 160;
+    var particles = [];
 
-const snippets = {
-    research: `const scene = {\n  mode: "research",\n  focus: "home-entry",\n  action: "open-profile"\n};`,
-    projects: `const scene = {\n  mode: "projects",\n  focus: "selected-works",\n  action: "open-archive"\n};`,
-    connect: `const scene = {\n  mode: "contact",\n  focus: "direct-reach",\n  action: "copy-or-send"\n};`
-};
+    // Accent color
+    var CR = 201, CG = 168, CB = 124;
 
-const hints = {
-    ready: "选择一个场景开始探索",
-    hover: "预览中 — 视觉与面板正在联动",
-    copied: "已复制到剪贴板",
-    selected: "已切换到当前场景"
-};
-
-// ── State ──
-const state = {
-    scene: "research",
-    stickyScene: "research",
-    mouseX: 0,
-    mouseY: 0,
-    canvasMouseX: 0.5,
-    canvasMouseY: 0.5
-};
-
-// ══════════════════════════════════════════════
-// Particle System
-// ══════════════════════════════════════════════
-const PARTICLE_COUNT = 32;
-const CONNECTION_DIST = 100;
-
-class Particle {
-    constructor(w, h) {
-        this.x = Math.random() * w;
-        this.y = Math.random() * h;
-        this.tx = this.x;
-        this.ty = this.y;
-        this.vx = (Math.random() - 0.5) * 0.15;
-        this.vy = (Math.random() - 0.5) * 0.15;
-        this.radius = 1.2 + Math.random() * 0.6;
-        this.baseSpeed = 0.003 + Math.random() * 0.003;
+    function Particle() {
+        this.x = Math.random() * W;
+        this.y = Math.random() * H;
+        this.vx = (Math.random() - 0.5) * 0.25;
+        this.vy = (Math.random() - 0.5) * 0.25;
+        this.r = 1.2 + Math.random() * 1;
+        this.baseR = this.r;
     }
 
-    setTarget(x, y) {
-        this.tx = x;
-        this.ty = y;
+    function initParticles() {
+        particles = [];
+        for (var i = 0; i < COUNT; i++) particles.push(new Particle());
     }
 
-    update(w, h, mx, my) {
-        // Drift toward target
-        this.x += (this.tx - this.x) * this.baseSpeed;
-        this.y += (this.ty - this.y) * this.baseSpeed;
+    function resize() {
+        var dpr = Math.min(window.devicePixelRatio || 1, 2);
+        W = window.innerWidth;
+        H = window.innerHeight;
+        canvas.width = W * dpr;
+        canvas.height = H * dpr;
+        canvas.style.width = W + "px";
+        canvas.style.height = H + "px";
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
 
-        // Add gentle noise drift
-        this.x += this.vx;
-        this.y += this.vy;
+    function draw() {
+        ctx.clearRect(0, 0, W, H);
 
-        // Soft mouse repulsion
-        const dx = this.x - mx;
-        const dy = this.y - my;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 80) {
-            const force = (80 - dist) / 80 * 0.4;
-            this.x += (dx / dist) * force;
-            this.y += (dy / dist) * force;
+        for (var i = 0; i < particles.length; i++) {
+            var p = particles[i];
+
+            // Drift
+            p.x += p.vx;
+            p.y += p.vy;
+
+            // Mouse attraction (gentle pull toward cursor) + close repulsion
+            var dx = mouseX - p.x;
+            var dy = mouseY - p.y;
+            var dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < MOUSE_RADIUS && dist > 0) {
+                if (dist < 50) {
+                    // Close: push away
+                    var pushForce = (50 - dist) / 50 * 0.6;
+                    p.x -= (dx / dist) * pushForce;
+                    p.y -= (dy / dist) * pushForce;
+                } else {
+                    // Mid-range: gentle pull
+                    var pullForce = (MOUSE_RADIUS - dist) / MOUSE_RADIUS * 0.15;
+                    p.x += (dx / dist) * pullForce;
+                    p.y += (dy / dist) * pullForce;
+                }
+                // Particles near mouse grow slightly
+                p.r = p.baseR + (1 - dist / MOUSE_RADIUS) * 1.5;
+            } else {
+                p.r += (p.baseR - p.r) * 0.05;
+            }
+
+            // Wrap
+            if (p.x < -30) p.x = W + 30;
+            if (p.x > W + 30) p.x = -30;
+            if (p.y < -30) p.y = H + 30;
+            if (p.y > H + 30) p.y = -30;
+
+            // Draw dot
+            var dotAlpha = 0.3;
+            if (dist < MOUSE_RADIUS) dotAlpha = 0.3 + (1 - dist / MOUSE_RADIUS) * 0.4;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(" + CR + "," + CG + "," + CB + "," + dotAlpha + ")";
+            ctx.fill();
         }
 
-        // Wrap boundaries with padding
-        if (this.x < -10) this.x = w + 10;
-        if (this.x > w + 10) this.x = -10;
-        if (this.y < -10) this.y = h + 10;
-        if (this.y > h + 10) this.y = -10;
-    }
-}
+        // Draw connections
+        ctx.lineWidth = 0.5;
+        for (var i = 0; i < particles.length; i++) {
+            for (var j = i + 1; j < particles.length; j++) {
+                var a = particles[i], b = particles[j];
+                var dx2 = a.x - b.x, dy2 = a.y - b.y;
+                var d = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+                if (d < CONNECT_DIST) {
+                    var lineAlpha = (1 - d / CONNECT_DIST) * 0.1;
 
-let particles = [];
-let canvasW = 0;
-let canvasH = 0;
-let animFrame = null;
+                    // Lines near mouse are brighter
+                    var mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+                    var md = Math.sqrt((mx - mouseX) * (mx - mouseX) + (my - mouseY) * (my - mouseY));
+                    if (md < MOUSE_RADIUS) {
+                        lineAlpha += (1 - md / MOUSE_RADIUS) * 0.12;
+                    }
 
-function initCanvas() {
-    if (!canvas || !ctx) return;
-    resizeCanvas();
-    particles = [];
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-        particles.push(new Particle(canvasW, canvasH));
-    }
-    setParticleTargets(state.scene);
-    renderLoop();
-}
-
-function resizeCanvas() {
-    if (!canvas || !stageEl) return;
-    const rect = stageEl.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvasW = rect.width;
-    canvasH = rect.height;
-    canvas.width = canvasW * dpr;
-    canvas.height = canvasH * dpr;
-    canvas.style.width = canvasW + "px";
-    canvas.style.height = canvasH + "px";
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-}
-
-function setParticleTargets(sceneKey) {
-    const w = canvasW;
-    const h = canvasH;
-    const cx = w / 2;
-    const cy = h / 2;
-
-    particles.forEach((p, i) => {
-        const t = i / PARTICLE_COUNT;
-        switch (sceneKey) {
-            case "research": {
-                // Scattered constellation
-                const angle = t * Math.PI * 2 + Math.random() * 0.4;
-                const radius = 40 + Math.random() * Math.min(w, h) * 0.35;
-                p.setTarget(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius);
-                break;
-            }
-            case "projects": {
-                // Loose grid
-                const cols = 6;
-                const rows = Math.ceil(PARTICLE_COUNT / cols);
-                const col = i % cols;
-                const row = Math.floor(i / cols);
-                const gapX = w / (cols + 1);
-                const gapY = h / (rows + 1);
-                p.setTarget(
-                    gapX * (col + 1) + (Math.random() - 0.5) * 16,
-                    gapY * (row + 1) + (Math.random() - 0.5) * 16
-                );
-                break;
-            }
-            case "connect": {
-                // Gentle orbit
-                const orbitAngle = t * Math.PI * 2;
-                const orbitR = 30 + t * Math.min(w, h) * 0.28;
-                p.setTarget(cx + Math.cos(orbitAngle) * orbitR, cy + Math.sin(orbitAngle) * orbitR);
-                break;
+                    ctx.strokeStyle = "rgba(" + CR + "," + CG + "," + CB + "," + lineAlpha + ")";
+                    ctx.beginPath();
+                    ctx.moveTo(a.x, a.y);
+                    ctx.lineTo(b.x, b.y);
+                    ctx.stroke();
+                }
             }
         }
-    });
-}
 
-function renderLoop() {
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvasW, canvasH);
-
-    const scene = scenes[state.scene];
-    const { r, g, b } = scene.color;
-    const mx = state.canvasMouseX * canvasW;
-    const my = state.canvasMouseY * canvasH;
-
-    // Update particles
-    particles.forEach((p) => p.update(canvasW, canvasH, mx, my));
-
-    // Draw connections
-    ctx.lineWidth = 0.5;
-    for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-            const a = particles[i];
-            const bP = particles[j];
-            const dx = a.x - bP.x;
-            const dy = a.y - bP.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < CONNECTION_DIST) {
-                const alpha = (1 - dist / CONNECTION_DIST) * 0.15;
-                ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-                ctx.beginPath();
-                ctx.moveTo(a.x, a.y);
-                ctx.lineTo(bP.x, bP.y);
-                ctx.stroke();
-            }
+        // Mouse glow ring on canvas
+        if (hasMoved && mouseX > 0 && mouseY > 0) {
+            var grad = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, 80);
+            grad.addColorStop(0, "rgba(" + CR + "," + CG + "," + CB + ",0.03)");
+            grad.addColorStop(1, "rgba(" + CR + "," + CG + "," + CB + ",0)");
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(mouseX, mouseY, 80, 0, Math.PI * 2);
+            ctx.fill();
         }
+
+        requestAnimationFrame(draw);
     }
 
-    // Draw particles
-    particles.forEach((p) => {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.4)`;
-        ctx.fill();
-    });
-
-    animFrame = requestAnimationFrame(renderLoop);
-}
-
-// ══════════════════════════════════════════════
-// Typewriter
-// ══════════════════════════════════════════════
-let typewriterTimer = null;
-
-function typeCode(text) {
-    if (!codeOutput) return;
-    clearTimeout(typewriterTimer);
-    codeOutput.textContent = "";
-
-    // Remove any existing cursor
-    const oldCursor = codeOutput.parentElement?.querySelector(".tw-cursor");
-    if (oldCursor) oldCursor.remove();
-
-    // Create cursor
-    const cursor = document.createElement("span");
-    cursor.className = "tw-cursor";
-    codeOutput.after(cursor);
-
-    let i = 0;
-    function tick() {
-        if (i < text.length) {
-            codeOutput.textContent += text[i];
-            i++;
-            typewriterTimer = setTimeout(tick, 22);
-        } else {
-            // Remove cursor after a delay
-            setTimeout(() => cursor.remove(), 2000);
-        }
-    }
-    tick();
-}
-
-// ══════════════════════════════════════════════
-// Scene Switching
-// ══════════════════════════════════════════════
-function updateSceneContent(sceneKey, animate = true) {
-    const scene = scenes[sceneKey];
-    if (!scene) return;
-
-    if (sceneTitle) sceneTitle.textContent = scene.title;
-    if (sceneDesc) sceneDesc.textContent = scene.desc;
-
-    // Detail card content
-    if (sceneLabel) sceneLabel.textContent = scene.label;
-    if (sceneHeading) sceneHeading.textContent = scene.heading;
-    if (sceneBody) sceneBody.textContent = scene.body;
-    if (scenePoints) {
-        scenePoints.innerHTML = scene.points.map((p) => `<li>${p}</li>`).join("");
-    }
-
-    // Panel visibility: show contact panel only in connect scene
-    if (contactPanel) {
-        contactPanel.classList.toggle("is-visible", sceneKey === "connect");
-    }
-
-    // Scene buttons
-    sceneButtons.forEach((btn) => {
-        btn.classList.toggle("is-active", btn.dataset.scene === sceneKey);
-    });
-
-    // Canvas particles
-    setParticleTargets(sceneKey);
-}
-
-function setStatusText(hint) {
-    if (statusText) statusText.textContent = hints[hint] || hints.ready;
-}
-
-function setCodeStatuses(text) {
-    codeStatuses.forEach((el) => (el.textContent = text));
-}
-
-function commitScene(sceneKey) {
-    state.scene = sceneKey;
-    state.stickyScene = sceneKey;
-    updateSceneContent(sceneKey);
-    typeCode(snippets[sceneKey] || snippets.research);
-    setCodeStatuses("active");
-    setStatusText("selected");
-    if (codeMeta) codeMeta.textContent = `scene: "${sceneKey}"`;
-
-    // Reset contact/action highlights
-    contactRows.forEach((r) => r.classList.remove("is-active"));
-    actionCards.forEach((a) => a.classList.remove("is-active"));
-}
-
-function previewScene(sceneKey) {
-    state.scene = sceneKey;
-    updateSceneContent(sceneKey, false);
-    setCodeStatuses("preview");
-    setStatusText("hover");
-    if (codeOutput) codeOutput.textContent = snippets[sceneKey] || "";
-    if (codeMeta) codeMeta.textContent = `scene: "${sceneKey}"`;
-    setParticleTargets(sceneKey);
-}
-
-function restoreSticky() {
-    state.scene = state.stickyScene;
-    updateSceneContent(state.stickyScene, false);
-    setCodeStatuses("ready");
-    setStatusText("ready");
-    if (codeOutput) codeOutput.textContent = snippets[state.stickyScene] || "";
-    if (codeMeta) codeMeta.textContent = `scene: "${state.stickyScene}"`;
-    setParticleTargets(state.stickyScene);
-    contactRows.forEach((r) => r.classList.remove("is-active"));
-    actionCards.forEach((a) => a.classList.remove("is-active"));
-}
-
-// ══════════════════════════════════════════════
-// Copy & Toast
-// ══════════════════════════════════════════════
-let toastTimer = null;
-
-async function copyText(value) {
-    try {
-        await navigator.clipboard.writeText(value);
-        return true;
-    } catch {
-        return false;
-    }
-}
-
-function showToast(text) {
-    if (!copyToast) return;
-    copyToast.textContent = text || "已复制到剪贴板";
-    copyToast.classList.add("is-visible");
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => copyToast.classList.remove("is-visible"), 1800);
-}
-
-// ══════════════════════════════════════════════
-// Event Bindings
-// ══════════════════════════════════════════════
-
-// Scene buttons
-sceneButtons.forEach((btn) => {
-    const key = btn.dataset.scene;
-    if (!key) return;
-    btn.addEventListener("mouseenter", () => previewScene(key));
-    btn.addEventListener("mouseleave", restoreSticky);
-    btn.addEventListener("click", () => commitScene(key));
-});
-
-// Contact rows
-contactRows.forEach((row) => {
-    const key = row.dataset.contact;
-    if (!key) return;
-    row.addEventListener("mouseenter", () => {
-        previewScene("connect");
-        row.classList.add("is-active");
-    });
-    row.addEventListener("mouseleave", () => {
-        row.classList.remove("is-active");
-        restoreSticky();
-    });
-    row.addEventListener("click", async () => {
-        const ok = await copyText(row.dataset.copy || "");
-        commitScene("connect");
-        row.classList.add("is-active");
-        showToast(ok ? "已复制到剪贴板" : "请手动复制");
-    });
-});
-
-// Action cards
-actionCards.forEach((card) => {
-    const key = card.dataset.action;
-    if (!key) return;
-    const sceneMap = { profile: "research", archive: "projects", message: "connect" };
-    card.addEventListener("mouseenter", () => {
-        previewScene(sceneMap[key] || "research");
-        card.classList.add("is-active");
-    });
-    card.addEventListener("mouseleave", () => {
-        card.classList.remove("is-active");
-        restoreSticky();
-    });
-});
-
-// ── Tilt ──
-const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-
-if (tiltCard && !isTouchDevice) {
-    tiltCard.addEventListener("mousemove", (e) => {
-        const rect = tiltCard.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        const rx = (y / rect.height - 0.5) * -2;
-        const ry = (x / rect.width - 0.5) * 2.5;
-        tiltCard.style.transform = `perspective(1600px) rotateX(${rx}deg) rotateY(${ry}deg)`;
-    });
-    tiltCard.addEventListener("mouseleave", () => {
-        tiltCard.style.transform = "perspective(1600px) rotateX(0) rotateY(0)";
-    });
-}
-
-// ── Canvas mouse ──
-if (stageEl) {
-    stageEl.addEventListener("mousemove", (e) => {
-        const rect = stageEl.getBoundingClientRect();
-        state.canvasMouseX = (e.clientX - rect.left) / rect.width;
-        state.canvasMouseY = (e.clientY - rect.top) / rect.height;
-    });
-    stageEl.addEventListener("mouseleave", () => {
-        state.canvasMouseX = 0.5;
-        state.canvasMouseY = 0.5;
-    });
-}
-
-// ── Cursor glow ──
-if (cursorGlow && !isTouchDevice) {
-    let glowX = 0, glowY = 0;
-    let targetX = 0, targetY = 0;
-
-    document.addEventListener("mousemove", (e) => {
-        targetX = e.clientX;
-        targetY = e.clientY;
-    });
-
+    // ══════════════════════════════════════════
+    // Cursor Glow (DOM element, smoother)
+    // ══════════════════════════════════════════
     function updateGlow() {
-        glowX += (targetX - glowX) * 0.08;
-        glowY += (targetY - glowY) * 0.08;
-        cursorGlow.style.left = glowX + "px";
-        cursorGlow.style.top = glowY + "px";
+        glowX += (mouseX - glowX) * 0.05;
+        glowY += (mouseY - glowY) * 0.05;
+        if (glow) {
+            glow.style.left = glowX + "px";
+            glow.style.top = glowY + "px";
+        }
         requestAnimationFrame(updateGlow);
     }
-    updateGlow();
-}
 
-// ── Resize ──
-let resizeTimer;
-window.addEventListener("resize", () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
-        resizeCanvas();
-        setParticleTargets(state.scene);
-    }, 150);
-});
+    // ══════════════════════════════════════════
+    // Copy & Toast
+    // ══════════════════════════════════════════
+    var toastTimer;
 
-// ══════════════════════════════════════════════
-// Init
-// ══════════════════════════════════════════════
-function init() {
-    // Init canvas
-    initCanvas();
+    function showToast(text) {
+        if (!toast) return;
+        toast.textContent = text || "已复制";
+        toast.classList.add("visible");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { toast.classList.remove("visible"); }, 1600);
+    }
 
-    // Initial scene
-    updateSceneContent("research", false);
-    typeCode(snippets.research);
+    for (var i = 0; i < copyItems.length; i++) {
+        (function (el) {
+            el.addEventListener("click", function (e) {
+                var value = el.getAttribute("data-copy");
+                if (!value) return;
+                e.preventDefault();
+                navigator.clipboard.writeText(value).then(function () {
+                    showToast("已复制: " + value);
+                }).catch(function () {
+                    showToast("请手动复制");
+                });
+            });
+        })(copyItems[i]);
+    }
 
-    // Entry animations (stagger reveal)
-    const targets = $$(".reveal-target");
-    targets.forEach((el, i) => {
-        setTimeout(() => el.classList.add("revealed"), 100 + i * 80);
+    // ══════════════════════════════════════════
+    // Events
+    // ══════════════════════════════════════════
+    if (!isTouchDevice) {
+        document.addEventListener("mousemove", function (e) {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            if (!hasMoved) {
+                hasMoved = true;
+                if (hint) hint.classList.remove("visible");
+            }
+        });
+    }
+
+    // Touch: use touch position for particles
+    if (isTouchDevice) {
+        document.addEventListener("touchmove", function (e) {
+            if (e.touches.length > 0) {
+                mouseX = e.touches[0].clientX;
+                mouseY = e.touches[0].clientY;
+                hasMoved = true;
+            }
+        }, { passive: true });
+        document.addEventListener("touchend", function () {
+            mouseX = -9999;
+            mouseY = -9999;
+        });
+    }
+
+    var resizeTimer;
+    window.addEventListener("resize", function () {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(resize, 100);
     });
-}
 
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-} else {
-    init();
-}
+    // ══════════════════════════════════════════
+    // Init
+    // ══════════════════════════════════════════
+    function init() {
+        if (canvas && ctx) {
+            resize();
+            initParticles();
+            draw();
+        }
+        if (glow && !isTouchDevice) updateGlow();
+
+        // Show hint after a moment
+        if (hint && !isTouchDevice) {
+            setTimeout(function () { hint.classList.add("visible"); }, 1200);
+        }
+
+        // Entry animation
+        for (var i = 0; i < reveals.length; i++) {
+            (function (el, idx) {
+                setTimeout(function () { el.classList.add("revealed"); }, 400 + idx * 200);
+            })(reveals[i], i);
+        }
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init);
+    } else {
+        init();
+    }
+})();
