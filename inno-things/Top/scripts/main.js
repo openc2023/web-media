@@ -230,6 +230,10 @@ const startPreviewStream = async (facingMode = preferredFacingMode) => {
     return previewStream;
 };
 
+const setPreviewPresentationActive = (active) => {
+    document.body.classList.toggle("preview-running", active);
+};
+
 const probeCameraDirection = async () => {
     const attempts = [
         { facingMode: "environment" },
@@ -380,7 +384,6 @@ const setArPresentationActive = (active) => {
         canvas.style.opacity = active ? "1" : "0";
         canvas.style.zIndex = active ? "30" : "-1";
     }
-    document.body.classList.toggle("preview-running", false);
     document.body.classList.toggle("ar-running", active);
 };
 
@@ -753,6 +756,7 @@ const startMindAR = async () => {
             preferredFacingMode = "user";
             await startPreviewStream(preferredFacingMode);
             appendDebug("mode: desktop-preview");
+            setPreviewPresentationActive(true);
             setArPresentationActive(false);
             setState("scanning");
             setStatus("top.statusDesktopPreview");
