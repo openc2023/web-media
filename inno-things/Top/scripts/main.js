@@ -688,8 +688,10 @@ const stopMindAR = () => {
     if (!xrRunning) return;
 
     try { XR8.stop(); } catch (_) {}
-    // Remove every module we added so re-registration works on next run
-    ["GlTextureRenderer", "Threejs", "XrController", "top-ar-app"].forEach((name) => {
+    // Remove every module we added so re-registration works on next run.
+    // Internal names differ from the class names we use to add them:
+    // GlTextureRenderer → "gltexturerenderer", Threejs → "threejsrenderer", XrController → "reality"
+    ["gltexturerenderer", "threejsrenderer", "reality", "top-ar-app"].forEach((name) => {
         try { XR8.removeCameraPipelineModule(name); } catch (_) {}
     });
 
