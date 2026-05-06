@@ -422,6 +422,19 @@ body.camera-open { overflow: hidden; }
    scan-line z:5) render above the canvas automatically.
    camera-close is position:fixed z-index:120 — always on top.
    ══════════════════════════════════════════════════════ */
+/* ── XR8 相机 video 兜底全屏（JS MutationObserver 主力，CSS 兜底）
+   XR8 把 <video> 直接 append 到 body，默认左上角原始尺寸 ── */
+body.ar-running > video {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    object-fit: cover !important;
+    z-index: 29 !important;   /* canvas=30 在上，video 垫底 */
+    pointer-events: none !important;
+    opacity: 1 !important;
+}
+
 /* ── AR running：canvas 全屏直接透出，modal 整体隐藏
    用 visibility:hidden 而非 display:none / opacity:0，原因：
    · visibility:hidden 不创建新 stacking context，不影响 canvas z 层

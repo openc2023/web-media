@@ -286,7 +286,56 @@ const probeCameraDirection = async () => {
     throw lastError || new Error("No usable camera found.");
 };
 
+// ── XR8 video 全屏接管 ─────────────────────────────────────────────────────────
+// XR8 把相机 <video> 直接 append 到 document.body（不进我们的容器），
+// 默认尺寸是原始分辨率，显示在左上角。
+// 用 MutationObserver 在 XR8 插入 video 的瞬间抓住它并强制全屏。
+
+let xrVideoObserver = null;
+
+const applyXrVideoFullscreen = (video) => {
+    // 跳过我们自己的 preview video
+    if (video.id === "camera-preview") return;
+    video.style.setProperty("position",       "fixed",           "important");
+    video.style.setProperty("inset",          "0",               "important");
+    video.style.setProperty("width",          "100vw",           "important");
+    video.style.setProperty("height",         "100vh",           "important");
+    video.style.setProperty("object-fit",     "cover",           "important");
+    video.style.setProperty("z-index",        "29",              "important");
+    video.style.setProperty("pointer-events", "none",            "important");
+    video.style.setProperty("opacity",        "1",               "important");
+    console.log("[top-ar] xr video fullscreen applied:", video);
+    appendDebug(`xr-video: ${video.videoWidth || 0}x${video.videoHeight || 0}`);
+};
+
+const watchXrVideo = () => {
+    // 先处理页面里已有的 video（XR8 可能已在我们启动 observer 前插入）
+    document.querySelectorAll("video").forEach(applyXrVideoFullscreen);
+
+    xrVideoObserver = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+            for (const node of mutation.addedNodes) {
+                if (node.nodeType !== 1) continue;
+                if (node.tagName === "VIDEO") {
+                    applyXrVideoFullscreen(node);
+                } else {
+                    node.querySelectorAll?.("video").forEach(applyXrVideoFullscreen);
+                }
+            }
+        }
+    });
+    xrVideoObserver.observe(document.body, { childList: true, subtree: true });
+};
+
+const unwatchXrVideo = () => {
+    xrVideoObserver?.disconnect();
+    xrVideoObserver = null;
+};
+
+// ── XR runtime cleanup ─────────────────────────────────────────────────────────
+
 const cleanupXrRuntime = ({ stopPreview = false, resetModel = false } = {}) => {
+    unwatchXrVideo();
     try { XR8.stop(); } catch (_) {}
     ["gltexturerenderer", "threejsrenderer", "reality", "top-ar-app"].forEach((name) => {
         try { XR8.removeCameraPipelineModule(name); } catch (_) {}
@@ -322,6 +371,9 @@ const runXrSession = (direction) => {
         XR8.XrController.pipelineModule(),
         buildAppModule(),
     ]);
+
+    // 启动 observer，XR8 插入 <video> 的瞬间强制全屏
+    watchXrVideo();
 
     XR8.run({
         canvas: arCanvas,
