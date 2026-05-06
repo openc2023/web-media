@@ -32,6 +32,8 @@ let preferredFacingMode = "environment";
 let currentXrCameraDirection = "BACK";
 let xrRetryDirections = [];
 let xrRetryInFlight = false;
+let xrSessionHealthy = false;
+let previewFallbackTimer = null;
 let lostTimer = null;
 let currentState = "scanning";
 let currentStatusKey = "top.statusIdle";
@@ -211,7 +213,33 @@ const stopPreviewStream = () => {
     }
 };
 
+const clearPreviewFallbackTimer = () => {
+    if (!previewFallbackTimer) return;
+    window.clearTimeout(previewFallbackTimer);
+    previewFallbackTimer = null;
+};
+
+const markXrSessionHealthy = () => {
+    xrSessionHealthy = true;
+    clearPreviewFallbackTimer();
+    stopPreviewStream();
+};
+
+const schedulePreviewFallback = () => {
+    if (xrSessionHealthy || previewStream || previewFallbackTimer) return;
+    appendDebug("preview fallback: waiting");
+    previewFallbackTimer = window.setTimeout(() => {
+        previewFallbackTimer = null;
+        if (xrSessionHealthy || previewStream) return;
+        setStatus("top.statusStartFailed", { message: "camera status failed" });
+        startPreviewStream(preferredFacingMode).catch((error) => {
+            appendDebug(`preview failed: ${formatError(error)}`);
+        });
+    }, 1200);
+};
+
 const startPreviewStream = async (facingMode = preferredFacingMode) => {
+    clearPreviewFallbackTimer();
     stopPreviewStream();
     document.body.classList.add("preview-running");
     const video = ensurePreviewVideo();
@@ -336,6 +364,8 @@ const unwatchXrVideo = () => {
 
 const cleanupXrRuntime = ({ stopPreview = false, resetModel = false } = {}) => {
     unwatchXrVideo();
+    clearPreviewFallbackTimer();
+    xrSessionHealthy = false;
     try { XR8.stop(); } catch (_) {}
     ["gltexturerenderer", "threejsrenderer", "reality", "top-ar-app"].forEach((name) => {
         try { XR8.removeCameraPipelineModule(name); } catch (_) {}
@@ -364,6 +394,8 @@ const cleanupXrRuntime = ({ stopPreview = false, resetModel = false } = {}) => {
 
 const runXrSession = (direction) => {
     currentXrCameraDirection = direction;
+    xrSessionHealthy = false;
+    clearPreviewFallbackTimer();
     appendDebug(`xr run: ${direction}`);
     XR8.addCameraPipelineModules([
         XR8.GlTextureRenderer.pipelineModule(),
@@ -433,8 +465,14 @@ const restartScanAnimations = () => {
 const setArPresentationActive = (active) => {
     const canvas = document.getElementById("xr8-canvas");
     if (canvas) {
-        canvas.style.opacity = active ? "1" : "0";
-        canvas.style.zIndex = active ? "30" : "-1";
+        // XR8 会用 inline style 覆盖 canvas 的尺寸（设成相机分辨率），
+        // 用 setProperty + "important" 强制全屏，优先级高于任何 inline style
+        canvas.style.setProperty("position", "fixed",    "important");
+        canvas.style.setProperty("inset",    "0",        "important");
+        canvas.style.setProperty("width",    "100vw",    "important");
+        canvas.style.setProperty("height",   "100vh",    "important");
+        canvas.style.setProperty("opacity",  active ? "1" : "0", "important");
+        canvas.style.setProperty("z-index",  active ? "30" : "-1", "important");
     }
     document.body.classList.toggle("ar-running", active);
 };
@@ -690,7 +728,7 @@ const buildAppModule = () => ({
         }
         if (status === "hasVideo") {
             appendDebug("camera: video ready");
-            stopPreviewStream();
+            markXrSessionHealthy();
             return;
         }
         if (status === "failed") {
@@ -706,10 +744,8 @@ const buildAppModule = () => ({
                     });
                 return;
             }
-            setStatus("top.statusStartFailed", { message: "camera status failed" });
-            startPreviewStream(preferredFacingMode).catch((error) => {
-                appendDebug(`preview failed: ${formatError(error)}`);
-            });
+            appendDebug("camera: failed, waiting fallback");
+            schedulePreviewFallback();
         }
     },
 
@@ -719,6 +755,7 @@ const buildAppModule = () => ({
     },
 
     onStart: () => {
+        markXrSessionHealthy();
         const { scene } = XR8.Threejs.xrScene();
 
         scene.add(new THREE.HemisphereLight(0xffffff, 0xbbbbff, 0.6));
@@ -745,6 +782,7 @@ const buildAppModule = () => ({
             process: ({ detail }) => {
                 if (lostTimer) { clearTimeout(lostTimer); lostTimer = null; }
 
+                markXrSessionHealthy();
                 snapPose(detail);
                 boxModel.visible = true;
                 setModelOpacity(1);
@@ -821,6 +859,8 @@ const startMindAR = async () => {
     try {
         if (isDesktopLikeEnvironment()) {
             preferredFacingMode = "user";
+            xrSessionHealthy = false;
+            clearPreviewFallbackTimer();
             await startPreviewStream(preferredFacingMode);
             appendDebug("mode: desktop-preview");
             setPreviewPresentationActive(true);
@@ -835,6 +875,9 @@ const startMindAR = async () => {
         appendDebug(`xr camera: ${xrCameraDirection}`);
         xrRetryDirections = [xrCameraDirection === "BACK" ? "FRONT" : "BACK"];
         xrRetryInFlight = false;
+        xrSessionHealthy = false;
+        clearPreviewFallbackTimer();
+        stopPreviewStream();
 
         // Load model + GIF before XR8 starts
         const gltf = await withTimeout(loadBoxModel(), 25000, "loadBoxModel");
@@ -906,7 +949,9 @@ const startMindAR = async () => {
         // exactly once per page load and rely on XR8 remembering the data.
         if (!xr8Configured) {
             XR8.XrController.configure({
-                disableWorldTracking: false,   // SLAM 开启：陀螺仪+环境建图，模型原生稳定
+                // This page is image-target only. World tracking breaks FRONT-camera
+                // runs in XR8 and is unnecessary for anchored image recognition here.
+                disableWorldTracking: true,
                 imageTargetData: [imageTargetData],
             });
             xr8Configured = true;
@@ -920,6 +965,8 @@ const startMindAR = async () => {
 
     } catch (error) {
         console.error("AR start failed:", error);
+        clearPreviewFallbackTimer();
+        xrSessionHealthy = false;
         showDebug([
             `protocol: ${window.location.protocol}`,
             `secureContext: ${String(window.isSecureContext)}`,
@@ -952,6 +999,8 @@ const startMindAR = async () => {
 const stopMindAR = () => {
     if (lostTimer) { clearTimeout(lostTimer); lostTimer = null; }
     if (!xrRunning) {
+        clearPreviewFallbackTimer();
+        xrSessionHealthy = false;
         setArPresentationActive(false);
         arCanvas = null;
         stopPreviewStream();

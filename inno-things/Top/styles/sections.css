@@ -220,10 +220,10 @@
 .camera-modal[hidden] { display: none; }
 
 #xr8-canvas {
-    position: fixed;
-    inset: 0;
-    width: 100vw;
-    height: 100vh;
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
     z-index: -1;
     touch-action: none;
     pointer-events: none;
