@@ -22,8 +22,11 @@
     <link rel="stylesheet" href="./styles/main.css">
 </head>
 <body>
-    <!-- XR8 camera canvas: always present, full-viewport, shown only when AR is running -->
-    <canvas id="xr8-canvas" style="position:fixed;inset:0;width:100vw;height:100vh;display:none;touch-action:none;z-index:0;"></canvas>
+    <!-- XR8 camera canvas: always in DOM with full viewport dimensions so WebGL
+         context is created at correct size (display:none breaks WebGL on iOS Safari).
+         Camera-modal (z-index:40) covers it during loading; body.ar-running makes
+         the modal transparent to reveal the camera feed. -->
+    <canvas id="xr8-canvas" style="position:fixed;inset:0;width:100vw;height:100vh;z-index:0;touch-action:none;pointer-events:none;opacity:0;"></canvas>
 
     <header class="site-header">
         <a class="brand" href="../index.html">Inno Things</a>

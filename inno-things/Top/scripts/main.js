@@ -605,10 +605,11 @@ const startMindAR = async () => {
             imageTargetData.properties = { physicalWidthInMeters: PAINTING_WIDTH_M };
         }
 
-        // Canvas is statically in the HTML (marker-only.html pattern).
-        // Show it now and let XR8 own it for the camera feed.
+        // Canvas is statically in the HTML with proper viewport dimensions.
+        // Switch from opacity:0 → opacity:1 (never use display:none — that
+        // makes iOS Safari create a 0×0 WebGL context → "No valid session manager").
         arCanvas = document.getElementById("xr8-canvas");
-        arCanvas.style.display = "block";
+        arCanvas.style.opacity = "1";
         document.body.classList.add("ar-running");
 
         // iOS 13+: motion permission must be requested from a user gesture
@@ -663,7 +664,7 @@ const startMindAR = async () => {
 
         xrRunning = false;
         const failCanvas = document.getElementById("xr8-canvas");
-        if (failCanvas) failCanvas.style.display = "none";
+        if (failCanvas) failCanvas.style.opacity = "0";
         document.body.classList.remove("ar-running");
         arCanvas = null;
         boxModel = null;
@@ -698,7 +699,7 @@ const stopMindAR = () => {
     resetFilters();
     // Hide canvas (keep it in DOM for next run) and clear ar-running state
     const cv = document.getElementById("xr8-canvas");
-    if (cv) cv.style.display = "none";
+    if (cv) cv.style.opacity = "0";
     document.body.classList.remove("ar-running");
 
     xrRunning = false;
