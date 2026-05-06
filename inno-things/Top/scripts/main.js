@@ -645,19 +645,16 @@ const startMindAR = async () => {
             xr8Configured = true;
         }
 
-        const pipeModules = [
+        // FullWindowCanvas is deprecated in R13.1 and tries to load a chunk
+        // that doesn't exist in our self-hosted build → skip it entirely.
+        // Canvas is already fixed 100vw×100vh via inline styles, so XR8
+        // can fill it without the module.
+        XR8.addCameraPipelineModules([
             XR8.GlTextureRenderer.pipelineModule(),
             XR8.Threejs.pipelineModule(),
             XR8.XrController.pipelineModule(),
             buildAppModule(),
-        ];
-        // FullWindowCanvas: lets XR8 own canvas resize (matches reference project)
-        const fwc = XR8.FullWindowCanvas || XR8.fullWindowCanvas;
-        if (fwc && typeof fwc.pipelineModule === "function") {
-            pipeModules.unshift(fwc.pipelineModule());
-            console.log("[top-ar] FullWindowCanvas registered");
-        }
-        XR8.addCameraPipelineModules(pipeModules);
+        ]);
 
         XR8.run({ canvas: arCanvas });
         xrRunning = true;
