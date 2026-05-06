@@ -487,14 +487,11 @@ const buildAppModule = () => ({
         scene.add(dir);
         scene.add(boxModel);
 
-        // Debug: confirm XR8 pipeline started and log canvas state
+        // Debug: confirm pipeline started and canvas state
         const cv = arCanvas;
-        showDebug(
-            `XR8 onStart OK\n` +
-            `canvas buf: ${cv?.width}×${cv?.height}\n` +
-            `canvas CSS: ${cv?.clientWidth}×${cv?.clientHeight}\n` +
-            `ar-running: ${document.body.classList.contains("ar-running")}`
-        );
+        const dbg = `onStart OK | buf:${cv?.width}x${cv?.height} css:${cv?.clientWidth}x${cv?.clientHeight} ar:${document.body.classList.contains("ar-running")}`;
+        console.log("[top-ar]", dbg);
+        showDebug(dbg);
 
         setState("scanning");
         setStatus("top.statusCameraReady");

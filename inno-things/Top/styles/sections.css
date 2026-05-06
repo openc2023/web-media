@@ -414,10 +414,7 @@ body.ar-running .camera-shell {
 body.ar-running .camera-stage {
     background: transparent !important;
 }
-/* camera-copy (debug bar) would obscure AR view — hide it */
-body.ar-running .camera-copy {
-    display: none !important;
-}
+/* camera-copy: keep visible so debug-log is readable during diagnosis */
 
 /* ══ Desktop intro panel overrides ═══════════════════ */
 @media (min-width: 901px) {
