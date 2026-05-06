@@ -21,6 +21,7 @@ const scanBadgeText = document.querySelector("#scan-badge-text");
 const localeButtons = [...document.querySelectorAll("[data-locale]")];
 
 let xrRunning = false;
+let xr8Configured = false;   // XR8.XrController.configure() can only be called once per page load
 let arCanvas = null;
 let boxModel = null;
 let mixer = null;
@@ -617,10 +618,16 @@ const startMindAR = async () => {
             await new Promise((resolve) => window.addEventListener("xrloaded", resolve, { once: true }));
         }
 
-        XR8.XrController.configure({
-            disableWorldTracking: false,     // keep SLAM for stability
-            imageTargetData: [imageTargetData],
-        });
+        // configure() can only be called BEFORE the very first XR8.run() —
+        // it throws if called after run() even after stop().  So we call it
+        // exactly once per page load and rely on XR8 remembering the data.
+        if (!xr8Configured) {
+            XR8.XrController.configure({
+                disableWorldTracking: true,   // image-target only; no SLAM needed
+                imageTargetData: [imageTargetData],
+            });
+            xr8Configured = true;
+        }
 
         XR8.addCameraPipelineModules([
             XR8.GlTextureRenderer.pipelineModule(),
@@ -664,7 +671,10 @@ const stopMindAR = () => {
     if (!xrRunning) return;
 
     try { XR8.stop(); } catch (_) {}
-    try { XR8.removeCameraPipelineModule("top-ar-app"); } catch (_) {}
+    // Remove every module we added so re-registration works on next run
+    ["GlTextureRenderer", "Threejs", "XrController", "top-ar-app"].forEach((name) => {
+        try { XR8.removeCameraPipelineModule(name); } catch (_) {}
+    });
 
     if (mixer) {
         mixer.stopAllAction();
