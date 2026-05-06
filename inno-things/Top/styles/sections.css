@@ -250,9 +250,11 @@
     padding: 0;
     border: none;
     border-radius: var(--r-sm);
-    background: rgba(255,255,255,0.08);
-    box-shadow: rgba(255,255,255,0.12) 0px 0px 0px 1px;
-    color: rgba(255,255,255,0.75);
+    background: rgba(8, 18, 24, 0.72);
+    box-shadow:
+        rgba(255,255,255,0.18) 0px 0px 0px 1px,
+        rgba(0,0,0,0.28) 0px 8px 20px;
+    color: rgba(255,255,255,0.96);
     font-size: 20px;
     line-height: 1;
     cursor: pointer;
@@ -260,16 +262,23 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.15s;
+    transition: background 0.15s, box-shadow 0.15s, transform 0.15s;
     /* 扩展触控热区（不改变视觉大小） */
     touch-action: manipulation;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 .camera-close::after {
     content: "";
     position: absolute;
     inset: -6px;
 }
-.camera-close:hover { background: rgba(255,255,255,0.14); }
+.camera-close:hover {
+    background: rgba(8, 18, 24, 0.88);
+    box-shadow:
+        rgba(255,255,255,0.22) 0px 0px 0px 1px,
+        rgba(0,0,0,0.34) 0px 10px 24px;
+}
 .camera-close::before { content: "\00D7"; }
 
 /* ── 开始识别按钮：加载中状态 ─────────────────────────── */
@@ -418,21 +427,49 @@ body.ar-running .camera-modal {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
 }
+body.preview-running .camera-modal {
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
 body.ar-running #xr8-canvas {
     z-index: 30;
     opacity: 1;
 }
+body.preview-running .site-header,
+body.preview-running main,
 body.ar-running .site-header,
 body.ar-running main {
     opacity: 0;
     pointer-events: none;
 }
+body.preview-running .camera-shell,
 body.ar-running .camera-shell {
     background: transparent !important;
     box-shadow: none !important;
 }
+body.preview-running .camera-stage,
 body.ar-running .camera-stage {
     background: transparent !important;
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    border-radius: 0;
+    aspect-ratio: auto;
+}
+body.preview-running .camera-close,
+body.ar-running .camera-close {
+    background: rgba(8, 18, 24, 0.82);
+    box-shadow:
+        rgba(255,255,255,0.22) 0px 0px 0px 1px,
+        rgba(0,0,0,0.34) 0px 10px 24px;
+    color: #ffffff;
+}
+body.preview-running .scan-line-wrap {
+    display: none;
 }
 /* camera-copy: keep visible so debug-log is readable during diagnosis */
 

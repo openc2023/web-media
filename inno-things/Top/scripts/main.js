@@ -61,6 +61,12 @@ const occluderMeshNames = new Set(["box001"]);
 const shellMeshNames = new Set(["box", "box1", "box2"]);
 const interiorMeshNames = new Set(["plane004", "plane005", "top2", "top3", "cube001"]);
 
+const MODEL_SCALE_MULTIPLIER = 0.18;
+const MODEL_OFFSET_Y = 0.34;
+const MODEL_OFFSET_Z = -0.04;
+const POSITION_DEADBAND = 0.0012;
+const SCALE_DEADBAND = 0.0025;
+
 const normalizeMeshName = (name = "") => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 // ── 1-Euro Filter ──────────────────────────────────────────────────────────────
@@ -102,6 +108,7 @@ const fPos = {
     y: new OneEuro(MIN_CUTOFF, BETA),
     z: new OneEuro(MIN_CUTOFF, BETA),
 };
+const fScale = new OneEuro(MIN_CUTOFF * 0.8, BETA * 0.7);
 // Rotation filtered at lower cutoff (wall marker vertical pose is very sensitive)
 const fQ = {
     x: new OneEuro(MIN_CUTOFF * 0.6, BETA),
@@ -114,6 +121,7 @@ const _tmpQ = new THREE.Quaternion();
 
 function resetFilters() {
     fPos.x.reset(); fPos.y.reset(); fPos.z.reset();
+    fScale.reset();
     fQ.x.reset(); fQ.y.reset(); fQ.z.reset(); fQ.w.reset();
     _lastQ = { x: 0, y: 0, z: 0, w: 1 };
 }
@@ -190,6 +198,7 @@ const ensurePreviewVideo = () => {
 };
 
 const stopPreviewStream = () => {
+    document.body.classList.remove("preview-running");
     if (previewStream) {
         previewStream.getTracks().forEach((track) => track.stop());
         previewStream = null;
@@ -204,6 +213,7 @@ const stopPreviewStream = () => {
 
 const startPreviewStream = async (facingMode = preferredFacingMode) => {
     stopPreviewStream();
+    document.body.classList.add("preview-running");
     const video = ensurePreviewVideo();
     previewStream = await navigator.mediaDevices.getUserMedia({
         audio: false,
@@ -370,6 +380,7 @@ const setArPresentationActive = (active) => {
         canvas.style.opacity = active ? "1" : "0";
         canvas.style.zIndex = active ? "30" : "-1";
     }
+    document.body.classList.toggle("preview-running", false);
     document.body.classList.toggle("ar-running", active);
 };
 
@@ -527,8 +538,9 @@ const setModelOpacity = (opacity) => {
 
 // ── Pose application with 1-Euro smoothing ─────────────────────────────────────
 // boxModel is an anchor group child equivalent: placed at image center with offset.
-// The offset (0, 0.38, -0.05) is in image-local space (1 unit = image width).
+// The offset is in image-local space (1 unit = image width).
 const _offsetVec = new THREE.Vector3();
+const _tmpPos = new THREE.Vector3();
 
 const applyPose = (detail) => {
     if (!boxModel) return;
@@ -539,6 +551,7 @@ const applyPose = (detail) => {
     const sx = fPos.x.filter(position.x, t);
     const sy = fPos.y.filter(position.y, t);
     const sz = fPos.z.filter(position.z, t);
+    const sScale = fScale.filter(scale, t);
 
     // ── 旋转：四元数连续性修正 + 每分量 1-Euro + 归一化 + adaptive slerp ────────
     let rx = rotation.x, ry = rotation.y, rz = rotation.z, rw = rotation.w;
@@ -559,11 +572,17 @@ const applyPose = (detail) => {
     boxModel.quaternion.slerp(_tmpQ, qAlpha);
 
     // ── 偏移（image-local 空间，随旋转转到世界空间）──────────────────────────────
-    // offset = (0, 0.38, -0.05) in image-widths; scale converts to world meters
-    _offsetVec.set(0, 0.38 * scale, -0.05 * scale).applyQuaternion(boxModel.quaternion);
+    _offsetVec.set(0, MODEL_OFFSET_Y * sScale, MODEL_OFFSET_Z * sScale).applyQuaternion(boxModel.quaternion);
+    _tmpPos.set(sx + _offsetVec.x, sy + _offsetVec.y, sz + _offsetVec.z);
 
-    boxModel.position.set(sx + _offsetVec.x, sy + _offsetVec.y, sz + _offsetVec.z);
-    boxModel.scale.setScalar(scale * 0.18);
+    if (boxModel.position.distanceToSquared(_tmpPos) > POSITION_DEADBAND * POSITION_DEADBAND) {
+        boxModel.position.copy(_tmpPos);
+    }
+
+    const targetScale = sScale * MODEL_SCALE_MULTIPLIER;
+    if (Math.abs(boxModel.scale.x - targetScale) > SCALE_DEADBAND) {
+        boxModel.scale.setScalar(targetScale);
+    }
 };
 
 const snapPose = (detail) => {
@@ -571,18 +590,19 @@ const snapPose = (detail) => {
     const { position, rotation, scale } = detail;
     _tmpQ.set(rotation.x, rotation.y, rotation.z, rotation.w);
     boxModel.quaternion.copy(_tmpQ);
-    _offsetVec.set(0, 0.38 * scale, -0.05 * scale).applyQuaternion(_tmpQ);
+    _offsetVec.set(0, MODEL_OFFSET_Y * scale, MODEL_OFFSET_Z * scale).applyQuaternion(_tmpQ);
     boxModel.position.set(
         position.x + _offsetVec.x,
         position.y + _offsetVec.y,
         position.z + _offsetVec.z
     );
-    boxModel.scale.setScalar(scale * 0.18);
+    boxModel.scale.setScalar(scale * MODEL_SCALE_MULTIPLIER);
     _lastQ = { x: rotation.x, y: rotation.y, z: rotation.z, w: rotation.w };
     resetFilters();
     // Seed filters with initial position to avoid pull-to-zero on first frame
     const t = performance.now();
     fPos.x.filter(position.x, t); fPos.y.filter(position.y, t); fPos.z.filter(position.z, t);
+    fScale.filter(scale, t);
     fQ.x.filter(rotation.x, t); fQ.y.filter(rotation.y, t);
     fQ.z.filter(rotation.z, t); fQ.w.filter(rotation.w, t);
 };
@@ -646,8 +666,8 @@ const buildAppModule = () => ({
     onStart: () => {
         const { scene } = XR8.Threejs.xrScene();
 
-        scene.add(new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1.25));
-        const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+        scene.add(new THREE.HemisphereLight(0xffffff, 0xbbbbff, 0.6));
+        const dir = new THREE.DirectionalLight(0xffffff, 0.5);
         dir.position.set(0, 2, 1.5);
         scene.add(dir);
         scene.add(boxModel);
