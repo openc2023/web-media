@@ -219,6 +219,17 @@
 }
 .camera-modal[hidden] { display: none; }
 
+#xr8-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
+    touch-action: none;
+    pointer-events: none;
+    opacity: 0;
+}
+
 .camera-shell {
     position: relative;
     width: min(960px, 100%);
@@ -406,6 +417,15 @@ body.ar-running .camera-modal {
     background: transparent !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+}
+body.ar-running #xr8-canvas {
+    z-index: 30;
+    opacity: 1;
+}
+body.ar-running .site-header,
+body.ar-running main {
+    opacity: 0;
+    pointer-events: none;
 }
 body.ar-running .camera-shell {
     background: transparent !important;

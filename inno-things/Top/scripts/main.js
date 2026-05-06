@@ -1,6 +1,5 @@
-import * as THREE from "three";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { parseGIF, decompressFrames } from "gifuct-js";
+import * as THREE from "../../../neu/voice-three-control/vendor/three/build/three.module.js";
+import { GLTFLoader } from "../../../neu/voice-three-control/vendor/three/examples/jsm/loaders/GLTFLoader.js";
 import { createI18n } from "../../i18n/index.js";
 
 // XR8.Threejs.pipelineModule() needs THREE on window
@@ -28,6 +27,11 @@ let mixer = null;
 let mixerActions = [];
 let gifTextureDisposers = [];
 let gifUpdaters = [];
+let previewStream = null;
+let preferredFacingMode = "environment";
+let currentXrCameraDirection = "BACK";
+let xrRetryDirections = [];
+let xrRetryInFlight = false;
 let lostTimer = null;
 let currentState = "scanning";
 let currentStatusKey = "top.statusIdle";
@@ -133,6 +137,15 @@ const clearDebug = () => {
     debugLog.textContent = "";
 };
 
+const appendDebug = (message) => {
+    const next = String(message ?? "");
+    if (!next) return;
+    debugLog.hidden = false;
+    debugLog.textContent = debugLog.textContent
+        ? `${debugLog.textContent}\n${next}`
+        : next;
+};
+
 const withTimeout = (promise, ms, label) =>
     Promise.race([
         promise,
@@ -140,6 +153,181 @@ const withTimeout = (promise, ms, label) =>
             window.setTimeout(() => reject(new Error(`${label} timeout after ${ms}ms`)), ms);
         }),
     ]);
+
+const isDesktopLikeEnvironment = () => {
+    const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
+    const touchPoints = navigator.maxTouchPoints || 0;
+    const mobileUa = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+    return !mobileUa && !coarsePointer && touchPoints === 0;
+};
+
+const listVideoInputs = async () =>
+    (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind === "videoinput");
+
+const inferFacingModeFromDevices = (devices) => {
+    if (devices.length <= 1) return "user";
+    const labels = devices.map((device) => device.label.toLowerCase());
+    const hasBack = labels.some((label) => /back|rear|environment|world|traseira|trasera|후면/.test(label));
+    const hasFront = labels.some((label) => /front|user|facetime|selfie|前置|전면/.test(label));
+    if (hasBack) return "environment";
+    if (hasFront && !hasBack) return "user";
+    return "user";
+};
+
+const ensurePreviewVideo = () => {
+    let video = document.getElementById("camera-preview");
+    if (video) return video;
+    video = document.createElement("video");
+    video.id = "camera-preview";
+    video.autoplay = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.setAttribute("autoplay", "");
+    video.setAttribute("muted", "");
+    video.setAttribute("playsinline", "");
+    arContainer.appendChild(video);
+    return video;
+};
+
+const stopPreviewStream = () => {
+    if (previewStream) {
+        previewStream.getTracks().forEach((track) => track.stop());
+        previewStream = null;
+    }
+    const video = document.getElementById("camera-preview");
+    if (video) {
+        video.pause?.();
+        video.srcObject = null;
+        video.remove();
+    }
+};
+
+const startPreviewStream = async (facingMode = preferredFacingMode) => {
+    stopPreviewStream();
+    const video = ensurePreviewVideo();
+    previewStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+            facingMode: { ideal: facingMode },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+        },
+    });
+    video.srcObject = previewStream;
+    try { await video.play(); } catch (_) {}
+    appendDebug(`preview: ${facingMode}`);
+    console.log("[top-ar] preview stream ready:", facingMode);
+    return previewStream;
+};
+
+const probeCameraDirection = async () => {
+    const attempts = [
+        { facingMode: "environment" },
+        { facingMode: "user" },
+    ];
+    let lastError = null;
+
+    for (const attempt of attempts) {
+        try {
+            console.log("[top-ar] probe camera:", attempt.facingMode);
+            appendDebug(`probe: ${attempt.facingMode}`);
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: false,
+                video: {
+                    facingMode: { ideal: attempt.facingMode },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                },
+            });
+            const [track] = stream.getVideoTracks();
+            const actualFacingMode = track?.getSettings?.().facingMode;
+            const devices = await listVideoInputs();
+            stream.getTracks().forEach((track) => track.stop());
+            preferredFacingMode = actualFacingMode === "environment"
+                ? "environment"
+                : actualFacingMode === "user"
+                    ? "user"
+                    : inferFacingModeFromDevices(devices);
+            const xrDirection = preferredFacingMode === "environment" ? "BACK" : "FRONT";
+            console.log("[top-ar] probe selected:", {
+                requested: attempt.facingMode,
+                actualFacingMode,
+                videoInputs: devices.map((device) => device.label || "(unlabeled camera)"),
+                preferredFacingMode,
+                xrDirection,
+            });
+            appendDebug(`probe: using ${preferredFacingMode} (${devices.length} cam)`);
+            return xrDirection;
+        } catch (error) {
+            lastError = error;
+            console.warn("[top-ar] probe failed:", attempt.facingMode, error);
+            appendDebug(`probe failed: ${attempt.facingMode} | ${formatError(error)}`);
+            const hardFailNames = new Set(["NotAllowedError", "SecurityError", "NotReadableError", "AbortError"]);
+            if (hardFailNames.has(error?.name)) {
+                throw error;
+            }
+        }
+    }
+
+    throw lastError || new Error("No usable camera found.");
+};
+
+const cleanupXrRuntime = ({ stopPreview = false, resetModel = false } = {}) => {
+    try { XR8.stop(); } catch (_) {}
+    ["gltexturerenderer", "threejsrenderer", "reality", "top-ar-app"].forEach((name) => {
+        try { XR8.removeCameraPipelineModule(name); } catch (_) {}
+    });
+
+    if (stopPreview) stopPreviewStream();
+
+    if (resetModel && mixer) {
+        mixer.stopAllAction();
+        if (boxModel) mixer.uncacheRoot(boxModel);
+        mixer = null;
+    }
+
+    if (resetModel) {
+        mixerActions = [];
+        clock.stop();
+        gifTextureDisposers.forEach((d) => d());
+        gifTextureDisposers = [];
+        gifUpdaters = [];
+        resetFilters();
+        boxModel = null;
+    }
+
+    xrRunning = false;
+};
+
+const runXrSession = (direction) => {
+    currentXrCameraDirection = direction;
+    appendDebug(`xr run: ${direction}`);
+    XR8.addCameraPipelineModules([
+        XR8.GlTextureRenderer.pipelineModule(),
+        XR8.Threejs.pipelineModule(),
+        XR8.XrController.pipelineModule(),
+        buildAppModule(),
+    ]);
+
+    XR8.run({
+        canvas: arCanvas,
+        allowedDevices: XR8.XrConfig?.device?.().ANY,
+        cameraConfig: {
+            direction: direction === "FRONT"
+                ? XR8.XrConfig.camera().FRONT
+                : XR8.XrConfig.camera().BACK,
+        },
+    });
+    xrRunning = true;
+};
+
+const retryXrSession = async (direction) => {
+    appendDebug(`xr retry: ${currentXrCameraDirection} -> ${direction}`);
+    setStatus("top.statusLoadingEngine");
+    cleanupXrRuntime({ stopPreview: false, resetModel: false });
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    runXrSession(direction);
+};
 
 const renderStatus = () => {
     if (cameraStatus) cameraStatus.textContent = t(currentStatusKey, currentStatusVars);
@@ -176,6 +364,15 @@ const restartScanAnimations = () => {
     });
 };
 
+const setArPresentationActive = (active) => {
+    const canvas = document.getElementById("xr8-canvas");
+    if (canvas) {
+        canvas.style.opacity = active ? "1" : "0";
+        canvas.style.zIndex = active ? "30" : "-1";
+    }
+    document.body.classList.toggle("ar-running", active);
+};
+
 // ── Model loading ──────────────────────────────────────────────────────────────
 
 const loadBoxModel = () =>
@@ -193,98 +390,15 @@ const setTextureColorSpace = (texture) => {
 
 // ── GIF flame texture ──────────────────────────────────────────────────────────
 
-const scrubFlameFrameAlpha = (imageData) => {
-    const data = imageData.data;
-    const matteThreshold = 28;
-    for (let i = 0; i < data.length; i += 4) {
-        const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
-        if (a === 0) continue;
-        const maxChannel = Math.max(r, g, b);
-        const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-        if (maxChannel <= matteThreshold || luminance <= matteThreshold) {
-            data[i + 3] = 0;
-            continue;
-        }
-        const normalized = Math.min(1, Math.max(0, (luminance - matteThreshold) / (255 - matteThreshold)));
-        data[i + 3] = Math.min(a, Math.round(normalized * 255));
-    }
-    return imageData;
-};
-
 const createAnimatedGifTexture = async (src, frameOffsetFrames = 0) => {
-    const response = await fetch(src);
-    if (!response.ok) throw new Error(`GIF fetch failed: ${response.status}`);
-
-    const buffer = await response.arrayBuffer();
-    const gif = parseGIF(buffer);
-    const frames = decompressFrames(gif, true);
-    const width = gif.lsd.width;
-    const height = gif.lsd.height;
-
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    canvas.width = width;
-    canvas.height = height;
-
-    const workCanvas = document.createElement("canvas");
-    const workCtx = workCanvas.getContext("2d", { willReadFrequently: true });
-    workCanvas.width = width;
-    workCanvas.height = height;
-
-    const composedFrames = [];
-    let previousFrame = null;
-
-    frames.forEach((frame) => {
-        if (previousFrame?.disposalType === 2) {
-            workCtx.clearRect(previousFrame.dims.left, previousFrame.dims.top, previousFrame.dims.width, previousFrame.dims.height);
-        } else if (previousFrame?.disposalType === 3 && previousFrame._restoreImageData) {
-            workCtx.putImageData(previousFrame._restoreImageData, 0, 0);
-        }
-        if (frame.disposalType === 3) {
-            frame._restoreImageData = workCtx.getImageData(0, 0, width, height);
-        }
-        const imageData = new ImageData(frame.patch, frame.dims.width, frame.dims.height);
-        workCtx.putImageData(imageData, frame.dims.left, frame.dims.top);
-        const composedImageData = workCtx.getImageData(0, 0, width, height);
-        scrubFlameFrameAlpha(composedImageData);
-        composedFrames.push({ delayMs: flameFrameDurationMs, imageData: composedImageData });
-        previousFrame = frame;
-    });
-
-    const totalDurationMs = composedFrames.reduce((s, f) => s + f.delayMs, 0);
-    if (!composedFrames.length || totalDurationMs <= 0) throw new Error("GIF has no playable frames.");
-
-    const texture = new THREE.CanvasTexture(canvas);
+    const texture = await new THREE.TextureLoader().loadAsync(src);
     texture.flipY = false;
     texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
     texture.minFilter = texture.magFilter = THREE.LinearFilter;
     setTextureColorSpace(texture);
-
-    let currentFrameIndex = 0;
-    let elapsedInFrameMs = (frameOffsetFrames * flameFrameDurationMs) % totalDurationMs;
-    while (elapsedInFrameMs >= composedFrames[currentFrameIndex].delayMs) {
-        elapsedInFrameMs -= composedFrames[currentFrameIndex].delayMs;
-        currentFrameIndex = (currentFrameIndex + 1) % composedFrames.length;
-    }
-
-    const drawFrame = (i) => { ctx.putImageData(composedFrames[i].imageData, 0, 0); texture.needsUpdate = true; };
-    drawFrame(currentFrameIndex);
-
-    let lastTick = performance.now();
     return {
         texture,
-        update: () => {
-            const now = performance.now();
-            const deltaMs = now - lastTick;
-            lastTick = now;
-            if (!Number.isFinite(deltaMs) || deltaMs <= 0) return;
-            elapsedInFrameMs += deltaMs;
-            while (elapsedInFrameMs >= composedFrames[currentFrameIndex].delayMs) {
-                elapsedInFrameMs -= composedFrames[currentFrameIndex].delayMs;
-                currentFrameIndex = (currentFrameIndex + 1) % composedFrames.length;
-                drawFrame(currentFrameIndex);
-            }
-        },
+        update: () => {},
         dispose: () => texture.dispose(),
     };
 };
@@ -478,6 +592,57 @@ const snapPose = (detail) => {
 const buildAppModule = () => ({
     name: "top-ar-app",
 
+    onBeforeRun: () => {
+        appendDebug("run: before");
+    },
+
+    onCameraStatusChange: ({ status, video, stream }) => {
+        const extra = [
+            status ? `status=${status}` : null,
+            video ? `video=${video.videoWidth || 0}x${video.videoHeight || 0}` : null,
+            stream ? "stream=ok" : null,
+        ].filter(Boolean).join(" | ");
+        console.log("[top-ar] camera status:", status, { video, stream });
+        appendDebug(`camera: ${extra || "unknown"}`);
+
+        if (status === "requesting") {
+            setStatus("top.statusLoadingEngine");
+            return;
+        }
+        if (status === "hasStream") {
+            appendDebug("camera: stream attached");
+            return;
+        }
+        if (status === "hasVideo") {
+            appendDebug("camera: video ready");
+            stopPreviewStream();
+            return;
+        }
+        if (status === "failed") {
+            if (!xrRetryInFlight && xrRetryDirections.length > 0) {
+                const nextDirection = xrRetryDirections.shift();
+                xrRetryInFlight = true;
+                retryXrSession(nextDirection)
+                    .catch((error) => {
+                        appendDebug(`xr retry failed: ${formatError(error)}`);
+                    })
+                    .finally(() => {
+                        xrRetryInFlight = false;
+                    });
+                return;
+            }
+            setStatus("top.statusStartFailed", { message: "camera status failed" });
+            startPreviewStream(preferredFacingMode).catch((error) => {
+                appendDebug(`preview failed: ${formatError(error)}`);
+            });
+        }
+    },
+
+    onException: (error) => {
+        console.error("[top-ar] XR8 exception:", error);
+        appendDebug(`xr8 exception: ${formatError(error)}`);
+    },
+
     onStart: () => {
         const { scene } = XR8.Threejs.xrScene();
 
@@ -491,7 +656,7 @@ const buildAppModule = () => ({
         const cv = arCanvas;
         const dbg = `onStart OK | buf:${cv?.width}x${cv?.height} css:${cv?.clientWidth}x${cv?.clientHeight} ar:${document.body.classList.contains("ar-running")}`;
         console.log("[top-ar]", dbg);
-        showDebug(dbg);
+        appendDebug(dbg);
 
         setState("scanning");
         setStatus("top.statusCameraReady");
@@ -564,6 +729,22 @@ const startMindAR = async () => {
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
     try {
+        if (isDesktopLikeEnvironment()) {
+            preferredFacingMode = "user";
+            await startPreviewStream(preferredFacingMode);
+            appendDebug("mode: desktop-preview");
+            setArPresentationActive(false);
+            setState("scanning");
+            setStatus("top.statusDesktopPreview");
+            startButton.removeAttribute("aria-busy");
+            return;
+        }
+
+        const xrCameraDirection = await probeCameraDirection();
+        appendDebug(`xr camera: ${xrCameraDirection}`);
+        xrRetryDirections = [xrCameraDirection === "BACK" ? "FRONT" : "BACK"];
+        xrRetryInFlight = false;
+
         // Load model + GIF before XR8 starts
         const gltf = await withTimeout(loadBoxModel(), 25000, "loadBoxModel");
         boxModel = gltf.scene;
@@ -609,8 +790,8 @@ const startMindAR = async () => {
         // Switch from opacity:0 → opacity:1 (never use display:none — that
         // makes iOS Safari create a 0×0 WebGL context → "No valid session manager").
         arCanvas = document.getElementById("xr8-canvas");
-        arCanvas.style.opacity = "1";
-        document.body.classList.add("ar-running");
+        if (!arCanvas) throw new Error("xr8-canvas not found.");
+        setArPresentationActive(true);
 
         // iOS 13+: motion permission must be requested from a user gesture
         if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
@@ -619,7 +800,14 @@ const startMindAR = async () => {
 
         // Wait for XR8 engine binary
         if (!window.XR8) {
-            await new Promise((resolve) => window.addEventListener("xrloaded", resolve, { once: true }));
+            await withTimeout(
+                new Promise((resolve) => window.addEventListener("xrloaded", resolve, { once: true })),
+                12000,
+                "xrloaded"
+            );
+        }
+        if (!window.XR8) {
+            throw new Error("XR8 failed to load.");
         }
 
         // configure() can only be called BEFORE the very first XR8.run() —
@@ -627,7 +815,7 @@ const startMindAR = async () => {
         // exactly once per page load and rely on XR8 remembering the data.
         if (!xr8Configured) {
             XR8.XrController.configure({
-                disableWorldTracking: false,   // keep SLAM — matches marker-only.html reference
+                disableWorldTracking: true,
                 imageTargetData: [imageTargetData],
             });
             xr8Configured = true;
@@ -637,15 +825,7 @@ const startMindAR = async () => {
         // that doesn't exist in our self-hosted build → skip it entirely.
         // Canvas is already fixed 100vw×100vh via inline styles, so XR8
         // can fill it without the module.
-        XR8.addCameraPipelineModules([
-            XR8.GlTextureRenderer.pipelineModule(),
-            XR8.Threejs.pipelineModule(),
-            XR8.XrController.pipelineModule(),
-            buildAppModule(),
-        ]);
-
-        XR8.run({ canvas: arCanvas });
-        xrRunning = true;
+        runXrSession(xrCameraDirection);
 
     } catch (error) {
         console.error("AR start failed:", error);
@@ -654,6 +834,11 @@ const startMindAR = async () => {
             `secureContext: ${String(window.isSecureContext)}`,
             `error: ${formatError(error)}`,
         ].join("\n"));
+        try {
+            await startPreviewStream(preferredFacingMode);
+        } catch (previewError) {
+            appendDebug(`preview failed: ${formatError(previewError)}`);
+        }
 
         const name = error?.name ?? "";
         if (name === "NotAllowedError") setStatus("top.statusPermissionDenied");
@@ -662,10 +847,10 @@ const startMindAR = async () => {
         else if (error?.message?.includes("timeout")) setStatus("top.statusStartTimeout");
         else setStatus("top.statusStartFailed", { message: error?.message ?? "Unknown error" });
 
+        xrRetryDirections = [];
+        xrRetryInFlight = false;
         xrRunning = false;
-        const failCanvas = document.getElementById("xr8-canvas");
-        if (failCanvas) failCanvas.style.opacity = "0";
-        document.body.classList.remove("ar-running");
+        setArPresentationActive(false);
         arCanvas = null;
         boxModel = null;
         startButton.disabled = false;
@@ -675,36 +860,19 @@ const startMindAR = async () => {
 
 const stopMindAR = () => {
     if (lostTimer) { clearTimeout(lostTimer); lostTimer = null; }
-    if (!xrRunning) return;
-
-    try { XR8.stop(); } catch (_) {}
-    // Remove every module we added so re-registration works on next run.
-    // Internal names differ from the class names we use to add them:
-    // GlTextureRenderer → "gltexturerenderer", Threejs → "threejsrenderer", XrController → "reality"
-    ["gltexturerenderer", "threejsrenderer", "reality", "top-ar-app"].forEach((name) => {
-        try { XR8.removeCameraPipelineModule(name); } catch (_) {}
-    });
-
-    if (mixer) {
-        mixer.stopAllAction();
-        if (boxModel) mixer.uncacheRoot(boxModel);
-        mixer = null;
+    if (!xrRunning) {
+        setArPresentationActive(false);
+        arCanvas = null;
+        stopPreviewStream();
+        xrRetryDirections = [];
+        xrRetryInFlight = false;
+        return;
     }
-
-    mixerActions = [];
-    clock.stop();
-    gifTextureDisposers.forEach((d) => d());
-    gifTextureDisposers = [];
-    gifUpdaters = [];
-    resetFilters();
-    // Hide canvas (keep it in DOM for next run) and clear ar-running state
-    const cv = document.getElementById("xr8-canvas");
-    if (cv) cv.style.opacity = "0";
-    document.body.classList.remove("ar-running");
-
-    xrRunning = false;
+    cleanupXrRuntime({ stopPreview: true, resetModel: true });
+    setArPresentationActive(false);
+    xrRetryDirections = [];
+    xrRetryInFlight = false;
     arCanvas = null;
-    boxModel = null;
 };
 
 // ── Modal & locale ─────────────────────────────────────────────────────────────
@@ -714,6 +882,7 @@ const closeCameraModal = () => {
     document.body.classList.remove("camera-open");
     stopMindAR();
     arContainer.innerHTML = "";
+    clearDebug();
     startButton.disabled = false;
     startButton.removeAttribute("aria-busy");
     setState("scanning");

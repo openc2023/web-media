@@ -26,7 +26,7 @@
          context is created at correct size (display:none breaks WebGL on iOS Safari).
          Camera-modal (z-index:40) covers it during loading; body.ar-running makes
          the modal transparent to reveal the camera feed. -->
-    <canvas id="xr8-canvas" style="position:fixed;inset:0;width:100vw;height:100vh;z-index:0;touch-action:none;pointer-events:none;opacity:0;"></canvas>
+    <canvas id="xr8-canvas" aria-hidden="true"></canvas>
 
     <header class="site-header">
         <a class="brand" href="../index.html">Inno Things</a>
@@ -121,29 +121,41 @@
         (function loadXR8() {
             var cdn   = 'https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1/dist/xr.js';
             var local = './assets/xr/xr.js';
-            var s = document.createElement('script');
-            s.src = cdn;
-            s.async = true;
-            s.setAttribute('data-preload-chunks', 'slam');
-            s.onerror = function () {
-                console.warn('[top-ar] CDN xr.js failed, falling back to local');
+            var didFallback = false;
+
+            function appendScript(src) {
+                var script = document.createElement('script');
+                script.src = src;
+                script.async = true;
+                script.setAttribute('data-preload-chunks', 'slam');
+                return script;
+            }
+
+            function loadLocal(reason) {
+                if (didFallback || window.XR8) return;
+                didFallback = true;
+                console.warn('[top-ar] Loading local xr.js (' + reason + ')');
                 var f = document.createElement('script');
                 f.src = local;
                 f.async = true;
                 f.setAttribute('data-preload-chunks', 'slam');
                 document.head.appendChild(f);
+            }
+
+            var s = appendScript(cdn);
+            s.onerror = function () { loadLocal('cdn-error'); };
+            s.onload = function () {
+                window.setTimeout(function () {
+                    if (!window.XR8) loadLocal('cdn-timeout');
+                }, 2500);
             };
+
+            window.setTimeout(function () {
+                if (!window.XR8) loadLocal('boot-timeout');
+            }, 5000);
+
             document.head.appendChild(s);
         })();
-    </script>
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-                "gifuct-js": "https://esm.sh/gifuct-js@2.1.2"
-            }
-        }
     </script>
     <script type="module" src="./scripts/main.js?v=20260506-dbg"></script>
 </body>
