@@ -605,20 +605,10 @@ const startMindAR = async () => {
             imageTargetData.properties = { physicalWidthInMeters: PAINTING_WIDTH_M };
         }
 
-        // XR8 requires a full-viewport canvas on document.body — the same
-        // pattern as the reference project (#cam: position:fixed; inset:0;
-        // 100vw/100vh).  The camera-modal (z-index:40) sits on top with
-        // transparent backgrounds (body.ar-running CSS) so the feed shows
-        // through.  FullWindowCanvas module (if available) lets XR8 manage
-        // the canvas dimensions automatically; otherwise we set them inline.
-        arCanvas = document.createElement("canvas");
-        arCanvas.id = "xr8-canvas";
-        Object.assign(arCanvas.style, {
-            position: "fixed", inset: "0",
-            width: "100vw", height: "100vh",
-            zIndex: "0", display: "block", touchAction: "none",
-        });
-        document.body.appendChild(arCanvas);
+        // Canvas is statically in the HTML (marker-only.html pattern).
+        // Show it now and let XR8 own it for the camera feed.
+        arCanvas = document.getElementById("xr8-canvas");
+        arCanvas.style.display = "block";
         document.body.classList.add("ar-running");
 
         // iOS 13+: motion permission must be requested from a user gesture
@@ -636,7 +626,7 @@ const startMindAR = async () => {
         // exactly once per page load and rely on XR8 remembering the data.
         if (!xr8Configured) {
             XR8.XrController.configure({
-                disableWorldTracking: true,   // image-target only; no SLAM needed
+                disableWorldTracking: false,   // keep SLAM — matches marker-only.html reference
                 imageTargetData: [imageTargetData],
             });
             xr8Configured = true;
@@ -672,9 +662,8 @@ const startMindAR = async () => {
         else setStatus("top.statusStartFailed", { message: error?.message ?? "Unknown error" });
 
         xrRunning = false;
-        // Clean up any partial canvas / state
         const failCanvas = document.getElementById("xr8-canvas");
-        if (failCanvas) failCanvas.remove();
+        if (failCanvas) failCanvas.style.display = "none";
         document.body.classList.remove("ar-running");
         arCanvas = null;
         boxModel = null;
@@ -707,9 +696,9 @@ const stopMindAR = () => {
     gifTextureDisposers = [];
     gifUpdaters = [];
     resetFilters();
-    // Remove canvas and clear ar-running state
-    const oldCanvas = document.getElementById("xr8-canvas");
-    if (oldCanvas) oldCanvas.remove();
+    // Hide canvas (keep it in DOM for next run) and clear ar-running state
+    const cv = document.getElementById("xr8-canvas");
+    if (cv) cv.style.display = "none";
     document.body.classList.remove("ar-running");
 
     xrRunning = false;
