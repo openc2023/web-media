@@ -752,12 +752,32 @@ const beginIntroSequence = () => {
         startedAt: performance.now(),
         fadeInMs: INTRO_FADE_IN_MS,
         fadeOutMs: INTRO_FADE_OUT_MS,
+        boxPlaybackStarted: false,
     };
     restartIntroVideo();
     applyIntroOpacity(0);
     introModel.visible = true;
-    if (boxModel) boxModel.visible = false;
+    if (boxModel) {
+        boxModel.visible = false;
+        setModelOpacity(0);
+    }
+    if (mixer) {
+        mixerActions.forEach((a) => { a.paused = true; });
+        clock.stop();
+    }
     return true;
+};
+
+const ensureBoxPlaybackStarted = () => {
+    if (!introSequence || introSequence.boxPlaybackStarted) return;
+    introSequence.boxPlaybackStarted = true;
+    if (mixer && mixerActions.length > 0) {
+        clock.start();
+        mixerActions.forEach((action) => {
+            if (!action.isRunning()) action.play();
+            action.paused = false;
+        });
+    }
 };
 
 const finishIntroSequence = () => {
@@ -779,13 +799,23 @@ const updateIntroSequence = () => {
 
     const elapsed = performance.now() - introSequence.startedAt;
     if (elapsed <= introSequence.fadeInMs) {
+        if (boxModel) {
+            boxModel.visible = false;
+            setModelOpacity(0);
+        }
         applyIntroOpacity(elapsed / introSequence.fadeInMs);
         return;
     }
 
     const fadeOutElapsed = elapsed - introSequence.fadeInMs;
     if (fadeOutElapsed <= introSequence.fadeOutMs) {
-        applyIntroOpacity(1 - (fadeOutElapsed / introSequence.fadeOutMs));
+        const fadeProgress = fadeOutElapsed / introSequence.fadeOutMs;
+        applyIntroOpacity(1 - fadeProgress);
+        if (boxModel) {
+            boxModel.visible = true;
+            setModelOpacity(fadeProgress);
+        }
+        ensureBoxPlaybackStarted();
         return;
     }
 
