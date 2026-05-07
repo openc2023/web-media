@@ -507,6 +507,22 @@ const setArPresentationActive = (active) => {
     document.body.classList.toggle("ar-running", active);
 };
 
+const syncXrViewport = () => {
+    const xrScene = XR8?.Threejs?.xrScene?.();
+    const renderer = xrScene?.renderer;
+    const canvas = arCanvas || document.getElementById("xr8-canvas");
+    if (!renderer || !canvas) return;
+
+    const sw = window.innerWidth;
+    const sh = window.innerHeight;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    canvas.style.setProperty("width", "100vw", "important");
+    canvas.style.setProperty("height", "100dvh", "important");
+    renderer.setPixelRatio(dpr);
+    renderer.setSize(sw, sh, false);
+};
+
 // ???? Model loading ????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
 const loadBoxModel = () =>
@@ -782,6 +798,8 @@ const buildAppModule = () => ({
     onStart: () => {
         markXrSessionHealthy();
         const { scene } = XR8.Threejs.xrScene();
+
+        syncXrViewport();
 
 
         scene.add(new THREE.HemisphereLight(0xffffff, 0xbbbbff, 0.6));
@@ -1091,6 +1109,7 @@ localeButtons.forEach((button) => {
 cameraModal.addEventListener("click", (e) => { if (e.target === cameraModal) closeCameraModal(); });
 window.addEventListener("keydown", (e) => { if (e.key === "Escape" && !cameraModal.hidden) closeCameraModal(); });
 window.addEventListener("beforeunload", stopMindAR);
+window.addEventListener("resize", () => { if (xrRunning) syncXrViewport(); });
 
 window.addEventListener("unhandledrejection", (event) => {
     console.error("Unhandled rejection:", event.reason);
