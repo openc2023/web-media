@@ -328,7 +328,9 @@ const applyXrVideoFullscreen = (video) => {
     video.style.setProperty("inset",          "0",               "important");
     video.style.setProperty("width",          "100vw",           "important");
     video.style.setProperty("height",         "100vh",           "important");
-    video.style.setProperty("object-fit",     "cover",           "important");
+    video.style.setProperty("object-fit",     "contain",         "important");
+    video.style.setProperty("object-position","center center",   "important");
+    video.style.setProperty("background",     "#000",            "important");
     video.style.setProperty("z-index",        "29",              "important");
     video.style.setProperty("pointer-events", "none",            "important");
     video.style.setProperty("opacity",        "1",               "important");
@@ -471,8 +473,9 @@ const setArPresentationActive = (active) => {
         canvas.style.setProperty("inset",    "0",        "important");
         canvas.style.setProperty("width",    "100vw",    "important");
         canvas.style.setProperty("height",   "100vh",    "important");
-        canvas.style.setProperty("object-fit", "cover",  "important");
+        canvas.style.setProperty("object-fit", "contain",  "important");
         canvas.style.setProperty("object-position", "center center", "important");
+        canvas.style.setProperty("background", "#000", "important");
         canvas.style.setProperty("opacity",  active ? "1" : "0", "important");
         canvas.style.setProperty("z-index",  active ? "30" : "-1", "important");
     }
