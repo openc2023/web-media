@@ -205,8 +205,10 @@ const listVideoInputs = async () =>
 const inferFacingModeFromDevices = (devices) => {
     if (devices.length <= 1) return "user";
     const labels = devices.map((device) => device.label.toLowerCase());
-    const hasBack = labels.some((label) => /back|rear|environment|world|traseira|trasera|?袁ⓦ늺/.test(label));
-    const hasFront = labels.some((label) => /front|user|facetime|selfie|??몄돭|?袁ⓦ늺/.test(label));
+    const backHints = ["back", "rear", "environment", "world", "traseira", "trasera"];
+    const frontHints = ["front", "user", "facetime", "selfie"];
+    const hasBack = labels.some((label) => backHints.some((hint) => label.includes(hint)));
+    const hasFront = labels.some((label) => frontHints.some((hint) => label.includes(hint)));
     if (hasBack) return "environment";
     if (hasFront && !hasBack) return "user";
     return "user";
