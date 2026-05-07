@@ -949,9 +949,7 @@ const startMindAR = async () => {
         // exactly once per page load and rely on XR8 remembering the data.
         if (!xr8Configured) {
             XR8.XrController.configure({
-                // This page is image-target only. World tracking breaks FRONT-camera
-                // runs in XR8 and is unnecessary for anchored image recognition here.
-                disableWorldTracking: true,
+                disableWorldTracking: false,   // SLAM 开启：陀螺仪+环境建图，模型原生稳定
                 imageTargetData: [imageTargetData],
             });
             xr8Configured = true;
