@@ -329,9 +329,7 @@
     inset: 0 !important;
     width: 100% !important;
     height: 100% !important;
-    object-fit: contain !important;
-    object-position: center center !important;
-    background: #000 !important;
+    object-fit: cover !important;
     display: block !important;
     z-index: 0 !important;
 }
