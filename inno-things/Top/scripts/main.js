@@ -57,11 +57,30 @@ const flameFrameOffsetByMesh = new Map([
     ["plane004", 0],
     ["plane005", 12],
 ]);
-const flameMeshNames = new Set(["plane004", "plane005"]);
 const flameMaterialNames = new Set(["聚气", "聚气.001"]);
-const occluderMeshNames = new Set(["box001"]);
-const shellMeshNames = new Set(["box", "box1", "box2"]);
-const interiorMeshNames = new Set(["plane004", "plane005", "top2", "top3", "cube001"]);
+
+// ── 自动识别网格角色 ────────────────────────────────────────────────────────────
+// 优先级：① Blender userData.arRole → ② 名称后缀 → ③ 材质名 → ④ 兜底 shell
+//
+// 新模型只需在 Blender 里给网格名加后缀，换模型无需改代码：
+//   _occ   → 遮挡体（depth-only，不可见但挡住现实世界）
+//   _shell → 外壳（正常渲染）
+//   _int   → 内部内容
+//   _flame → 火焰 / 透明动画面片
+//
+// 当前模型兼容映射（旧名称直接识别，无需重命名）：
+const LEGACY_ROLES = {
+    box001: "occluder",
+    box: "shell", box1: "shell", box2: "shell",
+    plane004: "flame", plane005: "flame",
+    top2: "interior", top3: "interior", cube001: "interior",
+};
+
+// 火焰帧偏移（flame mesh → 起始帧）
+const flameFrameOffsetByMesh = new Map([
+    ["plane004", 0],
+    ["plane005", 12],
+]);
 
 const MODEL_SCALE_MULTIPLIER = 0.18;
 const MODEL_OFFSET_Y = 0.34;
@@ -70,6 +89,30 @@ const POSITION_DEADBAND = 0.0012;
 const SCALE_DEADBAND = 0.0025;
 
 const normalizeMeshName = (name = "") => name.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+const getMeshRole = (obj) => {
+    // ① Blender 自定义属性 arRole（Object Properties → Custom Properties）
+    const ud = obj.userData?.arRole;
+    if (ud) return String(ud);
+
+    const n = normalizeMeshName(obj.name);
+
+    // ② 兼容旧名称
+    if (LEGACY_ROLES[n]) return LEGACY_ROLES[n];
+
+    // ③ 后缀约定
+    if (n.endsWith("occ") || n.includes("occluder")) return "occluder";
+    if (n.endsWith("shell"))                          return "shell";
+    if (n.endsWith("flame") || n.endsWith("fire"))    return "flame";
+    if (n.endsWith("int")   || n.endsWith("interior")) return "interior";
+
+    // ④ 材质名（火焰贴图识别）
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    if (mats.some((m) => m && flameMaterialNames.has(m.name))) return "flame";
+
+    // ⑤ 兜底：当 shell 处理，正常渲染，不报错
+    return "shell";
+};
 
 // ── 1-Euro Filter ──────────────────────────────────────────────────────────────
 // Adaptive low-pass: slow motion → heavy smoothing, fast motion → responsive.
@@ -328,9 +371,7 @@ const applyXrVideoFullscreen = (video) => {
     video.style.setProperty("inset",          "0",               "important");
     video.style.setProperty("width",          "100vw",           "important");
     video.style.setProperty("height",         "100vh",           "important");
-    video.style.setProperty("object-fit",     "contain",         "important");
-    video.style.setProperty("object-position","center center",   "important");
-    video.style.setProperty("background",     "#000",            "important");
+    video.style.setProperty("object-fit",     "cover",           "important");
     video.style.setProperty("z-index",        "29",              "important");
     video.style.setProperty("pointer-events", "none",            "important");
     video.style.setProperty("opacity",        "1",               "important");
@@ -471,11 +512,11 @@ const setArPresentationActive = (active) => {
         // 用 setProperty + "important" 强制全屏，优先级高于任何 inline style
         canvas.style.setProperty("position", "fixed",    "important");
         canvas.style.setProperty("inset",    "0",        "important");
-        canvas.style.setProperty("width",    "100vw",    "important");
-        canvas.style.setProperty("height",   "100vh",    "important");
-        canvas.style.setProperty("object-fit", "contain",  "important");
-        canvas.style.setProperty("object-position", "center center", "important");
-        canvas.style.setProperty("background", "#000", "important");
+        canvas.style.removeProperty("width");
+        canvas.style.removeProperty("height");
+        canvas.style.removeProperty("object-fit");
+        canvas.style.removeProperty("object-position");
+        canvas.style.removeProperty("background");
         canvas.style.setProperty("opacity",  active ? "1" : "0", "important");
         canvas.style.setProperty("z-index",  active ? "30" : "-1", "important");
     }
@@ -521,12 +562,11 @@ const attachExternalFlameGif = async (model) => {
 
     model.traverse((obj) => {
         if (!obj.isMesh || !obj.material) return;
+        if (getMeshRole(obj) !== "flame") return;
         const normalizedName = normalizeMeshName(obj.name);
         const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
         const nextMaterials = materials.map((mat) => {
             if (!mat) return mat;
-            const isFlameMesh = flameMeshNames.has(normalizedName) || flameMaterialNames.has(mat.name);
-            if (!isFlameMesh) return mat;
             const nextMat = new THREE.MeshBasicMaterial({
                 transparent: true, alphaTest: 0.03, depthWrite: false, depthTest: true,
                 side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
@@ -536,7 +576,7 @@ const attachExternalFlameGif = async (model) => {
             return nextMat;
         });
         obj.material = Array.isArray(obj.material) ? nextMaterials : nextMaterials[0];
-        if (flameMeshNames.has(normalizedName)) obj.renderOrder = 10;
+        obj.renderOrder = 10;
     });
 
     for (const target of targets) {
@@ -565,14 +605,17 @@ const attachExternalFlameGif = async (model) => {
 // ── Depth / render order ───────────────────────────────────────────────────────
 
 const configureModelRendering = (model) => {
+    const roleLog = {};
     model.traverse((obj) => {
         if (!obj.isMesh || !obj.material) return;
-        const normalizedName = normalizeMeshName(obj.name);
+        const role = getMeshRole(obj);
+        (roleLog[role] = roleLog[role] || []).push(obj.name);
+
         const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
         const nextMaterials = materials.map((mat) => {
             if (!mat) return mat;
             const nextMat = mat.clone();
-            if (occluderMeshNames.has(normalizedName)) {
+            if (role === "occluder") {
                 obj.userData.isOccluder = true;
                 obj.frustumCulled = false;
                 nextMat.colorWrite = false;
@@ -580,52 +623,45 @@ const configureModelRendering = (model) => {
                 nextMat.depthTest = true;
                 nextMat.transparent = false;
                 nextMat.opacity = 1;
-                nextMat.needsUpdate = true;
-                return nextMat;
-            }
-            if (shellMeshNames.has(normalizedName)) {
+            } else if (role === "shell") {
                 nextMat.depthTest = true;
-                nextMat.needsUpdate = true;
-                return nextMat;
-            }
-            if (interiorMeshNames.has(normalizedName)) {
+            } else if (role === "interior" || role === "flame") {
                 obj.frustumCulled = false;
                 nextMat.depthTest = true;
-                if (flameMeshNames.has(normalizedName)) {
+                if (role === "flame") {
                     nextMat.transparent = true;
                     nextMat.depthWrite = false;
                     nextMat.alphaTest = Math.max(nextMat.alphaTest ?? 0, 0.005);
                     nextMat.side = THREE.DoubleSide;
                 }
-                nextMat.needsUpdate = true;
             }
+            nextMat.needsUpdate = true;
             return nextMat;
         });
         obj.material = Array.isArray(obj.material) ? nextMaterials : nextMaterials[0];
-        if (occluderMeshNames.has(normalizedName)) obj.renderOrder = 1;
-        else if (shellMeshNames.has(normalizedName)) obj.renderOrder = 2;
-        else if (interiorMeshNames.has(normalizedName)) obj.renderOrder = flameMeshNames.has(normalizedName) ? 4 : 3;
+
+        const renderOrders = { occluder: 1, shell: 2, interior: 3, flame: 4 };
+        obj.renderOrder = renderOrders[role] ?? 2;
     });
+    console.log("[top-ar] mesh roles:", roleLog);
 };
 
 const setModelOpacity = (opacity) => {
     if (!boxModel) return;
     boxModel.traverse((object) => {
         if (!object.isMesh || !object.material) return;
-        const normalizedName = normalizeMeshName(object.name);
+        const role = getMeshRole(object);
         const materials = Array.isArray(object.material) ? object.material : [object.material];
         materials.forEach((mat) => {
             if (!mat) return;
-            if (object.userData.isOccluder) {
-                mat.colorWrite = false; mat.depthWrite = true; mat.depthTest = true;
-                mat.transparent = false; mat.opacity = 1;
+            if (role === "occluder") {
+                mat.colorWrite = false; mat.depthWrite = true;
+                mat.depthTest = true; mat.transparent = false; mat.opacity = 1;
             } else {
-                if (interiorMeshNames.has(normalizedName)) {
-                    mat.depthTest = true;
-                    if (flameMeshNames.has(normalizedName)) {
-                        mat.transparent = true; mat.depthWrite = false;
-                        mat.alphaTest = Math.max(mat.alphaTest ?? 0, 0.005);
-                    }
+                if (role === "flame") {
+                    mat.depthTest = true; mat.transparent = true;
+                    mat.depthWrite = false;
+                    mat.alphaTest = Math.max(mat.alphaTest ?? 0, 0.005);
                 }
                 mat.opacity = opacity;
             }
@@ -761,20 +797,12 @@ const buildAppModule = () => ({
 
     onStart: () => {
         markXrSessionHealthy();
-        const { scene, renderer, camera } = XR8.Threejs.xrScene();
+        const { scene } = XR8.Threejs.xrScene();
 
         // XR8 默认把 canvas buffer 设成相机原始分辨率（横向，如 1280×720）。
         // 竖屏手机上会出现黑边/letterbox。
         // 强制 renderer 对齐屏幕，GlTextureRenderer 也会跟着填满。
         const sw = window.innerWidth;
-        const sh = window.innerHeight;
-        const dpr = window.devicePixelRatio || 1;
-        renderer.setPixelRatio(dpr);
-        renderer.setSize(sw, sh, false); // false：只改 buffer，不改 canvas CSS
-        if (camera) {
-            camera.aspect = sw / sh;
-            camera.updateProjectionMatrix();
-        }
 
         scene.add(new THREE.HemisphereLight(0xffffff, 0xbbbbff, 0.6));
         const dir = new THREE.DirectionalLight(0xffffff, 0.5);
