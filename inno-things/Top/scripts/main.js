@@ -256,6 +256,7 @@ const markXrSessionHealthy = () => {
 };
 
 const schedulePreviewFallback = () => {
+    if (!isDesktopLikeEnvironment()) return;
     if (xrSessionHealthy || previewStream || previewFallbackTimer) return;
     appendDebug("preview fallback: waiting");
     previewFallbackTimer = window.setTimeout(() => {
@@ -495,8 +496,8 @@ const setArPresentationActive = (active) => {
         // XR8 辱됱떓逾?inline style 沃ㅻ끆??canvas ?袁?같?롫챿?룡벴?뤿땱?硫⑹몳??살뫊??쏇렫塋?        // ??setProperty + "important" 畑밸럽???⑥퐪塋딅슖???꾨꺼?숈꼩??쨹?≫맟 inline style
         canvas.style.setProperty("position", "fixed",    "important");
         canvas.style.setProperty("inset",    "0",        "important");
-        canvas.style.removeProperty("width");
-        canvas.style.removeProperty("height");
+        canvas.style.setProperty("width",    "100vw",    "important");
+        canvas.style.setProperty("height",   "100dvh",   "important");
         canvas.style.removeProperty("object-fit");
         canvas.style.removeProperty("object-position");
         canvas.style.removeProperty("background");
@@ -994,10 +995,12 @@ const startMindAR = async () => {
             `secureContext: ${String(window.isSecureContext)}`,
             `error: ${formatError(error)}`,
         ].join("\n"));
-        try {
-            await startPreviewStream(preferredFacingMode);
-        } catch (previewError) {
-            appendDebug(`preview failed: ${formatError(previewError)}`);
+        if (isDesktopLikeEnvironment()) {
+            try {
+                await startPreviewStream(preferredFacingMode);
+            } catch (previewError) {
+                appendDebug(`preview failed: ${formatError(previewError)}`);
+            }
         }
 
         const name = error?.name ?? "";
