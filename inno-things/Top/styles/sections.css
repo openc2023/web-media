@@ -224,6 +224,8 @@
     inset: 0 !important;
     width: 100vw !important;
     height: 100vh !important;
+    object-fit: cover !important;
+    object-position: center center !important;
     z-index: -1;
     touch-action: none;
     pointer-events: none;
@@ -337,6 +339,8 @@
     inset: 0 !important;
     width: 100% !important;
     height: 100% !important;
+    object-fit: cover !important;
+    object-position: center center !important;
     z-index: 1 !important;
     background: transparent !important;
 }
