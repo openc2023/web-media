@@ -23,10 +23,15 @@ let xrRunning = false;
 let xr8Configured = false;
 let arCanvas = null;
 let boxModel = null;
+let introModel = null;
 let mixer = null;
 let mixerActions = [];
 let gifTextureDisposers = [];
 let gifUpdaters = [];
+let introTextureDisposers = [];
+let introVideoElements = [];
+let introFadeMaterials = [];
+let introSequence = null;
 let previewStream = null;
 let preferredFacingMode = "environment";
 let currentXrCameraDirection = "BACK";
@@ -46,6 +51,10 @@ const PAINTING_WIDTH_M = 0.20;
 
 const resolvedFlameGifUrl = new URL(
     "../assets/3d/gltf/%E7%81%AB%E7%84%B0%E6%97%8B%E8%BD%AC.gif",
+    import.meta.url
+).href;
+const resolvedIntroVideoUrl = new URL(
+    "../assets/3d/gltf/shipin.mp4",
     import.meta.url
 ).href;
 const flamePlaybackFps = 24;
@@ -74,6 +83,8 @@ const MODEL_OFFSET_Y = 0.34;
 const MODEL_OFFSET_Z = -0.04;
 const POSITION_DEADBAND = 0.0012;
 const SCALE_DEADBAND = 0.0025;
+const INTRO_FADE_IN_MS = 1200;
+const INTRO_FADE_OUT_MS = 8000;
 
 const normalizeMeshName = (name = "") => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -384,6 +395,14 @@ const watchXrVideo = () => {
     xrVideoObserver.observe(document.body, { childList: true, subtree: true });
 };
 
+const hideXrBodyVideos = () => {
+    document.querySelectorAll("body > video").forEach((video) => {
+        if (video.id === "camera-preview") return;
+        video.style.setProperty("opacity", "0", "important");
+        video.style.setProperty("visibility", "hidden", "important");
+    });
+};
+
 const unwatchXrVideo = () => {
     xrVideoObserver?.disconnect();
     xrVideoObserver = null;
@@ -412,10 +431,16 @@ const cleanupXrRuntime = ({ stopPreview = false, resetModel = false } = {}) => {
         mixerActions = [];
         clock.stop();
         gifTextureDisposers.forEach((d) => d());
+        introTextureDisposers.forEach((d) => d());
         gifTextureDisposers = [];
         gifUpdaters = [];
+        introTextureDisposers = [];
+        introVideoElements = [];
+        introFadeMaterials = [];
+        introSequence = null;
         resetFilters();
         boxModel = null;
+        introModel = null;
     }
 
     xrRunning = false;
@@ -530,6 +555,11 @@ const loadBoxModel = () =>
         new GLTFLoader().load("./assets/3d/gltf/box.glb", resolve, undefined, reject);
     });
 
+const loadIntroModel = () =>
+    new Promise((resolve, reject) => {
+        new GLTFLoader().load("./assets/3d/gltf/shipin.glb", resolve, undefined, reject);
+    });
+
 const setTextureColorSpace = (texture) => {
     if ("colorSpace" in texture) {
         texture.colorSpace = THREE.SRGBColorSpace;
@@ -550,6 +580,54 @@ const createAnimatedGifTexture = async (src, frameOffsetFrames = 0) => {
         texture,
         update: () => {},
         dispose: () => texture.dispose(),
+    };
+};
+
+const createLoopingVideoTexture = async (src) => {
+    const video = document.createElement("video");
+    video.src = src;
+    video.crossOrigin = "anonymous";
+    video.loop = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    video.setAttribute("muted", "");
+    video.setAttribute("playsinline", "");
+
+    await new Promise((resolve, reject) => {
+        const onLoaded = () => {
+            video.removeEventListener("loadeddata", onLoaded);
+            video.removeEventListener("error", onError);
+            resolve();
+        };
+        const onError = () => {
+            video.removeEventListener("loadeddata", onLoaded);
+            video.removeEventListener("error", onError);
+            reject(new Error(`Failed to load intro video: ${src}`));
+        };
+        video.addEventListener("loadeddata", onLoaded, { once: true });
+        video.addEventListener("error", onError, { once: true });
+        video.load();
+    });
+
+    try { await video.play(); } catch (_) {}
+
+    const texture = new THREE.VideoTexture(video);
+    texture.flipY = false;
+    texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.minFilter = texture.magFilter = THREE.LinearFilter;
+    setTextureColorSpace(texture);
+
+    return {
+        video,
+        texture,
+        update: () => {},
+        dispose: () => {
+            video.pause();
+            video.removeAttribute("src");
+            video.load();
+            texture.dispose();
+        },
     };
 };
 
@@ -600,6 +678,118 @@ const attachExternalFlameGif = async (model) => {
     }
     console.info("Flame GIF attached to:", matchedMeshes);
     return { updaters, disposers };
+};
+
+const attachIntroVideo = async (model) => {
+    const introAnim = await createLoopingVideoTexture(resolvedIntroVideoUrl);
+    const fadeMaterials = [];
+
+    model.traverse((obj) => {
+        if (!obj.isMesh || !obj.material) return;
+        const normalizedName = normalizeMeshName(obj.name);
+        const shouldUseIntroVideo = normalizedName.includes("shipinglb")
+            || normalizedName.includes("shipin")
+            || normalizedName.includes("video");
+        if (!shouldUseIntroVideo) return;
+
+        const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+        const nextMaterials = materials.map(() => {
+            const mat = new THREE.MeshBasicMaterial({
+                map: introAnim.texture,
+                transparent: true,
+                opacity: 0,
+                side: THREE.DoubleSide,
+                depthWrite: false,
+                depthTest: true,
+                toneMapped: false,
+                color: 0xffffff,
+            });
+            fadeMaterials.push(mat);
+            return mat;
+        });
+
+        obj.material = Array.isArray(obj.material) ? nextMaterials : nextMaterials[0];
+        obj.renderOrder = 8;
+        obj.frustumCulled = false;
+    });
+
+    return {
+        materials: fadeMaterials,
+        video: introAnim.video,
+        updater: introAnim.update,
+        disposer: introAnim.dispose,
+    };
+};
+
+const applyIntroOpacity = (opacity) => {
+    const nextOpacity = Math.max(0, Math.min(1, opacity));
+    introFadeMaterials.forEach((mat) => {
+        mat.opacity = nextOpacity;
+        mat.needsUpdate = true;
+    });
+    if (introModel) introModel.visible = nextOpacity > 0.001;
+};
+
+const syncIntroPoseFromBox = () => {
+    if (!introModel || !boxModel) return;
+    introModel.position.copy(boxModel.position);
+    introModel.quaternion.copy(boxModel.quaternion);
+    introModel.scale.copy(boxModel.scale);
+};
+
+const restartIntroVideo = () => {
+    introVideoElements.forEach((video) => {
+        try {
+            video.currentTime = 0;
+            video.play();
+        } catch (_) {}
+    });
+};
+
+const beginIntroSequence = () => {
+    if (!introModel) return false;
+    introSequence = {
+        startedAt: performance.now(),
+        fadeInMs: INTRO_FADE_IN_MS,
+        fadeOutMs: INTRO_FADE_OUT_MS,
+    };
+    restartIntroVideo();
+    applyIntroOpacity(0);
+    introModel.visible = true;
+    if (boxModel) boxModel.visible = false;
+    return true;
+};
+
+const finishIntroSequence = () => {
+    introSequence = null;
+    applyIntroOpacity(0);
+    if (introModel) introModel.visible = false;
+    if (boxModel) {
+        boxModel.visible = true;
+        setModelOpacity(1);
+    }
+    if (mixer && mixerActions.length > 0) {
+        clock.start();
+        mixerActions.forEach((a) => { if (!a.isRunning()) a.play(); else a.paused = false; });
+    }
+};
+
+const updateIntroSequence = () => {
+    if (!introSequence || !introModel) return;
+
+    const elapsed = performance.now() - introSequence.startedAt;
+    if (elapsed <= introSequence.fadeInMs) {
+        applyIntroOpacity(elapsed / introSequence.fadeInMs);
+        return;
+    }
+
+    const fadeOutElapsed = elapsed - introSequence.fadeInMs;
+    if (fadeOutElapsed <= introSequence.fadeOutMs) {
+        applyIntroOpacity(1 - (fadeOutElapsed / introSequence.fadeOutMs));
+        return;
+    }
+
+    finishIntroSequence();
 };
 
 // ???? Depth / render order ??????????????????????????????????????????????????????????????????????????????????????????????????????????????
@@ -717,6 +907,7 @@ const applyPose = (detail) => {
     if (Math.abs(boxModel.scale.x - targetScale) > SCALE_DEADBAND) {
         boxModel.scale.setScalar(targetScale);
     }
+    syncIntroPoseFromBox();
 };
 
 const snapPose = (detail) => {
@@ -731,6 +922,7 @@ const snapPose = (detail) => {
         position.z + _offsetVec.z
     );
     boxModel.scale.setScalar(scale * MODEL_SCALE_MULTIPLIER);
+    syncIntroPoseFromBox();
     _lastQ = { x: rotation.x, y: rotation.y, z: rotation.z, w: rotation.w };
     resetFilters();
     // Seed filters with initial position to avoid pull-to-zero on first frame
@@ -800,12 +992,14 @@ const buildAppModule = () => ({
         const { scene } = XR8.Threejs.xrScene();
 
         syncXrViewport();
+        hideXrBodyVideos();
 
 
         scene.add(new THREE.HemisphereLight(0xffffff, 0xbbbbff, 0.6));
         const dir = new THREE.DirectionalLight(0xffffff, 0.5);
         dir.position.set(0, 2, 1.5);
         scene.add(dir);
+        if (introModel) scene.add(introModel);
         scene.add(boxModel);
 
         // Debug
@@ -828,11 +1022,14 @@ const buildAppModule = () => ({
 
                 markXrSessionHealthy();
                 snapPose(detail);
-                boxModel.visible = true;
-                setModelOpacity(1);
-                if (mixer && mixerActions.length > 0) {
-                    clock.start();
-                    mixerActions.forEach((a) => { if (!a.isRunning()) a.play(); else a.paused = false; });
+                const startedIntro = beginIntroSequence();
+                if (!startedIntro) {
+                    boxModel.visible = true;
+                    setModelOpacity(1);
+                    if (mixer && mixerActions.length > 0) {
+                        clock.start();
+                        mixerActions.forEach((a) => { if (!a.isRunning()) a.play(); else a.paused = false; });
+                    }
                 }
                 setState("found");
                 setStatus("top.statusFound");
@@ -858,6 +1055,9 @@ const buildAppModule = () => ({
             process: () => {
                 setState("lost");
                 setStatus("top.statusLost");
+                introSequence = null;
+                applyIntroOpacity(0);
+                if (introModel) introModel.visible = false;
                 if (mixer) { mixerActions.forEach((a) => { a.paused = true; }); clock.stop(); }
                 resetFilters();
 
@@ -875,6 +1075,9 @@ const buildAppModule = () => ({
     ],
 
     onUpdate: () => {
+        syncXrViewport();
+        hideXrBodyVideos();
+        updateIntroSequence();
         gifUpdaters.forEach((fn) => fn());
         if (mixer && clock.running) mixer.update(clock.getDelta());
     },
@@ -924,13 +1127,22 @@ const startMindAR = async () => {
         stopPreviewStream();
 
         // Load model + GIF before XR8 starts
-        const gltf = await withTimeout(loadBoxModel(), 25000, "loadBoxModel");
+        const [gltf, introGltf] = await Promise.all([
+            withTimeout(loadBoxModel(), 25000, "loadBoxModel"),
+            withTimeout(loadIntroModel(), 25000, "loadIntroModel"),
+        ]);
         boxModel = gltf.scene;
         boxModel.visible = false;
+        introModel = introGltf.scene;
+        introModel.visible = false;
 
         const { updaters, disposers } = await attachExternalFlameGif(boxModel);
         gifUpdaters = updaters;
         gifTextureDisposers = disposers;
+        const introVideo = await attachIntroVideo(introModel);
+        introFadeMaterials = introVideo.materials;
+        introVideoElements = [introVideo.video];
+        introTextureDisposers = [introVideo.disposer];
         configureModelRendering(boxModel);
 
         if (gltf.animations?.length > 0) {
