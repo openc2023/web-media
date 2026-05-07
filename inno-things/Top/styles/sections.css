@@ -222,15 +222,13 @@
 #xr8-canvas {
     position: fixed !important;
     inset: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    object-fit: contain !important;
-    object-position: center center !important;
-    background: #000 !important;
+    /* width/height 由 Three.js renderer.setSize() 控制 buffer，
+       CSS 不设死尺寸，让 position:fixed + inset:0 自然拉伸填满视口 */
     z-index: -1;
     touch-action: none;
     pointer-events: none;
     opacity: 0;
+    /* object-fit / background 对 canvas 无效，去掉防止误解 */
 }
 
 .camera-shell {

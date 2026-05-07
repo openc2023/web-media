@@ -761,7 +761,20 @@ const buildAppModule = () => ({
 
     onStart: () => {
         markXrSessionHealthy();
-        const { scene } = XR8.Threejs.xrScene();
+        const { scene, renderer, camera } = XR8.Threejs.xrScene();
+
+        // XR8 默认把 canvas buffer 设成相机原始分辨率（横向，如 1280×720）。
+        // 竖屏手机上会出现黑边/letterbox。
+        // 强制 renderer 对齐屏幕，GlTextureRenderer 也会跟着填满。
+        const sw = window.innerWidth;
+        const sh = window.innerHeight;
+        const dpr = window.devicePixelRatio || 1;
+        renderer.setPixelRatio(dpr);
+        renderer.setSize(sw, sh, false); // false：只改 buffer，不改 canvas CSS
+        if (camera) {
+            camera.aspect = sw / sh;
+            camera.updateProjectionMatrix();
+        }
 
         scene.add(new THREE.HemisphereLight(0xffffff, 0xbbbbff, 0.6));
         const dir = new THREE.DirectionalLight(0xffffff, 0.5);
@@ -769,9 +782,9 @@ const buildAppModule = () => ({
         scene.add(dir);
         scene.add(boxModel);
 
-        // Debug: confirm pipeline started and canvas state
+        // Debug
         const cv = arCanvas;
-        const dbg = `onStart OK | buf:${cv?.width}x${cv?.height} css:${cv?.clientWidth}x${cv?.clientHeight} ar:${document.body.classList.contains("ar-running")}`;
+        const dbg = `onStart | buf:${cv?.width}x${cv?.height} screen:${sw}x${sh}@${dpr}x`;
         console.log("[top-ar]", dbg);
         appendDebug(dbg);
 
