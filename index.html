@@ -1,47 +1,1420 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>田汉 / 티안한 / TIAN HAN</title>
-    <meta name="description" content="TIAN HAN — Animation research, media art, cross-cultural practice.">
-    <link rel="icon" type="image/svg+xml" href="home/assets/logos/favicon.svg">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="landing/styles.css">
+    <title>田漢 · RPG RESUME</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Serif+SC:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* ══════════════════════════════════════════
+           PIXEL RPG — COLOR PALETTE
+        ══════════════════════════════════════════ */
+        :root {
+            --bg:        #0a0a18;
+            --surface:   #14142a;
+            --panel:     #1a1a32;
+            --border:    #c8a832;
+            --border2:   #4a7abf;
+            --text:      #dcdcc8;
+            --text-dim:  #7888a8;
+            --text-faint:#2a2a4a;
+            --hp:        #48d870;
+            --hp-dark:   #0a2a14;
+            --mp:        #4898e8;
+            --mp-dark:   #0a1828;
+            --seal:      #e84848;
+            --gold:      #c8a832;
+            --gold-glow: rgba(200,168,50,0.35);
+            --green-glow:rgba(72,216,112,0.25);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Noto Serif SC', serif;
+            overflow-x: hidden;
+            cursor: none;
+        }
+
+        /* ── CRT Scanlines ── */
+        body::after {
+            content: '';
+            position: fixed; inset: 0;
+            z-index: 9000;
+            pointer-events: none;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 3px,
+                rgba(0,0,0,0.18) 3px,
+                rgba(0,0,0,0.18) 4px
+            );
+        }
+
+        /* ── CRT Vignette ── */
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            z-index: 8999;
+            pointer-events: none;
+            background: radial-gradient(ellipse at 50% 50%,
+                transparent 55%,
+                rgba(0,0,0,0.65) 100%
+            );
+        }
+
+        /* ══════════════════════════════════════════
+           INTRO SCREEN
+        ══════════════════════════════════════════ */
+        #introScreen {
+            position: fixed; inset: 0;
+            z-index: 8000;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+        }
+
+        #introStars {
+            position: absolute; inset: 0;
+            width: 100%; height: 100%;
+        }
+
+        .intro-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            text-align: center;
+            padding: 24px;
+        }
+
+        .intro-eyebrow {
+            font-family: 'Press Start 2P', monospace;
+            font-size: clamp(7px, 1.5vw, 10px);
+            color: var(--text-dim);
+            letter-spacing: 0.3em;
+        }
+
+        .intro-title {
+            font-family: 'Press Start 2P', monospace;
+            font-size: clamp(26px, 5.5vw, 52px);
+            color: var(--gold);
+            text-shadow:
+                0 0 12px var(--gold-glow),
+                0 0 40px var(--gold-glow),
+                0 0 80px rgba(200,168,50,0.15);
+            letter-spacing: 0.08em;
+            line-height: 1.6;
+        }
+
+        .intro-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 280px;
+        }
+
+        .intro-divider::before,
+        .intro-divider::after {
+            content: '';
+            flex: 1;
+            height: 2px;
+            background: var(--gold);
+            opacity: 0.4;
+        }
+
+        .intro-divider span {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 8px;
+            color: var(--gold);
+            opacity: 0.7;
+        }
+
+        .intro-sub {
+            font-family: 'Press Start 2P', monospace;
+            font-size: clamp(7px, 1.5vw, 9px);
+            color: var(--text-dim);
+            line-height: 2.2;
+            letter-spacing: 0.05em;
+        }
+
+        .intro-version {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 7px;
+            color: var(--text-faint);
+            margin-top: 4px;
+        }
+
+        .press-start {
+            font-family: 'Press Start 2P', monospace;
+            font-size: clamp(9px, 2vw, 12px);
+            color: var(--text);
+            margin-top: 24px;
+            animation: cursorBlink 1s step-end infinite;
+            padding: 12px 20px;
+            border: 2px solid var(--text-dim);
+        }
+
+        @keyframes cursorBlink {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0; }
+        }
+
+        .intro-fade-out {
+            animation: fadeOut 0.7s ease-out forwards;
+        }
+
+        @keyframes fadeOut {
+            to { opacity: 0; pointer-events: none; }
+        }
+
+        /* ══════════════════════════════════════════
+           BACKGROUND + CURSOR
+        ══════════════════════════════════════════ */
+        #bgCanvas {
+            position: fixed; inset: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        #cursor {
+            position: fixed;
+            width: 10px; height: 10px;
+            background: var(--gold);
+            border-radius: 0;
+            pointer-events: none;
+            z-index: 7500;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 6px var(--gold-glow);
+            image-rendering: pixelated;
+        }
+
+        #cursor::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 100%;
+            transform: translateY(-50%);
+            width: 4px; height: 2px;
+            background: var(--gold);
+            opacity: 0.6;
+        }
+
+        /* ══════════════════════════════════════════
+           SCREEN FLASH
+        ══════════════════════════════════════════ */
+        #screenFlash {
+            position: fixed; inset: 0;
+            z-index: 7000;
+            pointer-events: none;
+            background: rgba(200,168,50,0.12);
+            opacity: 0;
+        }
+
+        .do-flash { animation: flashAnim 0.25s ease-out forwards; }
+
+        @keyframes flashAnim {
+            0%   { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        /* ══════════════════════════════════════════
+           GAME FRAME
+        ══════════════════════════════════════════ */
+        .game-frame {
+            position: relative;
+            z-index: 10;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 32px 28px 56px;
+            min-height: 100vh;
+        }
+
+        /* ══════════════════════════════════════════
+           HUD BAR
+        ══════════════════════════════════════════ */
+        .hud {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--surface);
+            color: var(--text);
+            padding: 12px 18px;
+            margin-bottom: 28px;
+            border: 2px solid var(--border);
+            box-shadow:
+                0 0 0 1px #000,
+                5px 5px 0 rgba(200,168,50,0.5),
+                inset 0 1px 0 rgba(255,255,255,0.04);
+            font-family: 'Press Start 2P', monospace;
+            font-size: 9px;
+        }
+
+        .hud-left { display: flex; align-items: center; gap: 18px; }
+
+        .hud-title {
+            color: var(--gold);
+            font-size: 9px;
+            text-shadow: 0 0 10px var(--gold-glow);
+        }
+
+        .hud-badge {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 7px;
+            background: var(--seal);
+            color: #fff;
+            padding: 3px 8px;
+            animation: badgePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes badgePulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.6; }
+        }
+
+        .hud-right { display: flex; align-items: center; gap: 22px; }
+
+        .stat-block { display: flex; flex-direction: column; gap: 5px; }
+
+        .stat-label {
+            color: var(--text-dim);
+            font-size: 7px;
+            letter-spacing: 0.08em;
+        }
+
+        .lv-num {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 13px;
+            color: var(--gold);
+            text-shadow: 0 0 8px var(--gold-glow);
+        }
+
+        /* Segmented bars */
+        .seg-bar { display: flex; gap: 2px; }
+
+        .seg {
+            width: 8px; height: 10px;
+            border: 1px solid rgba(0,0,0,0.6);
+            image-rendering: pixelated;
+        }
+
+        .seg.hp-on  { background: var(--hp);   box-shadow: 0 0 4px var(--green-glow); }
+        .seg.hp-off { background: var(--hp-dark); }
+        .seg.mp-on  { background: var(--mp);   box-shadow: 0 0 4px rgba(72,152,232,0.3); }
+        .seg.mp-off { background: var(--mp-dark); }
+
+        /* ══════════════════════════════════════════
+           RPG BOX MIXIN (shared panel style)
+        ══════════════════════════════════════════ */
+        .rpg-box {
+            background: var(--surface);
+            border: 2px solid var(--border);
+            box-shadow:
+                0 0 0 1px #000,
+                5px 5px 0 rgba(200,168,50,0.4),
+                inset 0 1px 0 rgba(255,255,255,0.03);
+            position: relative;
+        }
+
+        /* Corner ornaments */
+        .rpg-box .c-tl,
+        .rpg-box .c-tr,
+        .rpg-box .c-bl,
+        .rpg-box .c-br {
+            position: absolute;
+            font-size: 9px;
+            color: var(--gold);
+            font-family: 'Press Start 2P', monospace;
+            line-height: 1;
+        }
+
+        .rpg-box .c-tl { top: 5px;  left: 7px;  }
+        .rpg-box .c-tr { top: 5px;  right: 7px; }
+        .rpg-box .c-bl { bottom: 5px; left: 7px; }
+        .rpg-box .c-br { bottom: 5px; right: 7px; }
+
+        /* ══════════════════════════════════════════
+           CHAR CARD
+        ══════════════════════════════════════════ */
+        .char-card {
+            display: flex;
+            gap: 24px;
+            padding: 28px 24px;
+            margin-bottom: 28px;
+        }
+
+        .pixel-avatar {
+            flex-shrink: 0;
+            width: 104px; height: 104px;
+            background: var(--bg);
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 0 12px var(--gold-glow), inset 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        .pixel-avatar canvas { image-rendering: pixelated; }
+
+        /* floor glow under avatar */
+        .pixel-avatar::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 20px;
+            background: linear-gradient(transparent, rgba(72,216,112,0.15));
+        }
+
+        .char-info { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+
+        .char-name-zh {
+            font-size: clamp(32px, 5vw, 52px);
+            font-weight: 900;
+            letter-spacing: 0.06em;
+            line-height: 1;
+            color: var(--gold);
+            text-shadow:
+                0 0 12px var(--gold-glow),
+                0 0 30px rgba(200,168,50,0.2);
+        }
+
+        .char-name-en {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 8px;
+            color: var(--mp);
+            letter-spacing: 0.06em;
+        }
+
+        .char-class {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        .char-desc {
+            font-size: 13px;
+            line-height: 1.9;
+            color: var(--text-dim);
+            margin-top: 6px;
+            border-top: 1px solid var(--text-faint);
+            padding-top: 12px;
+        }
+
+        /* ══════════════════════════════════════════
+           SECTION HEADER
+        ══════════════════════════════════════════ */
+        .section-header {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 9px;
+            color: #000;
+            background: var(--gold);
+            padding: 8px 14px;
+            display: inline-block;
+            margin-bottom: 16px;
+            box-shadow:
+                4px 4px 0 rgba(200,168,50,0.5),
+                0 0 14px var(--gold-glow);
+        }
+
+        /* ══════════════════════════════════════════
+           QUEST LIST
+        ══════════════════════════════════════════ */
+        .quest-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 28px;
+        }
+
+        .quest-item {
+            background: var(--surface);
+            border: 2px solid var(--text-faint);
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.6);
+            overflow: hidden;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .quest-item:hover {
+            border-color: rgba(200,168,50,0.4);
+        }
+
+        .quest-item.open {
+            border-color: var(--border);
+            box-shadow: 4px 4px 0 rgba(200,168,50,0.35);
+        }
+
+        .quest-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            cursor: none;
+            user-select: none;
+            transition: background 0.1s;
+        }
+
+        .quest-header:hover { background: rgba(200,168,50,0.04); }
+        .quest-header:active { background: rgba(200,168,50,0.08); }
+
+        .quest-status {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 7px;
+            padding: 4px 8px;
+            flex-shrink: 0;
+        }
+
+        .quest-status.active {
+            background: var(--hp);
+            color: #000;
+            box-shadow: 0 0 6px var(--green-glow);
+        }
+
+        .quest-status.done {
+            background: var(--text-faint);
+            color: var(--text-dim);
+        }
+
+        .quest-title {
+            font-size: 14px;
+            font-weight: 700;
+            flex: 1;
+            color: var(--text);
+        }
+
+        .quest-arrow {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 9px;
+            color: var(--gold);
+            transition: transform 0.2s;
+        }
+
+        .quest-item.open .quest-arrow { transform: rotate(90deg); }
+
+        .quest-body {
+            display: none;
+            padding: 16px 16px 20px;
+            border-top: 1px solid var(--text-faint);
+            font-size: 14px;
+            line-height: 1.9;
+            color: var(--text);
+        }
+
+        .quest-item.open .quest-body { display: block; }
+
+        .quest-body p { margin-bottom: 10px; }
+        .quest-body p:last-child { margin-bottom: 0; }
+        .quest-body strong { color: var(--gold); font-weight: 700; }
+        .quest-body em { color: var(--text-dim); }
+
+        /* typewriter paragraph */
+        .tw-para {
+            opacity: 0;
+            transform: translateY(4px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .tw-para.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .quest-link {
+            display: inline-block;
+            color: var(--mp);
+            text-decoration: none;
+            border-bottom: 1px solid rgba(72,152,232,0.4);
+            font-size: 13px;
+        }
+
+        .quest-link:hover {
+            background: var(--mp);
+            color: #000;
+            border-bottom-color: transparent;
+        }
+
+        .skills-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .skill-tag {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 7px;
+            padding: 5px 10px;
+            background: var(--bg);
+            color: var(--hp);
+            border: 1px solid var(--hp);
+            box-shadow: 2px 2px 0 rgba(72,216,112,0.25);
+        }
+
+        /* ══════════════════════════════════════════
+           STATS ROW
+        ══════════════════════════════════════════ */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 28px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            padding: 14px 10px;
+            text-align: center;
+            border: 2px solid var(--text-faint);
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+            transition: border-color 0.2s, box-shadow 0.2s, transform 0.1s;
+            cursor: none;
+        }
+
+        .stat-card:hover {
+            border-color: var(--border);
+            box-shadow: 4px 4px 0 var(--gold-glow);
+            transform: translate(-1px, -1px);
+        }
+
+        .stat-card:active { transform: translate(2px, 2px); box-shadow: none; }
+
+        .stat-card .s-label {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 7px;
+            color: var(--text-dim);
+            margin-bottom: 10px;
+            display: block;
+            letter-spacing: 0.06em;
+        }
+
+        .stat-card .s-value {
+            font-size: 30px;
+            font-weight: 900;
+            color: var(--gold);
+            text-shadow: 0 0 14px var(--gold-glow);
+            display: block;
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+
+        .stat-card .s-unit {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 7px;
+            color: var(--mp);
+        }
+
+        /* ══════════════════════════════════════════
+           ACTION BAR
+        ══════════════════════════════════════════ */
+        .action-bar {
+            display: flex;
+            border: 2px solid var(--border);
+            box-shadow: 0 0 0 1px #000, 5px 5px 0 rgba(200,168,50,0.4);
+            margin-bottom: 28px;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 14px 8px;
+            background: var(--surface);
+            border: none;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 7px;
+            color: var(--text);
+            cursor: none;
+            text-align: center;
+            text-decoration: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 7px;
+            transition: background 0.08s, color 0.08s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .action-btn:not(:last-child) { border-right: 1px solid var(--text-faint); }
+
+        .action-btn:hover {
+            background: var(--gold);
+            color: #000;
+        }
+
+        .action-btn:active { transform: translate(3px, 3px); }
+
+        .action-btn .btn-icon { font-size: 20px; line-height: 1; }
+        .action-btn .btn-label { font-size: 6px; letter-spacing: 0.06em; }
+
+        /* ══════════════════════════════════════════
+           QUOTE
+        ══════════════════════════════════════════ */
+        .game-quote {
+            text-align: center;
+            padding: 28px 24px;
+            margin-bottom: 24px;
+            background: var(--surface);
+            border: 1px solid var(--text-faint);
+            position: relative;
+        }
+
+        .game-quote::before {
+            content: '◆ ◆ ◆';
+            position: absolute;
+            top: -9px; left: 50%;
+            transform: translateX(-50%);
+            background: var(--surface);
+            padding: 0 14px;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 7px;
+            color: var(--gold);
+        }
+
+        .game-quote .gq-text {
+            font-size: 15px;
+            font-style: italic;
+            color: var(--text);
+            line-height: 1.9;
+        }
+
+        .game-quote .gq-src {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 8px;
+            color: var(--gold);
+            margin-top: 12px;
+            display: block;
+        }
+
+        /* ══════════════════════════════════════════
+           CONTROLS HINT
+        ══════════════════════════════════════════ */
+        .controls-hint {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .key-hint {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .key {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 8px;
+            padding: 5px 10px;
+            background: var(--panel);
+            color: var(--gold);
+            border: 1px solid var(--border);
+            box-shadow: 2px 2px 0 var(--gold-glow);
+        }
+
+        /* ══════════════════════════════════════════
+           FOOTER
+        ══════════════════════════════════════════ */
+        .game-footer {
+            text-align: center;
+            padding: 20px;
+            border-top: 1px dashed var(--text-faint);
+        }
+
+        .game-footer p {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 7px;
+            color: var(--text-dim);
+            line-height: 2.6;
+        }
+
+        /* ══════════════════════════════════════════
+           MOBILE
+        ══════════════════════════════════════════ */
+        @media (max-width: 600px) {
+            .game-frame { padding: 20px 14px 48px; }
+            .hud { flex-direction: column; gap: 10px; align-items: flex-start; }
+            .hud-right { width: 100%; justify-content: space-between; }
+            .char-card { flex-direction: column; align-items: center; text-align: center; }
+            .pixel-avatar { width: 88px; height: 88px; }
+            .stats-row { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+            .stat-card { padding: 10px 6px; }
+            .stat-card .s-value { font-size: 22px; }
+            .quest-title { font-size: 12px; }
+            .controls-hint { gap: 10px; flex-wrap: wrap; justify-content: center; }
+            .key-hint { font-size: 10px; }
+            .intro-title { font-size: 22px; }
+        }
+    </style>
 </head>
 <body>
-    <canvas id="bg-canvas" aria-hidden="true"></canvas>
-    <div class="cursor-glow" aria-hidden="true"></div>
 
-    <div class="center-hint" id="center-hint">
-        <span class="hint-text">Move cursor to interact</span>
+<!-- ── Screen flash overlay ── -->
+<div id="screenFlash"></div>
+
+<!-- ══════════════════════════════════════════
+     INTRO SCREEN
+══════════════════════════════════════════ -->
+<div id="introScreen">
+    <canvas id="introStars"></canvas>
+
+    <div class="intro-content">
+        <div class="intro-eyebrow">— INTERACTIVE ARTIST · PhD CANDIDATE —</div>
+
+        <div class="intro-title">田漢<br>RPG RESUME</div>
+
+        <div class="intro-divider"><span>◆</span></div>
+
+        <div class="intro-sub">
+            互動藝術家 · 媒體藝術研究者<br>
+            釜山大學 · Pusan National University
+        </div>
+
+        <div class="intro-version">VERSION 3.0 · 2025</div>
+
+        <div class="press-start">▶ PRESS ANY KEY TO START</div>
+    </div>
+</div>
+
+<!-- ── Background canvas ── -->
+<canvas id="bgCanvas"></canvas>
+
+<!-- ── Pixel cursor ── -->
+<div id="cursor"></div>
+
+<!-- ══════════════════════════════════════════
+     MAIN GAME FRAME
+══════════════════════════════════════════ -->
+<div class="game-frame">
+
+    <!-- HUD -->
+    <div class="hud" role="banner">
+        <div class="hud-left">
+            <span class="hud-title">RPG RESUME v3.0</span>
+            <span class="hud-badge">LIVE</span>
+        </div>
+        <div class="hud-right">
+            <div class="stat-block">
+                <span class="stat-label">LV</span>
+                <span class="lv-num" id="lvDisplay">—</span>
+            </div>
+            <div class="stat-block">
+                <span class="stat-label">POWER</span>
+                <div class="seg-bar" id="hpBar"></div>
+            </div>
+            <div class="stat-block">
+                <span class="stat-label">SOUL</span>
+                <div class="seg-bar" id="mpBar"></div>
+            </div>
+        </div>
     </div>
 
-    <main class="page">
-        <div class="bottom-bar reveal-item">
-            <div class="identity">
-                <h1 class="name">田汉 <span class="name-sep">/</span> <span class="name-alt">티안한 · TIAN HAN</span></h1>
-                <p class="tagline">动画研究 · 新媒体艺术<br>跨文化实践</p>
-            </div>
-            <nav class="links">
-                <a href="mailto:angel1993@naver.com" class="link-item" data-copy="angel1993@naver.com">
-                    <span class="link-label">Email</span>
-                    angel1993@naver.com
-                </a>
-                <a href="tel:010-2576-9886" class="link-item" data-copy="010-2576-9886">
-                    <span class="link-label">Tel</span>
-                    010-2576-9886
-                </a>
-                <a href="profile/" class="link-item link-arrow">
-                    Full CV →
-                </a>
-            </nav>
-        </div>
-    </main>
+    <!-- Char Card -->
+    <div class="char-card rpg-box">
+        <span class="c-tl">◆</span>
+        <span class="c-tr">◆</span>
+        <span class="c-bl">◆</span>
+        <span class="c-br">◆</span>
 
-    <div id="toast" aria-live="polite">已复制</div>
-    <script src="landing/main.js"></script>
+        <div class="pixel-avatar">
+            <canvas id="avatarCanvas" width="80" height="80"></canvas>
+        </div>
+
+        <div class="char-info">
+            <div class="char-name-zh" id="charName">田漢</div>
+            <div class="char-name-en">TIAN HAN · 釜山大學</div>
+            <div class="char-class">互動藝術家 · 媒體藝術研究者 · 動畫研究者</div>
+            <div class="char-desc">
+                研究方向：韓中漫畫動畫比較、沉浸式媒體藝術、城市再生語境中的視覺表達。
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <span class="s-label">PROJECTS</span>
+            <span class="s-value">12</span>
+            <span class="s-unit">件作品</span>
+        </div>
+        <div class="stat-card">
+            <span class="s-label">EXHIBITIONS</span>
+            <span class="s-value">8</span>
+            <span class="s-unit">次展覽</span>
+        </div>
+        <div class="stat-card">
+            <span class="s-label">YEARS EXP</span>
+            <span class="s-value">5+</span>
+            <span class="s-unit">年創作</span>
+        </div>
+    </div>
+
+    <!-- Quest Log -->
+    <div class="section-header">◆ QUEST LOG 任務日誌</div>
+
+    <div class="quest-list">
+
+        <div class="quest-item" id="quest1">
+            <div class="quest-header" data-quest="quest1">
+                <span class="quest-status active">ACTIVE</span>
+                <span class="quest-title">關於我 · About</span>
+                <span class="quest-arrow">▶</span>
+            </div>
+            <div class="quest-body">
+                <p class="tw-para"><strong>田漢（Tian Han）</strong>是一位旅居韓國的中國藝術家與研究者。</p>
+                <p class="tw-para">她的創作橫跨<strong>互動裝置</strong>、<strong>生成藝術</strong>、<strong>投影映射</strong>與<strong>動畫研究</strong>。</p>
+                <p class="tw-para">目前就讀於<strong>釜山大學設計學博士</strong>，研究方向包含韓中漫畫動畫比較、城市再生語境中的沉浸式媒體藝術。</p>
+                <p class="tw-para">作品曾於韓國、中國、日本展出。</p>
+                <div class="tw-para skills-grid">
+                    <span class="skill-tag">互動裝置</span>
+                    <span class="skill-tag">生成藝術</span>
+                    <span class="skill-tag">投影映射</span>
+                    <span class="skill-tag">動畫</span>
+                    <span class="skill-tag">媒體藝術研究</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="quest-item" id="quest2">
+            <div class="quest-header" data-quest="quest2">
+                <span class="quest-status done">DONE</span>
+                <span class="quest-title">教育背景 · Education</span>
+                <span class="quest-arrow">▶</span>
+            </div>
+            <div class="quest-body">
+                <p class="tw-para">
+                    <strong>釜山大學 Pusan National University</strong><br>
+                    設計學博士候選人 · PhD Candidate<br>
+                    <em>研究方向：韓中漫畫動畫比較、沉浸式媒體藝術</em>
+                </p>
+                <p class="tw-para">
+                    <strong>東明大學 Dongmyeong University</strong><br>
+                    兼任教授 · Adjunct Professor<br>
+                    <em>講授動畫相關課程</em>
+                </p>
+            </div>
+        </div>
+
+        <div class="quest-item open" id="quest3">
+            <div class="quest-header" data-quest="quest3">
+                <span class="quest-status active">ACTIVE</span>
+                <span class="quest-title">代表作品 · Selected Works</span>
+                <span class="quest-arrow">▶</span>
+            </div>
+            <div class="quest-body">
+                <p class="tw-para"><strong>城市影像裝置系列</strong><br>沉浸式投影映射，於首爾、上海、福岡展出</p>
+                <p class="tw-para"><strong>漫畫跨文化研究論文</strong><br>《韓中漫畫動畫比較研究》期刊發表</p>
+                <p class="tw-para"><strong>互動數字藝術品</strong><br>結合計算美學與公共空間的現地創作</p>
+                <div class="tw-para skills-grid">
+                    <span class="skill-tag">首爾展</span>
+                    <span class="skill-tag">上海展</span>
+                    <span class="skill-tag">福岡展</span>
+                    <span class="skill-tag">期刊論文</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="quest-item" id="quest4">
+            <div class="quest-header" data-quest="quest4">
+                <span class="quest-status active">ACTIVE</span>
+                <span class="quest-title">聯絡方式 · Contact</span>
+                <span class="quest-arrow">▶</span>
+            </div>
+            <div class="quest-body">
+                <p class="tw-para"><strong>郵箱</strong><br><a href="mailto:angel1993@naver.com" class="quest-link">angel1993@naver.com</a></p>
+                <p class="tw-para"><strong>電話</strong><br><a href="tel:010-2576-9886" class="quest-link">010-2576-9886</a></p>
+                <p class="tw-para"><strong>所在地</strong><br>釜山，韓國 Busan, Korea</p>
+                <p class="tw-para">
+                    <strong>作品鏈接</strong><br>
+                    <a href="#" class="quest-link">Behance</a> ·
+                    <a href="#" class="quest-link">Instagram</a> ·
+                    <a href="#" class="quest-link">YouTube</a>
+                </p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Quote -->
+    <div class="game-quote">
+        <p class="gq-text">「 Making the invisible feel inevitable. 」</p>
+        <span class="gq-src">— TIAN HAN</span>
+    </div>
+
+    <!-- Controls hint -->
+    <div class="controls-hint">
+        <div class="key-hint"><span class="key">Q</span> 切換任務</div>
+        <div class="key-hint"><span class="key">R</span> 重置全部</div>
+        <div class="key-hint"><span class="key">ESC</span> 關閉面板</div>
+    </div>
+
+    <!-- Action bar -->
+    <div class="action-bar">
+        <a href="mailto:angel1993@naver.com" class="action-btn">
+            <span class="btn-icon">✉</span>
+            <span class="btn-label">MAIL</span>
+        </a>
+        <a href="tel:010-2576-9886" class="action-btn">
+            <span class="btn-icon">☎</span>
+            <span class="btn-label">CALL</span>
+        </a>
+        <a href="#" class="action-btn">
+            <span class="btn-icon">▶</span>
+            <span class="btn-label">WORKS</span>
+        </a>
+        <a href="#" class="action-btn">
+            <span class="btn-icon">◎</span>
+            <span class="btn-label">CV PDF</span>
+        </a>
+        <a href="#" class="action-btn">
+            <span class="btn-icon">✦</span>
+            <span class="btn-label">SCHOLAR</span>
+        </a>
+    </div>
+
+    <div class="game-footer">
+        <p>© 2025 TIAN HAN · ALL RIGHTS RESERVED</p>
+        <p>BUILT WITH PIXELS &amp; INK · 像素與墨</p>
+    </div>
+
+</div><!-- .game-frame -->
+
+<script>
+/* ══════════════════════════════════════════════════
+   RPG RESUME — MAIN SCRIPT
+   田漢 · 2025
+══════════════════════════════════════════════════ */
+(function () {
+    'use strict';
+
+    /* ────────────────────────────────────────────
+       8-BIT AUDIO ENGINE
+    ──────────────────────────────────────────── */
+    var AC = window.AudioContext || window.webkitAudioContext;
+    var ac = null;
+
+    function ensureAudio() {
+        if (!ac) ac = new AC();
+    }
+
+    function tone(freq, dur, type, vol, slide) {
+        if (!ac) return;
+        var osc = ac.createOscillator();
+        var gain = ac.createGain();
+        osc.connect(gain);
+        gain.connect(ac.destination);
+        osc.type = type || 'square';
+        osc.frequency.setValueAtTime(freq, ac.currentTime);
+        if (slide) osc.frequency.linearRampToValueAtTime(slide, ac.currentTime + dur);
+        gain.gain.setValueAtTime(vol || 0.07, ac.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur);
+        osc.start(ac.currentTime);
+        osc.stop(ac.currentTime + dur);
+    }
+
+    function sfxClick()  { tone(660, 0.05, 'square', 0.06); }
+    function sfxOpen()   { tone(523, 0.06, 'square', 0.06); setTimeout(function(){ tone(784, 0.1,'square',0.06); }, 70); }
+    function sfxClose()  { tone(392, 0.08, 'square', 0.05, 280); }
+    function sfxHover()  { tone(880, 0.04, 'square', 0.03); }
+    function sfxStart()  {
+        var seq = [262, 330, 392, 523, 659, 784, 1047];
+        seq.forEach(function(f, i) { setTimeout(function(){ tone(f, 0.12, 'square', 0.07); }, i * 70); });
+    }
+
+    /* ────────────────────────────────────────────
+       AUTO LEVEL (AGE)
+    ──────────────────────────────────────────── */
+    document.getElementById('lvDisplay').textContent = new Date().getFullYear() - 1993;
+
+    /* ────────────────────────────────────────────
+       SEGMENTED BARS
+    ──────────────────────────────────────────── */
+    function buildBar(id, onClass, offClass, total, filled) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        for (var i = 0; i < total; i++) {
+            var s = document.createElement('div');
+            s.className = 'seg ' + (i < filled ? onClass : offClass);
+            el.appendChild(s);
+        }
+    }
+    buildBar('hpBar', 'hp-on', 'hp-off', 9, 8); // ~92%
+    buildBar('mpBar', 'mp-on', 'mp-off', 9, 8); // ~88%
+
+    /* ────────────────────────────────────────────
+       CURSOR
+    ──────────────────────────────────────────── */
+    var cursor = document.getElementById('cursor');
+    var cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+    var mx = cx, my = cy;
+
+    document.addEventListener('mousemove', function (e) { mx = e.clientX; my = e.clientY; });
+
+    (function tickCursor() {
+        cx += (mx - cx) * 0.18;
+        cy += (my - cy) * 0.18;
+        cursor.style.left = cx + 'px';
+        cursor.style.top  = cy + 'px';
+        requestAnimationFrame(tickCursor);
+    })();
+
+    /* ────────────────────────────────────────────
+       BACKGROUND CANVAS — PIXEL STARFIELD
+    ──────────────────────────────────────────── */
+    var bgCanvas = document.getElementById('bgCanvas');
+    var bgCtx    = bgCanvas.getContext('2d');
+    var BW, BH;
+    var bgStars  = [];
+    var bgParticles = [];
+
+    function bgResize() {
+        BW = bgCanvas.width  = window.innerWidth;
+        BH = bgCanvas.height = window.innerHeight;
+        bgStars = [];
+        for (var i = 0; i < 90; i++) {
+            bgStars.push({
+                x: Math.floor(Math.random() * (BW / 3)) * 3,
+                y: Math.floor(Math.random() * (BH / 3)) * 3,
+                sz: Math.random() < 0.15 ? 3 : (Math.random() < 0.4 ? 2 : 1),
+                base: 0.2 + Math.random() * 0.5,
+                phase: Math.random() * Math.PI * 2,
+                speed: 0.015 + Math.random() * 0.025
+            });
+        }
+    }
+
+    var bgT = 0;
+    (function bgTick() {
+        bgT++;
+        bgCtx.fillStyle = '#0a0a18';
+        bgCtx.fillRect(0, 0, BW, BH);
+
+        /* stars */
+        for (var i = 0; i < bgStars.length; i++) {
+            var st = bgStars[i];
+            var alpha = st.base + 0.35 * Math.sin(bgT * st.speed + st.phase);
+            bgCtx.fillStyle = 'rgba(200,168,50,' + alpha.toFixed(2) + ')';
+            bgCtx.fillRect(st.x, st.y, st.sz, st.sz);
+        }
+
+        /* particles */
+        for (var j = bgParticles.length - 1; j >= 0; j--) {
+            var p = bgParticles[j];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.06; // gravity
+            p.life -= 0.025;
+            if (p.life <= 0) { bgParticles.splice(j, 1); continue; }
+            var px = Math.floor(p.x / 2) * 2;
+            var py = Math.floor(p.y / 2) * 2;
+            bgCtx.globalAlpha = p.life;
+            bgCtx.fillStyle = p.color;
+            bgCtx.fillRect(px, py, 4, 4);
+        }
+        bgCtx.globalAlpha = 1;
+        requestAnimationFrame(bgTick);
+    })();
+
+    bgResize();
+    window.addEventListener('resize', bgResize);
+
+    /* ────────────────────────────────────────────
+       PIXEL EXPLOSION ON CLICK
+    ──────────────────────────────────────────── */
+    var PCOLORS = ['#c8a832','#48d870','#4898e8','#e84848','#d8d8c0','#c848e8'];
+
+    document.addEventListener('click', function (e) {
+        ensureAudio();
+        sfxClick();
+
+        /* flash */
+        var fl = document.getElementById('screenFlash');
+        fl.classList.remove('do-flash');
+        void fl.offsetWidth;
+        fl.classList.add('do-flash');
+
+        /* particles */
+        var count = 20;
+        for (var i = 0; i < count; i++) {
+            var angle = (i / count) * Math.PI * 2 + Math.random() * 0.3;
+            var spd   = 1.5 + Math.random() * 3.5;
+            bgParticles.push({
+                x:     e.clientX,
+                y:     e.clientY,
+                vx:    Math.cos(angle) * spd,
+                vy:    Math.sin(angle) * spd - 1.5,
+                color: PCOLORS[Math.floor(Math.random() * PCOLORS.length)],
+                life:  0.7 + Math.random() * 0.5
+            });
+        }
+    });
+
+    /* hover sfx on buttons */
+    document.querySelectorAll('.action-btn, .stat-card, .quest-header').forEach(function (el) {
+        el.addEventListener('mouseenter', function () {
+            ensureAudio();
+            sfxHover();
+        });
+    });
+
+    /* ────────────────────────────────────────────
+       INTRO STARFIELD
+    ──────────────────────────────────────────── */
+    var iCanvas = document.getElementById('introStars');
+    var iCtx    = iCanvas.getContext('2d');
+    var iStars  = [];
+    var iDone   = false;
+
+    function iResize() {
+        iCanvas.width  = window.innerWidth;
+        iCanvas.height = window.innerHeight;
+        iStars = [];
+        for (var i = 0; i < 140; i++) {
+            iStars.push({
+                x:     Math.random() * iCanvas.width,
+                y:     Math.random() * iCanvas.height,
+                sz:    Math.random() < 0.12 ? 3 : 1,
+                spd:   0.3 + Math.random() * 0.8,
+                alpha: Math.random()
+            });
+        }
+    }
+    iResize();
+
+    var iT = 0;
+    (function iTick() {
+        if (iDone) return;
+        iT++;
+        iCtx.fillStyle = '#000';
+        iCtx.fillRect(0, 0, iCanvas.width, iCanvas.height);
+        for (var i = 0; i < iStars.length; i++) {
+            var s = iStars[i];
+            s.x -= s.spd;
+            if (s.x < 0) { s.x = iCanvas.width; s.y = Math.random() * iCanvas.height; }
+            var a = s.alpha * (0.5 + 0.5 * Math.sin(iT * 0.04 + i * 0.7));
+            iCtx.fillStyle = 'rgba(200,168,50,' + a.toFixed(2) + ')';
+            iCtx.fillRect(Math.floor(s.x), Math.floor(s.y), s.sz, s.sz);
+        }
+        requestAnimationFrame(iTick);
+    })();
+
+    /* ── Dismiss intro ── */
+    var introEl = document.getElementById('introScreen');
+
+    function dismissIntro() {
+        if (iDone) return;
+        iDone = true;
+        ensureAudio();
+        sfxStart();
+        introEl.classList.add('intro-fade-out');
+        setTimeout(function () { introEl.style.display = 'none'; }, 750);
+    }
+
+    document.addEventListener('keydown', function (e) {
+        if (!iDone) { dismissIntro(); return; }
+        handleKey(e.key.toLowerCase());
+    });
+    document.addEventListener('click', function () {
+        if (!iDone) dismissIntro();
+    });
+
+    /* ────────────────────────────────────────────
+       QUEST TOGGLE + TYPEWRITER
+    ──────────────────────────────────────────── */
+    var QUESTS    = ['quest1','quest2','quest3','quest4'];
+    var questIdx  = 0;
+
+    function typewriterIn(questEl) {
+        var paras = questEl.querySelectorAll('.quest-body .tw-para');
+        paras.forEach(function (p, i) {
+            setTimeout(function () { p.classList.add('visible'); }, i * 120);
+        });
+    }
+
+    function typewriterOut(questEl) {
+        questEl.querySelectorAll('.quest-body .tw-para').forEach(function (p) {
+            p.classList.remove('visible');
+        });
+    }
+
+    document.querySelectorAll('.quest-header[data-quest]').forEach(function (h) {
+        h.addEventListener('click', function (e) {
+            e.stopPropagation();
+            ensureAudio();
+            var id   = h.dataset.quest;
+            var item = document.getElementById(id);
+            if (!item) return;
+            var opening = !item.classList.contains('open');
+            item.classList.toggle('open');
+            if (opening) { sfxOpen(); typewriterIn(item); }
+            else          { sfxClose(); typewriterOut(item); }
+        });
+    });
+
+    /* auto-run typewriter for initially open quests */
+    setTimeout(function () {
+        document.querySelectorAll('.quest-item.open').forEach(function (el) {
+            typewriterIn(el);
+        });
+    }, 900);
+
+    /* ── Keyboard controls ── */
+    function handleKey(key) {
+        if (key === 'q') {
+            var el = document.getElementById(QUESTS[questIdx]);
+            if (el) {
+                var opening = !el.classList.contains('open');
+                el.classList.toggle('open');
+                ensureAudio();
+                if (opening) { sfxOpen(); typewriterIn(el); }
+                else          { sfxClose(); typewriterOut(el); }
+            }
+            questIdx = (questIdx + 1) % QUESTS.length;
+        } else if (key === 'r') {
+            QUESTS.forEach(function (qid) {
+                var el = document.getElementById(qid);
+                if (el) { el.classList.remove('open'); typewriterOut(el); }
+            });
+            questIdx = 0;
+            ensureAudio();
+            sfxClose();
+        } else if (key === 'escape') {
+            QUESTS.forEach(function (qid) {
+                var el = document.getElementById(qid);
+                if (el) { el.classList.remove('open'); typewriterOut(el); }
+            });
+            ensureAudio();
+            sfxClose();
+        }
+    }
+
+    /* ────────────────────────────────────────────
+       NAME MAGNET
+    ──────────────────────────────────────────── */
+    var nameEl = document.getElementById('charName');
+    var nx = 0, ny = 0;
+    if (nameEl) {
+        document.addEventListener('mousemove', function (e) {
+            var r    = nameEl.getBoundingClientRect();
+            var dcx  = r.left + r.width  / 2;
+            var dcy  = r.top  + r.height / 2;
+            var dx   = e.clientX - dcx;
+            var dy   = e.clientY - dcy;
+            var dist = Math.hypot(dx, dy);
+            if (dist < 200) {
+                var force = (1 - dist / 200) * 7;
+                nx += (-dx * force - nx) * 0.08;
+                ny += (-dy * force - ny) * 0.08;
+            } else {
+                nx *= 0.92;
+                ny *= 0.92;
+            }
+            nameEl.style.transform = 'translate(' + nx.toFixed(2) + 'px,' + ny.toFixed(2) + 'px)';
+        });
+    }
+
+    /* ────────────────────────────────────────────
+       PIXEL AVATAR — WALKING SPRITE
+       80×80 canvas, 1 "pixel" = 5 canvas px → 16×16 grid
+    ──────────────────────────────────────────── */
+    var aCanvas = document.getElementById('avatarCanvas');
+    var aCtx    = aCanvas.getContext('2d');
+    aCanvas.width  = 80;
+    aCanvas.height = 80;
+
+    var S  = 5; // scale
+
+    /* color palette */
+    var GOLD  = '#c8a832';
+    var SKIN  = '#f0c8a0';
+    var SHIRT = '#4898e8';
+    var PANTS = '#1a2860';
+    var SHOES = '#c83232';
+    var HAIR  = '#c8a832';
+    var DARK  = '#0a0a18';
+
+    /* draw one rect in pixel-grid coords */
+    function pr(x, y, w, h, color) {
+        aCtx.fillStyle = color;
+        aCtx.fillRect(x * S, y * S, (w || 1) * S, (h || 1) * S);
+    }
+
+    var aFrame = 0;
+
+    function drawAvatar() {
+        aCtx.fillStyle = DARK;
+        aCtx.fillRect(0, 0, 80, 80);
+
+        /* walking cycle: 0-3 per 24 ticks */
+        var cycle  = Math.floor(aFrame / 6) % 4;
+        var bob    = (cycle === 1 || cycle === 3) ? 1 : 0;
+
+        /* arms: opposite phase to legs */
+        var armL   = (cycle === 0 || cycle === 1) ? 0 : 1; // 0=neutral, 1=swing
+        var armR   = 1 - armL;
+
+        /* legs */
+        var legLFwd = (cycle === 0 || cycle === 1); // left leg forward?
+
+        /* ── hair ── */
+        pr(4, 0 + bob, 8, 1, HAIR);
+        pr(3, 1 + bob, 9, 2, HAIR);
+
+        /* ── face ── */
+        pr(4, 2 + bob, 8, 4, SKIN);
+        /* eyes */
+        pr(5, 4 + bob, 2, 1, '#1a1a3a');
+        pr(9, 4 + bob, 2, 1, '#1a1a3a');
+        /* mouth */
+        pr(6, 5 + bob, 4, 1, '#e8a090');
+
+        /* ── scarf/collar ── */
+        pr(4, 6 + bob, 8, 1, SHOES);
+
+        /* ── torso ── */
+        pr(3, 7 + bob, 10, 4, SHIRT);
+
+        /* ── left arm ── */
+        pr(1, 7 + bob + armL, 2, 4, SHIRT);
+        pr(1, 11 + bob + armL, 2, 1, SKIN);
+
+        /* ── right arm ── */
+        pr(13, 7 + bob + armR, 2, 4, SHIRT);
+        pr(13, 11 + bob + armR, 2, 1, SKIN);
+
+        /* ── legs ── */
+        if (legLFwd) {
+            /* left leg forward */
+            pr(4,  11 + bob, 3, 4, PANTS);
+            pr(3,  15 + bob, 4, 1, SHOES);   /* left foot fwd */
+            pr(9,  11 + bob, 3, 3, PANTS);
+            pr(9,  14 + bob, 3, 1, SHOES);   /* right foot back */
+        } else {
+            /* right leg forward */
+            pr(4,  11 + bob, 3, 3, PANTS);
+            pr(4,  14 + bob, 3, 1, SHOES);   /* left foot back */
+            pr(9,  11 + bob, 3, 4, PANTS);
+            pr(9,  15 + bob, 4, 1, SHOES);   /* right foot fwd */
+        }
+
+        /* floor shadow */
+        aCtx.fillStyle = 'rgba(72,216,112,0.15)';
+        aCtx.fillRect(6, 75, 68, 5);
+
+        aFrame++;
+        requestAnimationFrame(drawAvatar);
+    }
+    drawAvatar();
+
+})();
+</script>
 </body>
 </html>
