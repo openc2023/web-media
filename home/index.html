@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>田漢 · Tian Han · 티앤한 — RPG RESUME</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Serif+SC:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="screenFlash"></div>
+<canvas id="bgCanvas"></canvas>
+
+<!-- Corner brackets -->
+<div class="game-corners">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+</div>
+
+<!-- Dual cursor -->
+<div id="cursorInner"></div>
+<div id="cursorOuter"></div>
+
+<!-- Encounter flash overlay -->
+<div id="encounterFlash">
+    <div class="encounter-text" id="encounterText">⚔ ENCOUNTER!</div>
+</div>
+
+<!-- Combo display -->
+<div id="comboDisplay">
+    <span class="combo-num" id="comboNum">2×</span>
+    <span class="combo-label">COMBO</span>
+    <div class="combo-bar" id="comboBar" style="width:100%"></div>
+</div>
+
+<!-- Save popup overlay -->
+<div id="savePopup">
+    <div class="save-box">
+        <span class="save-icon">💾</span>
+        <span class="save-title">GAME SAVED</span>
+        <div class="save-slot" id="saveSlotText">SLOT 1 — 田漢 · LV32</div>
+        <div class="save-ok">▼ 数据已保存至本地</div>
+    </div>
+</div>
+
+<!-- NPC Dialog Box -->
+<div id="npcDialog">
+    <div class="dialog-inner">
+        <div class="dialog-speaker" id="dialogSpeaker">▶ SYSTEM</div>
+        <div class="dialog-text" id="dialogText">欢迎来到田漢的RPG简历世界…</div>
+        <div class="dialog-prompt">▼</div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     INTRO SCREEN
+══════════════════════════════════════════ -->
+<div id="introScreen">
+    <canvas id="introStars"></canvas>
+
+    <div class="intro-content">
+        <div class="intro-eyebrow">— ANIMATION PhD · MEDIA ARTIST · PRODUCTION DIRECTOR —</div>
+
+        <div class="intro-title">田漢<br>RPG RESUME</div>
+
+        <div class="intro-divider"></div>
+
+        <!-- Language select -->
+        <div class="intro-lang-select">
+            <div class="intro-lang-label">SELECT LANGUAGE · 选择语言 · 언어 선택</div>
+            <div class="intro-lang-row">
+                <button class="intro-lang-btn selected" data-lang="zh">中文</button>
+                <button class="intro-lang-btn" data-lang="en">ENGLISH</button>
+                <button class="intro-lang-btn" data-lang="ko">한국어</button>
+            </div>
+        </div>
+
+        <div id="introPressStart" class="press-start">▶ PRESS ANY KEY TO START</div>
+
+        <div class="intro-version">V 3.0 · 水墨深空 · INK DEEP SPACE · 2025</div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MAIN GAME FRAME
+══════════════════════════════════════════ -->
+<div class="game-frame">
+
+    <!-- ── HUD ── -->
+    <div class="hud" role="banner">
+        <div class="hud-left">
+            <span class="hud-title" id="hudTitle">RPG简历 v3.0</span>
+            <span class="hud-badge">LIVE</span>
+        </div>
+        <div class="hud-center">
+            <div class="lang-switcher">
+                <button class="lang-btn active" data-lang="zh">中</button>
+                <button class="lang-btn" data-lang="en">EN</button>
+                <button class="lang-btn" data-lang="ko">한</button>
+            </div>
+            <button class="bgm-btn" id="bgmBtn">♪ BGM</button>
+        </div>
+        <div class="hud-right">
+            <div class="stat-block">
+                <span class="stat-label">LV</span>
+                <span class="lv-num" id="lvDisplay">—</span>
+            </div>
+            <div class="stat-block">
+                <span class="stat-label">POWER</span>
+                <div class="seg-bar" id="hpBar"></div>
+            </div>
+            <div class="stat-block">
+                <span class="stat-label">SOUL</span>
+                <div class="seg-bar" id="mpBar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Char Card ── -->
+    <div class="char-card rpg-box">
+        <span class="c-tl">◆</span><span class="c-tr">◆</span>
+        <span class="c-bl">◆</span><span class="c-br">◆</span>
+
+        <div class="pixel-avatar">
+            <canvas id="avatarCanvas" width="80" height="80"></canvas>
+        </div>
+
+        <div class="char-info">
+            <div class="char-name-zh" id="charName">田漢</div>
+            <div class="char-name-en" id="nameEn">TIAN HAN · 釜山大學</div>
+            <div class="char-class" id="charClass">动画博士 · 媒体艺术家 · 制作总监</div>
+            <div class="char-desc" id="charDesc">研究方向：韩中漫画动画比较、沉浸式媒体艺术与城市再生。2025年2月取得博士学位。现任슈퍼루키즈制作总监、东明大学兼任教授。</div>
+        </div>
+    </div>
+
+    <!-- ── EXP Bar ── -->
+    <div class="exp-row">
+        <span class="exp-label">EXP</span>
+        <div class="exp-bar-track">
+            <div class="exp-bar-fill" id="expFill"></div>
+        </div>
+        <span class="exp-val" id="expVal">0 / 5000</span>
+    </div>
+
+    <!-- ── Stats ── -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <span class="s-label">PROJECTS</span>
+            <span class="s-value">9</span>
+            <span class="s-unit">件作品</span>
+        </div>
+        <div class="stat-card">
+            <span class="s-label">PAPERS</span>
+            <span class="s-value">9</span>
+            <span class="s-unit">篇论文</span>
+        </div>
+        <div class="stat-card">
+            <span class="s-label">AWARDS</span>
+            <span class="s-value">2</span>
+            <span class="s-unit">项荣誉</span>
+        </div>
+    </div>
+
+    <!-- ── Quest Log ── -->
+    <div class="section-header">◆ QUEST LOG 任務日誌</div>
+    <div class="quest-list" id="questList">
+        <!-- populated by app.js -->
+    </div>
+
+    <!-- ── Quote ── -->
+    <div class="game-quote">
+        <p class="gq-text">「 让不可见之物成为必然。Making the invisible feel inevitable. 」</p>
+        <span class="gq-src">— 田汉 TIAN HAN</span>
+    </div>
+
+    <!-- ── Controls ── -->
+    <div class="controls-hint">
+        <div class="key-hint"><span class="key">Q</span><span class="key-hint-label">切换任务</span></div>
+        <div class="key-hint"><span class="key">S</span><span class="key-hint-label">存档</span></div>
+        <div class="key-hint"><span class="key">R</span><span class="key-hint-label">重置全部</span></div>
+        <div class="key-hint"><span class="key">ESC</span><span class="key-hint-label">关闭面板</span></div>
+    </div>
+
+    <!-- ── Action bar ── -->
+    <div class="action-bar">
+        <a href="mailto:angell1993@naver.com" class="action-btn">
+            <span class="btn-icon">✉</span><span class="btn-label">邮件</span>
+        </a>
+        <a href="tel:010-2576-9886" class="action-btn">
+            <span class="btn-icon">☎</span><span class="btn-label">电话</span>
+        </a>
+        <a href="https://art717.notion.site/box" target="_blank" class="action-btn">
+            <span class="btn-icon">▶</span><span class="btn-label">作品集</span>
+        </a>
+        <a href="#" class="action-btn" id="saveBtn">
+            <span class="btn-icon">💾</span><span class="btn-label">存档</span>
+        </a>
+        <a href="#" class="action-btn">
+            <span class="btn-icon">✦</span><span class="btn-label">学术</span>
+        </a>
+    </div>
+
+    <div class="game-footer">
+        <p>© 2025 田漢 · 保留所有权利</p>
+        <p>像素与墨 · PIXELS &amp; INK</p>
+    </div>
+
+</div><!-- .game-frame -->
+
+<script src="js/audio.js"></script>
+<script src="js/bg.js"></script>
+<script src="js/avatar.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
