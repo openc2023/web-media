@@ -39,7 +39,9 @@ let xrRetryDirections = [];
 let xrRetryInFlight = false;
 let xrSessionHealthy = false;
 let previewFallbackTimer = null;
+let xrCameraBootTimer = null;
 let lostTimer = null;
+let startAttemptToken = 0;
 let currentState = "scanning";
 let currentStatusKey = "top.statusIdle";
 let currentStatusVars = {};
@@ -85,6 +87,9 @@ const POSITION_DEADBAND = 0.0012;
 const SCALE_DEADBAND = 0.0025;
 const INTRO_FADE_IN_MS = 1200;
 const INTRO_FADE_OUT_MS = 8000;
+const MEDIA_REQUEST_TIMEOUT_MS = 10000;
+const XR_CAMERA_BOOT_TIMEOUT_MS = 9000;
+const TARGET_FETCH_TIMEOUT_MS = 12000;
 
 const normalizeMeshName = (name = "") => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -203,6 +208,39 @@ const withTimeout = (promise, ms, label) =>
         }),
     ]);
 
+const getViewportSize = () => {
+    const vv = window.visualViewport;
+    if (vv?.width && vv?.height) {
+        return {
+            width: Math.max(1, Math.round(vv.width)),
+            height: Math.max(1, Math.round(vv.height)),
+        };
+    }
+    return {
+        width: Math.max(1, window.innerWidth || document.documentElement.clientWidth || 1),
+        height: Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1),
+    };
+};
+
+const syncViewportMetrics = () => {
+    const { width, height } = getViewportSize();
+    document.documentElement.style.setProperty("--app-vw", `${width}px`);
+    document.documentElement.style.setProperty("--app-vh", `${height}px`);
+};
+
+const invalidateStartAttempt = () => {
+    startAttemptToken += 1;
+    return startAttemptToken;
+};
+
+const throwIfStartCancelled = (token) => {
+    if (token !== startAttemptToken) {
+        const error = new Error("AR start cancelled");
+        error.name = "StartCancelledError";
+        throw error;
+    }
+};
+
 const isDesktopLikeEnvironment = () => {
     const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
     const touchPoints = navigator.maxTouchPoints || 0;
@@ -211,7 +249,15 @@ const isDesktopLikeEnvironment = () => {
 };
 
 const listVideoInputs = async () =>
-    (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind === "videoinput");
+    (await withTimeout(navigator.mediaDevices.enumerateDevices(), 4000, "enumerateDevices"))
+        .filter((device) => device.kind === "videoinput");
+
+const resolvePreferredFacingMode = ({ requestedFacingMode, actualFacingMode, devices }) => {
+    if (actualFacingMode === "environment" || actualFacingMode === "user") return actualFacingMode;
+    const inferredFacingMode = inferFacingModeFromDevices(devices);
+    if (devices.length > 1 && requestedFacingMode === "environment") return "environment";
+    return inferredFacingMode;
+};
 
 const inferFacingModeFromDevices = (devices) => {
     if (devices.length <= 1) return "user";
@@ -236,6 +282,7 @@ const ensurePreviewVideo = () => {
     video.setAttribute("autoplay", "");
     video.setAttribute("muted", "");
     video.setAttribute("playsinline", "");
+    video.setAttribute("webkit-playsinline", "");
     arContainer.appendChild(video);
     return video;
 };
@@ -260,10 +307,45 @@ const clearPreviewFallbackTimer = () => {
     previewFallbackTimer = null;
 };
 
+const clearXrCameraBootTimer = () => {
+    if (!xrCameraBootTimer) return;
+    window.clearTimeout(xrCameraBootTimer);
+    xrCameraBootTimer = null;
+};
+
 const markXrSessionHealthy = () => {
     xrSessionHealthy = true;
+    clearXrCameraBootTimer();
     clearPreviewFallbackTimer();
     stopPreviewStream();
+};
+
+const scheduleXrCameraBootTimeout = () => {
+    clearXrCameraBootTimer();
+    xrCameraBootTimer = window.setTimeout(() => {
+        xrCameraBootTimer = null;
+        if (xrSessionHealthy) return;
+        appendDebug("camera: startup timeout");
+        if (!xrRetryInFlight && xrRetryDirections.length > 0) {
+            const nextDirection = xrRetryDirections.shift();
+            xrRetryInFlight = true;
+            retryXrSession(nextDirection)
+                .catch((error) => {
+                    appendDebug(`xr retry failed: ${formatError(error)}`);
+                })
+                .finally(() => {
+                    xrRetryInFlight = false;
+                });
+            return;
+        }
+        setStatus("top.statusStartTimeout");
+        setState("lost");
+        startButton.disabled = false;
+        startButton.removeAttribute("aria-busy");
+        cleanupXrRuntime({ stopPreview: false, resetModel: false });
+        setArPresentationActive(false);
+        arCanvas = null;
+    }, XR_CAMERA_BOOT_TIMEOUT_MS);
 };
 
 const schedulePreviewFallback = () => {
@@ -283,16 +365,18 @@ const schedulePreviewFallback = () => {
 const startPreviewStream = async (facingMode = preferredFacingMode) => {
     clearPreviewFallbackTimer();
     stopPreviewStream();
+    syncViewportMetrics();
     document.body.classList.add("preview-running");
     const video = ensurePreviewVideo();
-    previewStream = await navigator.mediaDevices.getUserMedia({
+    previewStream = await withTimeout(navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
             facingMode: { ideal: facingMode },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            aspectRatio: { ideal: 9 / 16 },
         },
-    });
+    }), MEDIA_REQUEST_TIMEOUT_MS, "preview getUserMedia");
     video.srcObject = previewStream;
     try { await video.play(); } catch (_) {}
     appendDebug(`preview: ${facingMode}`);
@@ -315,23 +399,24 @@ const probeCameraDirection = async () => {
         try {
             console.log("[top-ar] probe camera:", attempt.facingMode);
             appendDebug(`probe: ${attempt.facingMode}`);
-            const stream = await navigator.mediaDevices.getUserMedia({
+            const stream = await withTimeout(navigator.mediaDevices.getUserMedia({
                 audio: false,
                 video: {
                     facingMode: { ideal: attempt.facingMode },
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 },
+                    aspectRatio: { ideal: 9 / 16 },
                 },
-            });
+            }), MEDIA_REQUEST_TIMEOUT_MS, `probe ${attempt.facingMode}`);
             const [track] = stream.getVideoTracks();
             const actualFacingMode = track?.getSettings?.().facingMode;
             const devices = await listVideoInputs();
             stream.getTracks().forEach((track) => track.stop());
-            preferredFacingMode = actualFacingMode === "environment"
-                ? "environment"
-                : actualFacingMode === "user"
-                    ? "user"
-                    : inferFacingModeFromDevices(devices);
+            preferredFacingMode = resolvePreferredFacingMode({
+                requestedFacingMode: attempt.facingMode,
+                actualFacingMode,
+                devices,
+            });
             const xrDirection = preferredFacingMode === "environment" ? "BACK" : "FRONT";
             console.log("[top-ar] probe selected:", {
                 requested: attempt.facingMode,
@@ -364,10 +449,11 @@ let xrVideoObserver = null;
 const applyXrVideoFullscreen = (video) => {
     // ??뀡??臾뉖틖??낅윴??preview video
     if (video.id === "camera-preview") return;
+    syncViewportMetrics();
     video.style.setProperty("position",       "fixed",           "important");
     video.style.setProperty("inset",          "0",               "important");
-    video.style.setProperty("width",          "100vw",           "important");
-    video.style.setProperty("height",         "100vh",           "important");
+    video.style.setProperty("width",          "var(--app-vw)",   "important");
+    video.style.setProperty("height",         "var(--app-vh)",   "important");
     video.style.setProperty("object-fit",     "cover",           "important");
     video.style.setProperty("z-index",        "29",              "important");
     video.style.setProperty("pointer-events", "none",            "important");
@@ -412,6 +498,7 @@ const unwatchXrVideo = () => {
 
 const cleanupXrRuntime = ({ stopPreview = false, resetModel = false } = {}) => {
     unwatchXrVideo();
+    clearXrCameraBootTimer();
     clearPreviewFallbackTimer();
     xrSessionHealthy = false;
     try { XR8.stop(); } catch (_) {}
@@ -449,7 +536,9 @@ const cleanupXrRuntime = ({ stopPreview = false, resetModel = false } = {}) => {
 const runXrSession = (direction) => {
     currentXrCameraDirection = direction;
     xrSessionHealthy = false;
+    syncViewportMetrics();
     clearPreviewFallbackTimer();
+    scheduleXrCameraBootTimeout();
     appendDebug(`xr run: ${direction}`);
     XR8.addCameraPipelineModules([
         XR8.GlTextureRenderer.pipelineModule(),
@@ -517,12 +606,13 @@ const restartScanAnimations = () => {
 
 const setArPresentationActive = (active) => {
     const canvas = document.getElementById("xr8-canvas");
+    syncViewportMetrics();
     if (canvas) {
         // XR8 辱됱떓逾?inline style 沃ㅻ끆??canvas ?袁?같?롫챿?룡벴?뤿땱?硫⑹몳??살뫊??쏇렫塋?        // ??setProperty + "important" 畑밸럽???⑥퐪塋딅슖???꾨꺼?숈꼩??쨹?≫맟 inline style
         canvas.style.setProperty("position", "fixed",    "important");
         canvas.style.setProperty("inset",    "0",        "important");
-        canvas.style.setProperty("width",    "100vw",    "important");
-        canvas.style.setProperty("height",   "100dvh",   "important");
+        canvas.style.setProperty("width",    "var(--app-vw)",    "important");
+        canvas.style.setProperty("height",   "var(--app-vh)",    "important");
         canvas.style.removeProperty("object-fit");
         canvas.style.removeProperty("object-position");
         canvas.style.removeProperty("background");
@@ -538,12 +628,12 @@ const syncXrViewport = () => {
     const canvas = arCanvas || document.getElementById("xr8-canvas");
     if (!renderer || !canvas) return;
 
-    const sw = window.innerWidth;
-    const sh = window.innerHeight;
+    syncViewportMetrics();
+    const { width: sw, height: sh } = getViewportSize();
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-    canvas.style.setProperty("width", "100vw", "important");
-    canvas.style.setProperty("height", "100dvh", "important");
+    canvas.style.setProperty("width", "var(--app-vw)", "important");
+    canvas.style.setProperty("height", "var(--app-vh)", "important");
     renderer.setPixelRatio(dpr);
     renderer.setSize(sw, sh, false);
 };
@@ -570,16 +660,40 @@ const setTextureColorSpace = (texture) => {
 
 // ???? GIF flame texture ????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
-const createAnimatedGifTexture = async (src, frameOffsetFrames = 0) => {
-    const texture = await new THREE.TextureLoader().loadAsync(src);
+const createAnimatedGifTexture = async (src) => {
+    // <img> 让浏览器自动解码并播放 GIF 帧；每帧 drawImage 采样到 CanvasTexture
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+
+    await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = () => reject(new Error(`GIF load failed: ${src}`));
+        img.src = src;
+    });
+
+    const offscreen = document.createElement("canvas");
+    offscreen.width  = img.naturalWidth  || 256;
+    offscreen.height = img.naturalHeight || 256;
+    const ctx = offscreen.getContext("2d");
+
+    const texture = new THREE.CanvasTexture(offscreen);
     texture.flipY = false;
     texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
     texture.minFilter = texture.magFilter = THREE.LinearFilter;
     setTextureColorSpace(texture);
+
     return {
         texture,
-        update: () => {},
-        dispose: () => texture.dispose(),
+        update: () => {
+            // 每帧把当前 GIF 帧画到 canvas，上传到 GPU
+            ctx.clearRect(0, 0, offscreen.width, offscreen.height);
+            ctx.drawImage(img, 0, 0);
+            texture.needsUpdate = true;
+        },
+        dispose: () => {
+            img.src = "";   // 停止浏览器继续解码
+            texture.dispose();
+        },
     };
 };
 
@@ -593,6 +707,7 @@ const createLoopingVideoTexture = async (src) => {
     video.preload = "auto";
     video.setAttribute("muted", "");
     video.setAttribute("playsinline", "");
+    video.setAttribute("webkit-playsinline", "");
 
     await new Promise((resolve, reject) => {
         const onLoaded = () => {
@@ -774,8 +889,7 @@ const ensureBoxPlaybackStarted = () => {
     if (mixer && mixerActions.length > 0) {
         clock.start();
         mixerActions.forEach((action) => {
-            if (!action.isRunning()) action.play();
-            action.paused = false;
+            action.reset().play();   // LoopOnce：每次从头播
         });
     }
 };
@@ -790,7 +904,7 @@ const finishIntroSequence = () => {
     }
     if (mixer && mixerActions.length > 0) {
         clock.start();
-        mixerActions.forEach((a) => { if (!a.isRunning()) a.play(); else a.paused = false; });
+        mixerActions.forEach((a) => { a.reset().play(); });
     }
 };
 
@@ -995,6 +1109,7 @@ const buildAppModule = () => ({
             return;
         }
         if (status === "failed") {
+            clearXrCameraBootTimer();
             if (!xrRetryInFlight && xrRetryDirections.length > 0) {
                 const nextDirection = xrRetryDirections.shift();
                 xrRetryInFlight = true;
@@ -1105,8 +1220,6 @@ const buildAppModule = () => ({
     ],
 
     onUpdate: () => {
-        syncXrViewport();
-        hideXrBodyVideos();
         updateIntroSequence();
         gifUpdaters.forEach((fn) => fn());
         if (mixer && clock.running) mixer.update(clock.getDelta());
@@ -1117,6 +1230,8 @@ const buildAppModule = () => ({
 
 const startMindAR = async () => {
     clearDebug();
+    syncViewportMetrics();
+    const startToken = invalidateStartAttempt();
 
     if (window.location.protocol === "file:") { setStatus("top.statusNeedHttps"); return; }
     if (!window.isSecureContext) { setStatus("top.statusNeedSecureContext"); return; }
@@ -1132,6 +1247,7 @@ const startMindAR = async () => {
     requestAnimationFrame(() => closeButton.focus());
 
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    throwIfStartCancelled(startToken);
 
     try {
         if (isDesktopLikeEnvironment()) {
@@ -1139,6 +1255,7 @@ const startMindAR = async () => {
             xrSessionHealthy = false;
             clearPreviewFallbackTimer();
             await startPreviewStream(preferredFacingMode);
+            throwIfStartCancelled(startToken);
             appendDebug("mode: desktop-preview");
             setPreviewPresentationActive(true);
             setArPresentationActive(false);
@@ -1149,6 +1266,7 @@ const startMindAR = async () => {
         }
 
         const xrCameraDirection = await probeCameraDirection();
+        throwIfStartCancelled(startToken);
         appendDebug(`xr camera: ${xrCameraDirection}`);
         xrRetryDirections = [xrCameraDirection === "BACK" ? "FRONT" : "BACK"];
         xrRetryInFlight = false;
@@ -1156,20 +1274,49 @@ const startMindAR = async () => {
         clearPreviewFallbackTimer();
         stopPreviewStream();
 
+        const xrReadyPromise = window.XR8
+            ? Promise.resolve()
+            : withTimeout(
+                new Promise((resolve) => window.addEventListener("xrloaded", resolve, { once: true })),
+                12000,
+                "xrloaded"
+            );
+        const targetDataPromise = withTimeout(fetch("./assets/targets/000-top/000-top.json"), TARGET_FETCH_TIMEOUT_MS, "image target fetch")
+            .then(async (targetRes) => {
+                if (!targetRes.ok) {
+                    throw new Error(`Image target JSON not found (HTTP ${targetRes.status}). Run scripts/gen-target.mjs first.`);
+                }
+                const imageTargetData = await targetRes.json();
+                if (imageTargetData.resources?.luminanceImage) {
+                    imageTargetData.imagePath = `./assets/targets/000-top/${imageTargetData.resources.luminanceImage}`;
+                }
+                imageTargetData.physicalWidthInMeters = PAINTING_WIDTH_M;
+                if (imageTargetData.properties) {
+                    imageTargetData.properties.physicalWidthInMeters = PAINTING_WIDTH_M;
+                } else {
+                    imageTargetData.properties = { physicalWidthInMeters: PAINTING_WIDTH_M };
+                }
+                return imageTargetData;
+            });
+
         // Load model + GIF before XR8 starts
         const [gltf, introGltf] = await Promise.all([
             withTimeout(loadBoxModel(), 25000, "loadBoxModel"),
             withTimeout(loadIntroModel(), 25000, "loadIntroModel"),
         ]);
+        throwIfStartCancelled(startToken);
         boxModel = gltf.scene;
         boxModel.visible = false;
         introModel = introGltf.scene;
         introModel.visible = false;
 
-        const { updaters, disposers } = await attachExternalFlameGif(boxModel);
+        const [{ updaters, disposers }, introVideo] = await Promise.all([
+            attachExternalFlameGif(boxModel),
+            attachIntroVideo(introModel),
+        ]);
+        throwIfStartCancelled(startToken);
         gifUpdaters = updaters;
         gifTextureDisposers = disposers;
-        const introVideo = await attachIntroVideo(introModel);
         introFadeMaterials = introVideo.materials;
         introVideoElements = [introVideo.video];
         introTextureDisposers = [introVideo.disposer];
@@ -1179,7 +1326,9 @@ const startMindAR = async () => {
             mixer = new THREE.AnimationMixer(boxModel);
             mixerActions = gltf.animations.map((clip) => {
                 const action = mixer.clipAction(clip);
-                action.loop = THREE.LoopRepeat;
+                action.loop = THREE.LoopOnce;   // 播一次，停在最后一帧
+                action.clampWhenFinished = true;
+                action.setLoop(THREE.LoopRepeat, Infinity);
                 action.clampWhenFinished = false;
                 return action;
             });
@@ -1187,24 +1336,11 @@ const startMindAR = async () => {
 
         // Fetch compiled image target data
         setStatus("top.statusLoadingEngine");
-        const targetRes = await fetch("./assets/targets/000-top/000-top.json");
-        if (!targetRes.ok) throw new Error(`Image target JSON not found (HTTP ${targetRes.status}). Run scripts/gen-target.mjs first.`);
-        const imageTargetData = await targetRes.json();
-
-        // Fix imagePath: XR8 fetches the luminance image at runtime to build feature descriptors.
-        // The CLI writes a relative path ("image-targets/??) that doesn't match our actual layout.
-        // Point it to the real file so XR8 can load it.
-        if (imageTargetData.resources?.luminanceImage) {
-            imageTargetData.imagePath = `./assets/targets/000-top/${imageTargetData.resources.luminanceImage}`;
-        }
-
-        // Apply physical width so XR8 maps 1 world unit ??correct meter scale.
-        imageTargetData.physicalWidthInMeters = PAINTING_WIDTH_M;
-        if (imageTargetData.properties) {
-            imageTargetData.properties.physicalWidthInMeters = PAINTING_WIDTH_M;
-        } else {
-            imageTargetData.properties = { physicalWidthInMeters: PAINTING_WIDTH_M };
-        }
+        const [imageTargetData] = await Promise.all([
+            targetDataPromise,
+            xrReadyPromise,
+        ]);
+        throwIfStartCancelled(startToken);
 
         // Canvas is statically in the HTML with proper viewport dimensions.
         // Switch from opacity:0 ??opacity:1 (never use display:none ??that
@@ -1218,14 +1354,7 @@ const startMindAR = async () => {
             try { await DeviceMotionEvent.requestPermission(); } catch (_) { /* user declined, continue */ }
         }
 
-        // Wait for XR8 engine binary
-        if (!window.XR8) {
-            await withTimeout(
-                new Promise((resolve) => window.addEventListener("xrloaded", resolve, { once: true })),
-                12000,
-                "xrloaded"
-            );
-        }
+        throwIfStartCancelled(startToken);
         if (!window.XR8) {
             throw new Error("XR8 failed to load.");
         }
@@ -1244,9 +1373,14 @@ const startMindAR = async () => {
         // that doesn't exist in our self-hosted build ??skip it entirely.
         // Canvas is already fixed 100vw??00vh via inline styles, so XR8
         // can fill it without the module.
+        throwIfStartCancelled(startToken);
         runXrSession(xrCameraDirection);
 
     } catch (error) {
+        if (error?.name === "StartCancelledError") {
+            appendDebug("start cancelled");
+            return;
+        }
         console.error("AR start failed:", error);
         clearPreviewFallbackTimer();
         xrSessionHealthy = false;
@@ -1282,6 +1416,7 @@ const startMindAR = async () => {
 };
 
 const stopMindAR = () => {
+    invalidateStartAttempt();
     if (lostTimer) { clearTimeout(lostTimer); lostTimer = null; }
     if (!xrRunning) {
         clearPreviewFallbackTimer();
@@ -1303,6 +1438,7 @@ const stopMindAR = () => {
 // ???? Modal & locale ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
 const closeCameraModal = () => {
+    invalidateStartAttempt();
     cameraModal.hidden = true;
     document.body.classList.remove("camera-open");
     stopMindAR();
@@ -1332,9 +1468,15 @@ const refreshLocalizedUi = () => {
 };
 
 const initializePageCopy = () => {
+    syncViewportMetrics();
     refreshLocalizedUi();
     setState("scanning");
     setStatus("top.statusIdle");
+};
+
+const handleViewportChange = () => {
+    syncViewportMetrics();
+    if (xrRunning) syncXrViewport();
 };
 
 // ???? Event wiring ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
@@ -1351,7 +1493,10 @@ localeButtons.forEach((button) => {
 cameraModal.addEventListener("click", (e) => { if (e.target === cameraModal) closeCameraModal(); });
 window.addEventListener("keydown", (e) => { if (e.key === "Escape" && !cameraModal.hidden) closeCameraModal(); });
 window.addEventListener("beforeunload", stopMindAR);
-window.addEventListener("resize", () => { if (xrRunning) syncXrViewport(); });
+window.addEventListener("resize", handleViewportChange);
+window.addEventListener("orientationchange", handleViewportChange);
+window.visualViewport?.addEventListener("resize", handleViewportChange);
+window.visualViewport?.addEventListener("scroll", handleViewportChange);
 
 window.addEventListener("unhandledrejection", (event) => {
     console.error("Unhandled rejection:", event.reason);

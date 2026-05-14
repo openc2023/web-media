@@ -2,27 +2,384 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0; url=./Top/index.html">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inno Things</title>
+    <meta name="description" content="Inno Things interactive experiments and AR project index.">
     <style>
+        :root {
+            --bg: #f4f1ea;
+            --panel: rgba(255, 255, 255, 0.92);
+            --panel-strong: #ffffff;
+            --text: #1e2430;
+            --muted: #667085;
+            --line: rgba(30, 36, 48, 0.08);
+            --blue: #0d8a7d;
+            --blue-strong: #0b6f65;
+            --shadow: 0 24px 60px rgba(30, 36, 48, 0.08);
+            --ring: 0 0 0 1px rgba(30, 36, 48, 0.08);
+            --font: "Geist", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            --mono: "Geist Mono", Consolas, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
             min-height: 100vh;
-            display: grid;
-            place-items: center;
-            padding: 24px;
-            font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-            background: #f4f1ea;
-            color: #1e2430;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(13, 138, 125, 0.12), transparent 32%),
+                radial-gradient(circle at bottom right, rgba(39, 84, 214, 0.08), transparent 28%),
+                linear-gradient(180deg, #faf8f3 0%, var(--bg) 100%);
+            font: 16px/1.6 var(--font);
         }
 
         a {
-            color: #0d8a7d;
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .shell {
+            width: min(calc(100% - 32px), 1120px);
+            margin: 0 auto;
+            padding: 36px 0 56px;
+        }
+
+        .nav,
+        .hero,
+        .panel,
+        .entry-card,
+        .note {
+            box-shadow: var(--ring);
+        }
+
+        .nav,
+        .hero,
+        .panel {
+            border-radius: 28px;
+            background: var(--panel);
+            backdrop-filter: blur(14px);
+        }
+
+        .nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 18px 22px;
+        }
+
+        .brand {
+            display: grid;
+            gap: 2px;
+        }
+
+        .brand strong {
+            font-size: 15px;
+            letter-spacing: -0.02em;
+        }
+
+        .brand span,
+        .eyebrow,
+        .meta,
+        .entry-card span {
+            color: var(--muted);
+            font-family: var(--mono);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .nav-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .nav-links a {
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.84);
+            box-shadow: var(--ring);
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .nav-links a:hover,
+        .entry-card:hover,
+        .cta-row a:hover {
+            transform: translateY(-2px);
+        }
+
+        .hero {
+            margin-top: 18px;
+            padding: 34px;
+        }
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+            gap: 22px;
+            align-items: start;
+        }
+
+        .hero h1 {
+            margin: 10px 0 14px;
+            font-size: clamp(42px, 7vw, 76px);
+            line-height: 0.96;
+            letter-spacing: -0.06em;
+        }
+
+        .hero p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 18px;
+            line-height: 1.9;
+        }
+
+        .cta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .cta-row a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 44px;
+            padding: 0 18px;
+            border-radius: 999px;
+            transition: transform 0.18s ease, background 0.18s ease;
+        }
+
+        .cta-primary {
+            background: var(--text);
+            color: #fff;
+        }
+
+        .cta-ghost {
+            background: rgba(255, 255, 255, 0.84);
+            box-shadow: var(--ring);
+        }
+
+        .panel {
+            padding: 22px;
+        }
+
+        .panel strong {
+            display: block;
+            margin: 8px 0 6px;
+            font-size: 22px;
+            line-height: 1.2;
+            letter-spacing: -0.04em;
+        }
+
+        .panel p {
+            margin: 0;
+            color: var(--muted);
+        }
+
+        .section {
+            margin-top: 18px;
+        }
+
+        .section-head {
+            margin-bottom: 14px;
+            padding: 0 4px;
+        }
+
+        .section-head h2 {
+            margin: 6px 0 0;
+            font-size: clamp(28px, 4vw, 38px);
+            letter-spacing: -0.05em;
+        }
+
+        .entry-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .entry-card {
+            display: grid;
+            gap: 12px;
+            padding: 22px;
+            border-radius: 24px;
+            background: var(--panel-strong);
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .entry-card strong {
+            font-size: 24px;
+            line-height: 1.15;
+            letter-spacing: -0.04em;
+        }
+
+        .entry-card p {
+            margin: 0;
+            color: var(--muted);
+        }
+
+        .entry-card .arrow {
+            color: var(--blue);
+            font-weight: 600;
+        }
+
+        .note {
+            margin-top: 18px;
+            padding: 18px 20px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.78);
+            color: var(--muted);
+        }
+
+        .note strong {
+            color: var(--text);
+        }
+
+        @media (max-width: 980px) {
+            .hero-grid,
+            .entry-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .shell {
+                width: min(calc(100% - 20px), 1120px);
+                padding-top: 18px;
+            }
+
+            .nav {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .hero,
+            .panel,
+            .entry-card {
+                border-radius: 22px;
+            }
+
+            .hero {
+                padding: 24px;
+            }
+
+            .cta-row,
+            .nav-links {
+                width: 100%;
+            }
+
+            .cta-row a,
+            .nav-links a {
+                width: 100%;
+                justify-content: center;
+            }
         }
     </style>
 </head>
 <body>
-    <p>正在进入 TOP 页面。若未自动跳转，请打开 <a href="./Top/index.html">./Top/index.html</a>。</p>
+    <main class="shell">
+        <header class="nav">
+            <a class="brand" href="#">
+                <strong>Inno Things</strong>
+                <span>Interactive Media Entry</span>
+            </a>
+            <nav class="nav-links" aria-label="Primary navigation">
+                <a data-link="top" href="#">TOP AR</a>
+                <a data-link="compare" href="#">AR Compare</a>
+                <a data-link="design" href="#">Design Preview</a>
+            </nav>
+        </header>
+
+        <section class="hero">
+            <div class="hero-grid">
+                <div>
+                    <span class="eyebrow">Project Hub</span>
+                    <h1>Inno Things 主页</h1>
+                    <p>
+                        这里是 `inno-things` 的独立入口页，不再直接跳去 `Top/index.html`。
+                        `TOP` 是其中一个 AR 子项目，`AR Compare` 和设计预览页也保留为并列入口。
+                    </p>
+                    <div class="cta-row">
+                        <a class="cta-primary" data-link="top" href="#">进入 TOP AR</a>
+                        <a class="cta-ghost" data-link="compare" href="#">查看 AR Compare</a>
+                    </div>
+                </div>
+
+                <aside class="panel">
+                    <span class="meta">Structure</span>
+                    <strong>Root Index + Sub Projects</strong>
+                    <p>
+                        当前目录结构按“总入口 + 子页面”组织：
+                        `inno-things/index.html` 是主页，
+                        `Top/index.html` 是单独的作品识别页。
+                    </p>
+                </aside>
+            </div>
+        </section>
+
+        <section class="section" id="entries">
+            <div class="section-head">
+                <span class="eyebrow">Entries</span>
+                <h2>项目入口</h2>
+            </div>
+
+            <div class="entry-grid">
+                <a class="entry-card" data-link="top" href="#">
+                    <span>AR Project</span>
+                    <strong>TOP</strong>
+                    <p>图像识别 AR 作品入口，包含手机端识别、相机授权和 2D/3D 混合展示。</p>
+                    <div class="arrow">Open project</div>
+                </a>
+
+                <a class="entry-card" data-link="compare" href="#">
+                    <span>Experiment</span>
+                    <strong>AR Compare</strong>
+                    <p>对比不同 WebAR 路线和实现方式的实验页，适合作为技术测试入口。</p>
+                    <div class="arrow">Open experiment</div>
+                </a>
+
+                <a class="entry-card" data-link="design" href="#">
+                    <span>Reference</span>
+                    <strong>Design Preview</strong>
+                    <p>保留设计预览稿作为视觉参考，不和实际项目入口混在同一个页面里。</p>
+                    <div class="arrow">Open preview</div>
+                </a>
+            </div>
+        </section>
+
+        <section class="note">
+            <strong>说明：</strong>
+            你刚才说得对，`https://openc2023.github.io/web-media/inno-things` 和 `Top/index.html` 应该是两个页面。
+            现在我已经把根页恢复成独立主页结构，不再强制跳转到 `Top`。
+        </section>
+    </main>
+
+    <script>
+        (function bindLinks() {
+            var path = window.location.pathname;
+            var basePath = path.endsWith("/index.html")
+                ? path.slice(0, -("index.html".length))
+                : path.endsWith("/")
+                    ? path
+                    : path + "/";
+
+            var targets = {
+                top: basePath + "Top/index.html",
+                compare: basePath + "ar-compare/index.html",
+                design: basePath + "vercel/preview.html"
+            };
+
+            document.querySelectorAll("[data-link]").forEach(function (node) {
+                var key = node.getAttribute("data-link");
+                if (!key || !targets[key]) return;
+                node.setAttribute("href", targets[key]);
+            });
+        })();
+    </script>
 </body>
 </html>

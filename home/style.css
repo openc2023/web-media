@@ -30,6 +30,11 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* 消除触摸 300ms 延迟 */
+a, button, .lang-btn, .bgm-btn, .intro-lang-btn, .press-start,
+.action-btn, .quest-header, .skill-tag, .pixel-avatar, .stat-card,
+.intro-content { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
 html, body {
     height: 100%;
     background: var(--bg);
@@ -39,6 +44,11 @@ html, body {
     line-height: var(--lh);
     overflow-x: hidden;
     cursor: none;
+    /* iPhone 刘海/底部安全区 */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
     /* 宣纸纤维纹理 */
     background-image:
         linear-gradient(rgba(26,21,16,0.025) 1px, transparent 1px),
@@ -116,68 +126,87 @@ body::after {
 }
 
 /* ══════════════════════════════════════════
-   INTRO SCREEN — 保留暗色戏剧感
+   INTRO SCREEN — 水墨宣纸封面
 ══════════════════════════════════════════ */
 #introScreen {
     position: fixed; inset: 0; z-index: 9000;
-    background: #0a1010;
+    background: #f2ece0;   /* 宣纸底色 */
     display: flex; align-items: center; justify-content: center;
 }
 #introStars { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* 封面四角墨框 */
+#introScreen::before, #introScreen::after {
+    content: ''; position: absolute; width: 48px; height: 48px;
+    border-color: #2e8080; border-style: solid; opacity: 0.5; z-index: 2;
+}
+#introScreen::before { top:18px; left:18px; border-width:3px 0 0 3px; }
+#introScreen::after  { bottom:18px; right:18px; border-width:0 3px 3px 0; }
+
 .intro-content {
-    position: relative; z-index: 1;
+    position: relative; z-index: 3;
     display: flex; flex-direction: column; align-items: center;
-    gap: 18px; text-align: center; padding: 32px 24px;
+    gap: 20px; text-align: center; padding: 40px 32px;
+    /* 宣纸卡片感 */
+    background: rgba(242,236,224,0.82);
+    border: 2px solid rgba(46,128,128,0.35);
+    box-shadow: 6px 6px 0 rgba(26,21,16,0.15), 0 0 40px rgba(46,128,128,0.08);
 }
 .intro-eyebrow {
     font-family: 'Press Start 2P', monospace;
     font-size: clamp(6px,1.1vw,8px);
-    color: #5aacac; letter-spacing: 0.28em;
+    color: var(--text-dim); letter-spacing: 0.28em;
 }
 .intro-title {
     font-family: 'Press Start 2P', monospace;
     font-size: clamp(24px,5vw,52px);
-    color: #5aacac; line-height: 1.7; letter-spacing: 0.08em;
-    text-shadow: 3px 3px 0 rgba(0,0,0,0.8), 0 0 28px rgba(74,158,158,0.5);
+    color: var(--border); line-height: 1.7; letter-spacing: 0.08em;
+    /* 墨字阴影，无发光 */
+    text-shadow: 3px 3px 0 rgba(26,21,16,0.25), 5px 5px 0 rgba(26,21,16,0.10);
     animation: titlePulse 3s steps(6) infinite;
 }
 @keyframes titlePulse {
-    0%,100%{ text-shadow: 3px 3px 0 #000, 0 0 18px rgba(74,158,158,0.5); }
-    50%    { text-shadow: 3px 3px 0 #000, 0 0 40px rgba(74,158,158,0.7); }
+    0%,100%{ text-shadow: 3px 3px 0 rgba(26,21,16,0.25), 5px 5px 0 rgba(26,21,16,0.10); }
+    50%    { text-shadow: 3px 3px 0 rgba(26,21,16,0.30), 5px 5px 0 rgba(26,21,16,0.15), 0 0 20px rgba(46,128,128,0.12); }
 }
 .intro-divider {
     width: 260px; height: 2px;
-    background: linear-gradient(90deg,transparent,#4a9e9e,transparent); opacity:.5;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    opacity: .4;
 }
 
 .intro-lang-select { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .intro-lang-label {
     font-family: 'Press Start 2P', monospace;
-    font-size: 8px; color: #5a8080; letter-spacing: 0.1em;
+    font-size: 8px; color: var(--text-dim); letter-spacing: 0.1em;
 }
 .intro-lang-row { display: flex; gap: 8px; }
 .intro-lang-btn {
     font-family: 'Press Start 2P', monospace; font-size: 10px; padding: 10px 20px;
-    background: #1a2424; color: #5aacac;
-    border: 2px solid #2a5a5a; cursor: none;
-    box-shadow: 3px 3px 0 #000;
+    background: var(--panel); color: var(--text-dim);
+    border: 2px solid var(--border-dim); cursor: none;
+    box-shadow: 3px 3px 0 rgba(26,21,16,0.22);
 }
-.intro-lang-btn:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 #000; }
+.intro-lang-btn:hover {
+    transform: translate(-1px,-1px);
+    box-shadow: 4px 4px 0 rgba(26,21,16,0.28);
+}
 .intro-lang-btn.selected {
-    background: #4a9e9e; color: #000; border-color: #4a9e9e;
-    box-shadow: 3px 3px 0 #000;
+    background: var(--border); color: #fff; border-color: var(--border);
+    box-shadow: 3px 3px 0 rgba(26,21,16,0.28);
 }
 .press-start {
     font-family: 'Press Start 2P', monospace;
-    font-size: clamp(9px,1.8vw,11px); color: #c8d8d2;
-    padding: 12px 22px; border: 2px solid #2a5a5a;
-    box-shadow: 3px 3px 0 #000;
+    font-size: clamp(9px,1.8vw,11px); color: var(--text);
+    padding: 12px 22px;
+    border: 2px solid var(--border-dim);
+    box-shadow: 3px 3px 0 rgba(26,21,16,0.22);
     animation: pressBlink 1.0s step-end infinite;
 }
 @keyframes pressBlink { 0%,100%{opacity:1;} 50%{opacity:0;} }
 .intro-version {
     font-family: 'Press Start 2P', monospace;
-    font-size: 7px; color: #1e3232;
+    font-size: 7px; color: var(--text-faint);
 }
 
 /* ══════════════════════════════════════════
@@ -722,21 +751,170 @@ body::after {
 .save-icon { font-size:28px; margin-bottom:10px; display:block; }
 
 /* ══════════════════════════════════════════
-   RESPONSIVE
+   RESPONSIVE — 手机优化
 ══════════════════════════════════════════ */
-@media (max-width:680px) {
-    .game-frame   { padding:16px 12px 80px; }
-    .hud          { flex-wrap:wrap; gap:8px; }
-    .hud-center   { order:3; width:100%; justify-content:center; }
-    .hud-right    { width:100%; justify-content:space-between; }
-    .char-card    { flex-direction:column; align-items:center; text-align:center; }
-    .pixel-avatar { width:80px; height:80px; }
-    .stats-row    { gap:6px; }
-    .stat-card .s-value { font-size:24px; }
-    .quest-title  { font-size:13px; }
-    .controls-hint{ gap:10px; }
-    .intro-title  { font-size:22px; }
-    .game-corners { display:none; }
-    #comboDisplay { right:8px; }
+
+/* ── 触摸设备：去掉自定义光标，改为 pointer ── */
+@media (hover: none) and (pointer: coarse) {
+    html, body   { cursor: auto; }
+    #cursorInner, #cursorOuter { display: none !important; }
+    body::after  { display: none; }
+
+    .lang-btn, .bgm-btn, .intro-lang-btn, .press-start,
+    .action-btn, .quest-header, .skill-tag, .pixel-avatar,
+    .stat-card   { cursor: pointer; }
+
+    .lang-btn    { padding: 8px 12px; }
+    .intro-lang-btn { padding: 14px 22px; }
+    .quest-header { padding: 16px 16px 16px 32px; }
+    .action-btn  { padding: 18px 8px; }
+    .skill-tag   { padding: 8px 12px; }
 }
-@media (max-width:440px) { .stats-row { grid-template-columns:1fr; } }
+
+/* ── 平板 ≤ 768px ── */
+@media (max-width: 768px) {
+    .game-frame  { max-width: 100%; padding: 20px 16px 90px; }
+    .game-corners { display: none; }
+
+    .hud         { flex-wrap: wrap; gap: 6px; padding: 8px 12px; }
+    .hud-left    { flex: 1; min-width: 0; }
+    .hud-right   { flex: 1; min-width: 0; justify-content: flex-end; }
+    .hud-center  { order: 3; width: 100%; justify-content: center; padding-top: 4px;
+                   border-top: 1px solid var(--text-faint); }
+
+    .seg         { width: 7px; height: 9px; }
+    .stat-label  { font-size: 7px; }
+    .lv-num      { font-size: 12px; }
+
+    .char-card   { flex-direction: column; align-items: center; text-align: center;
+                   padding: 20px 16px; gap: 16px; }
+    .pixel-avatar { width: 80px; height: 80px; }
+    .char-name-zh { font-size: clamp(26px,8vw,42px); }
+    .char-desc   { font-size: 14px; }
+
+    .quest-title { font-size: 14px; }
+    .quest-body  { font-size: 14px; }
+    .quest-link  { font-size: 14px; }
+    .skill-tag   { font-size: 7px; padding: 5px 9px; }
+
+    .stats-row   { grid-template-columns: repeat(3,1fr); gap: 6px; }
+    .stat-card   { padding: 12px 8px; }
+    .stat-card .s-value { font-size: 26px; }
+
+    .action-btn  { padding: 12px 6px; gap: 6px; }
+    .action-btn .btn-icon { font-size: 18px; }
+    .action-btn .btn-label { font-size: 7px; }
+
+    .game-quote  { padding: 18px 14px; }
+    .game-quote .gq-text { font-size: 14px; }
+
+    .controls-hint { gap: 12px; flex-wrap: wrap; justify-content: center; }
+    .key-hint-label { font-size: 12px; }
+
+    .exp-row     { padding: 5px 10px; gap: 8px; }
+    .exp-val     { display: none; }
+
+    #npcDialog   { padding: 0 10px 8px; }
+    .dialog-inner { padding: 9px 12px 10px; }
+    .dialog-text { font-size: 12px; }
+}
+
+/* ── 手机 ≤ 480px ── */
+@media (max-width: 480px) {
+    :root        { --fs-body: 14px; }
+
+    .game-frame  { padding: 14px 10px 80px; }
+
+    .intro-content { padding: 28px 18px; gap: 16px; }
+    .intro-title { font-size: clamp(18px, 6.5vw, 28px); letter-spacing: 0.04em; }
+    .intro-eyebrow { font-size: 6px; }
+    .intro-divider { width: 180px; }
+    .intro-lang-row { gap: 6px; }
+    .intro-lang-btn { font-size: 9px; padding: 12px 16px; }
+    .press-start { font-size: 9px; padding: 10px 16px; }
+    #introScreen::before { top:12px; left:12px; width:32px; height:32px; }
+    #introScreen::after  { bottom:12px; right:12px; width:32px; height:32px; }
+
+    .hud         { padding: 7px 10px; gap: 5px; }
+    .hud-title   { font-size: 7px; }
+    .hud-badge   { font-size: 5px; padding: 2px 5px; }
+    .seg         { width: 6px; height: 8px; }
+    .lv-num      { font-size: 11px; }
+    .bgm-btn     { font-size: 6px; padding: 4px 6px; }
+    .lang-btn    { font-size: 7px; padding: 4px 7px; }
+
+    .exp-row     { padding: 4px 8px; gap: 6px; }
+    .exp-bar-track { height: 8px; }
+    .exp-label   { font-size: 6px; }
+
+    .char-card   { padding: 16px 12px; gap: 14px; }
+    .char-name-zh { font-size: clamp(22px,7.5vw,34px); }
+    .char-name-en { font-size: 8px; }
+    .char-class  { font-size: 13px; }
+    .char-desc   { font-size: 13px; padding-top: 10px; }
+    .pixel-avatar { width: 72px; height: 72px; border-width: 2px; }
+
+    .section-header { font-size: 8px; padding: 7px 11px; }
+
+    .quest-header { padding: 12px 14px 12px 28px; gap: 8px; }
+    .quest-status { font-size: 6px; padding: 3px 6px; }
+    .quest-icon   { font-size: 13px; }
+    .quest-title  { font-size: 13px; }
+    .quest-arrow  { font-size: 8px; }
+    .quest-body   { font-size: 13px; }
+    .quest-body p { margin-bottom: 10px; }
+    .quest-link   { font-size: 13px; }
+    .skill-tag    { font-size: 6px; padding: 5px 8px; }
+    .skills-grid  { gap: 5px; }
+
+    .stats-row   { grid-template-columns: repeat(2,1fr); gap: 6px; }
+    .stat-card   { padding: 10px 6px; }
+    .stat-card .s-label  { font-size: 7px; margin-bottom: 8px; }
+    .stat-card .s-value  { font-size: 22px; }
+    .stat-card .s-unit   { font-size: 7px; }
+
+    .action-bar  { margin-bottom: 18px; }
+    .action-btn  { padding: 14px 4px; gap: 5px; }
+    .action-btn .btn-icon { font-size: 16px; }
+    .action-btn .btn-label { font-size: 6px; }
+
+    .game-quote  { padding: 16px 12px; margin-bottom: 16px; }
+    .game-quote .gq-text { font-size: 13px; }
+    .game-quote .gq-src  { font-size: 8px; }
+
+    .controls-hint { display: none; }
+
+    .game-footer p { font-size: 7px; line-height: 2.4; }
+
+    .dialog-inner { padding: 8px 10px 9px; }
+    .dialog-text  { font-size: 11px; line-height: 1.6; }
+    .dialog-speaker { font-size: 6px; }
+    .dialog-prompt  { font-size: 6px; }
+
+    #comboDisplay { right: 6px; }
+    .combo-num    { font-size: 22px; }
+    .combo-label  { font-size: 7px; }
+
+    .achievement-toast { left: 8px; min-width: 160px; padding: 8px 10px; }
+    .achievement-toast .a-title { font-size: 7px; }
+
+    .save-box    { padding: 22px 28px; }
+    .save-box .save-title { font-size: 9px; }
+    .save-box .save-slot  { font-size: 7px; }
+    .save-icon   { font-size: 24px; }
+
+    .encounter-text { font-size: clamp(14px,5vw,22px); }
+
+    .damage-num  { font-size: 10px; }
+    .damage-num.type-crit { font-size: 13px; }
+}
+
+/* ── 小屏 ≤ 360px ── */
+@media (max-width: 360px) {
+    .stats-row   { grid-template-columns: 1fr 1fr; }
+    .intro-title { font-size: 16px; }
+    .intro-lang-btn { font-size: 8px; padding: 10px 12px; }
+    .char-name-zh { font-size: 20px; }
+    .hud-right   { display: none; }
+    .action-btn .btn-label { display: none; }
+}

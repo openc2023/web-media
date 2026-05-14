@@ -222,8 +222,8 @@
 #xr8-canvas {
     position: fixed !important;
     inset: 0 !important;
-    width: 100vw !important;
-    height: 100dvh !important;
+    width: var(--app-vw) !important;
+    height: var(--app-vh) !important;
     /* width/height 由 Three.js renderer.setSize() 控制 buffer，
        CSS 不设死尺寸，让 position:fixed + inset:0 自然拉伸填满视口 */
     z-index: -1;
@@ -432,8 +432,8 @@ body.camera-open { overflow: hidden; }
 body.ar-running > video {
     position: fixed !important;
     inset: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
+    width: var(--app-vw) !important;
+    height: var(--app-vh) !important;
     object-fit: cover !important;
     z-index: 29 !important;   /* canvas=30 在上，video 垫底 */
     pointer-events: none !important;
@@ -479,8 +479,8 @@ body.ar-running .camera-stage {
     background: transparent !important;
     position: fixed;
     inset: 0;
-    width: 100vw;
-    height: 100dvh;
+    width: var(--app-vw);
+    height: var(--app-vh);
     max-height: none;
     margin: 0;
     border-radius: 0;
@@ -571,4 +571,8 @@ body.preview-running .scan-line-wrap {
     }
     .scan-line-wrap { display: none; }
     .scan-badge { bottom: 24px; }
+}
+ :root {
+    --app-vw: 100vw;
+    --app-vh: 100dvh;
 }

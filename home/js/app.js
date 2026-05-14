@@ -533,25 +533,39 @@
     /* ══════════════════════════════════════════
        DUAL-RING CURSOR
     ══════════════════════════════════════════ */
+    /* 触摸设备检测 */
+    var isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
     var ciEl = document.getElementById('cursorInner');
     var coEl = document.getElementById('cursorOuter');
-    var mx = window.innerWidth / 2, my = window.innerHeight / 2;
-    var ix = mx, iy = my, ox = mx, oy = my;
 
-    document.addEventListener('mousemove', function (e) {
-        mx = e.clientX; my = e.clientY;
-        if (BG) BG.addTrail(mx, my);
-    });
+    if (!isTouch) {
+        var mx = window.innerWidth / 2, my = window.innerHeight / 2;
+        var ix = mx, iy = my, ox = mx, oy = my;
 
-    (function cursorLoop() {
-        ix += (mx - ix) * 0.28;
-        iy += (my - iy) * 0.28;
-        ox += (mx - ox) * 0.10;
-        oy += (my - oy) * 0.10;
-        if (ciEl) { ciEl.style.left = ix + 'px'; ciEl.style.top = iy + 'px'; }
-        if (coEl) { coEl.style.left = ox + 'px'; coEl.style.top = oy + 'px'; }
-        requestAnimationFrame(cursorLoop);
-    })();
+        document.addEventListener('mousemove', function (e) {
+            mx = e.clientX; my = e.clientY;
+            if (BG) BG.addTrail(mx, my);
+        });
+
+        (function cursorLoop() {
+            ix += (mx - ix) * 0.28;
+            iy += (my - iy) * 0.28;
+            ox += (mx - ox) * 0.10;
+            oy += (my - oy) * 0.10;
+            if (ciEl) { ciEl.style.left = ix + 'px'; ciEl.style.top = iy + 'px'; }
+            if (coEl) { coEl.style.left = ox + 'px'; coEl.style.top = oy + 'px'; }
+            requestAnimationFrame(cursorLoop);
+        })();
+    } else {
+        /* 触摸：隐藏光标元素，触发墨迹拖尾 */
+        if (ciEl) ciEl.style.display = 'none';
+        if (coEl) coEl.style.display = 'none';
+        document.addEventListener('touchmove', function (e) {
+            var t = e.touches[0];
+            if (BG) BG.addTrail(t.clientX, t.clientY);
+        }, { passive: true });
+    }
 
     function bindCursorHover(selector) {
         document.querySelectorAll(selector).forEach(function (el) {
@@ -936,7 +950,7 @@
     ══════════════════════════════════════════ */
     var nameEl = document.getElementById('charName');
     var nmx = 0, nmy = 0;
-    if (nameEl) {
+    if (nameEl && !isTouch) {
         document.addEventListener('mousemove', function (e) {
             var r    = nameEl.getBoundingClientRect();
             var dx   = e.clientX - (r.left + r.width / 2);
@@ -996,23 +1010,28 @@
     (function iTick() {
         if (!iRunning || !iCtx) return;
         iT++;
-        iCtx.fillStyle = '#000';
+        /* 宣纸暖白底 */
+        iCtx.fillStyle = '#f2ece0';
         iCtx.fillRect(0, 0, iCanvas.width, iCanvas.height);
+        /* 水墨晕染云 — 天青色 + 墨色，极低透明度 */
         inkBlobs.forEach(function (b) {
-            var pulse = 0.028 + 0.018 * Math.sin(iT * 0.012 + b.ph);
+            var pulse = 0.032 + 0.022 * Math.sin(iT * 0.012 + b.ph);
+            var col = (b.ph < 1.6) ? '46,128,128' : '26,21,16';
             var grd = iCtx.createRadialGradient(b.cx*iCanvas.width, b.cy*iCanvas.height, 0,
                                                 b.cx*iCanvas.width, b.cy*iCanvas.height, b.r);
-            grd.addColorStop(0, 'rgba(74,158,158,' + pulse.toFixed(3) + ')');
-            grd.addColorStop(1, 'rgba(74,158,158,0)');
+            grd.addColorStop(0,   'rgba(' + col + ',' + pulse.toFixed(3) + ')');
+            grd.addColorStop(0.5, 'rgba(' + col + ',' + (pulse * 0.3).toFixed(3) + ')');
+            grd.addColorStop(1,   'rgba(' + col + ',0)');
             iCtx.fillStyle = grd;
             iCtx.fillRect(0, 0, iCanvas.width, iCanvas.height);
         });
+        /* 墨点粒子 — 暗色细点漂移 */
         iStars.forEach(function (s) {
             s.x -= s.spd;
             if (s.x < 0) { s.x = iCanvas.width; s.y = Math.random() * iCanvas.height; }
-            var a = s.a * (0.6 + 0.4 * Math.sin(iT * 0.038 + s.y * 0.01));
-            iCtx.fillStyle = 'rgba(188,208,204,' + a.toFixed(2) + ')';
-            iCtx.fillRect(Math.floor(s.x), Math.floor(s.y), s.sz, s.sz);
+            var a = s.a * 0.18 * (0.5 + 0.5 * Math.sin(iT * 0.038 + s.y * 0.01));
+            iCtx.fillStyle = 'rgba(26,21,16,' + a.toFixed(3) + ')';
+            iCtx.fillRect(Math.floor(s.x / 2) * 2, Math.floor(s.y / 2) * 2, s.sz, s.sz);
         });
         requestAnimationFrame(iTick);
     })();
