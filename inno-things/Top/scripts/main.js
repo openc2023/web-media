@@ -42,6 +42,8 @@ let previewFallbackTimer = null;
 let xrCameraBootTimer = null;
 let lostTimer = null;
 let startAttemptToken = 0;
+let assetWarmupPromise = null;
+let preloadedTargetDataPromise = null;
 let currentState = "scanning";
 let currentStatusKey = "top.statusIdle";
 let currentStatusVars = {};
@@ -50,6 +52,9 @@ const clock = new THREE.Clock(false);
 
 const IMAGE_TARGET_NAME = "000-top";
 const PAINTING_WIDTH_M = 0.20;
+const boxModelUrl = "./assets/3d/gltf/box.glb";
+const introModelUrl = "./assets/3d/gltf/shipin.glb";
+const targetDataUrl = "./assets/targets/000-top/000-top.json";
 
 const resolvedFlameGifUrl = new URL(
     "../assets/3d/gltf/%E7%81%AB%E7%84%B0%E6%97%8B%E8%BD%AC.gif",
@@ -226,6 +231,61 @@ const syncViewportMetrics = () => {
     const { width, height } = getViewportSize();
     document.documentElement.style.setProperty("--app-vw", `${width}px`);
     document.documentElement.style.setProperty("--app-vh", `${height}px`);
+};
+
+const cloneJson = (value) => {
+    if (typeof structuredClone === "function") return structuredClone(value);
+    return JSON.parse(JSON.stringify(value));
+};
+
+const buildImageTargetData = (source) => {
+    const imageTargetData = cloneJson(source);
+    if (imageTargetData.resources?.luminanceImage) {
+        imageTargetData.imagePath = `./assets/targets/000-top/${imageTargetData.resources.luminanceImage}`;
+    }
+    imageTargetData.physicalWidthInMeters = PAINTING_WIDTH_M;
+    if (imageTargetData.properties) {
+        imageTargetData.properties.physicalWidthInMeters = PAINTING_WIDTH_M;
+    } else {
+        imageTargetData.properties = { physicalWidthInMeters: PAINTING_WIDTH_M };
+    }
+    return imageTargetData;
+};
+
+const warmStaticAsset = async (url) => {
+    const response = await fetch(url, { cache: "force-cache" });
+    if (!response.ok) {
+        throw new Error(`Warmup failed for ${url} (HTTP ${response.status})`);
+    }
+    return response;
+};
+
+const preloadTargetData = () => {
+    if (preloadedTargetDataPromise) return preloadedTargetDataPromise;
+    preloadedTargetDataPromise = withTimeout(fetch(targetDataUrl, { cache: "force-cache" }), TARGET_FETCH_TIMEOUT_MS, "image target preload")
+        .then(async (targetRes) => {
+            if (!targetRes.ok) {
+                throw new Error(`Image target JSON not found (HTTP ${targetRes.status}). Run scripts/gen-target.mjs first.`);
+            }
+            return targetRes.json();
+        })
+        .catch((error) => {
+            preloadedTargetDataPromise = null;
+            throw error;
+        });
+    return preloadedTargetDataPromise;
+};
+
+const warmAssetCache = () => {
+    if (assetWarmupPromise) return assetWarmupPromise;
+    assetWarmupPromise = Promise.allSettled([
+        warmStaticAsset(boxModelUrl),
+        warmStaticAsset(introModelUrl),
+        warmStaticAsset(resolvedFlameGifUrl),
+        warmStaticAsset(resolvedIntroVideoUrl),
+        preloadTargetData(),
+    ]);
+    return assetWarmupPromise;
 };
 
 const invalidateStartAttempt = () => {
@@ -642,12 +702,12 @@ const syncXrViewport = () => {
 
 const loadBoxModel = () =>
     new Promise((resolve, reject) => {
-        new GLTFLoader().load("./assets/3d/gltf/box.glb", resolve, undefined, reject);
+        new GLTFLoader().load(boxModelUrl, resolve, undefined, reject);
     });
 
 const loadIntroModel = () =>
     new Promise((resolve, reject) => {
-        new GLTFLoader().load("./assets/3d/gltf/shipin.glb", resolve, undefined, reject);
+        new GLTFLoader().load(introModelUrl, resolve, undefined, reject);
     });
 
 const setTextureColorSpace = (texture) => {
@@ -1281,23 +1341,7 @@ const startMindAR = async () => {
                 12000,
                 "xrloaded"
             );
-        const targetDataPromise = withTimeout(fetch("./assets/targets/000-top/000-top.json"), TARGET_FETCH_TIMEOUT_MS, "image target fetch")
-            .then(async (targetRes) => {
-                if (!targetRes.ok) {
-                    throw new Error(`Image target JSON not found (HTTP ${targetRes.status}). Run scripts/gen-target.mjs first.`);
-                }
-                const imageTargetData = await targetRes.json();
-                if (imageTargetData.resources?.luminanceImage) {
-                    imageTargetData.imagePath = `./assets/targets/000-top/${imageTargetData.resources.luminanceImage}`;
-                }
-                imageTargetData.physicalWidthInMeters = PAINTING_WIDTH_M;
-                if (imageTargetData.properties) {
-                    imageTargetData.properties.physicalWidthInMeters = PAINTING_WIDTH_M;
-                } else {
-                    imageTargetData.properties = { physicalWidthInMeters: PAINTING_WIDTH_M };
-                }
-                return imageTargetData;
-            });
+        const targetDataPromise = preloadTargetData().then(buildImageTargetData);
 
         // Load model + GIF before XR8 starts
         const [gltf, introGltf] = await Promise.all([
@@ -1472,11 +1516,29 @@ const initializePageCopy = () => {
     refreshLocalizedUi();
     setState("scanning");
     setStatus("top.statusIdle");
+    if ("requestIdleCallback" in window) {
+        window.requestIdleCallback(() => { warmAssetCache().catch(() => {}); }, { timeout: 1500 });
+    } else {
+        window.setTimeout(() => { warmAssetCache().catch(() => {}); }, 300);
+    }
 };
 
 const handleViewportChange = () => {
     syncViewportMetrics();
     if (xrRunning) syncXrViewport();
+};
+
+const handlePageHidden = () => {
+    if (document.visibilityState && document.visibilityState !== "hidden") return;
+    if (cameraModal.hidden && !xrRunning && !previewStream) return;
+    closeCameraModal();
+};
+
+const handlePageVisible = () => {
+    syncViewportMetrics();
+    if (xrRunning) {
+        window.setTimeout(() => syncXrViewport(), 60);
+    }
 };
 
 // ???? Event wiring ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
@@ -1493,6 +1555,11 @@ localeButtons.forEach((button) => {
 cameraModal.addEventListener("click", (e) => { if (e.target === cameraModal) closeCameraModal(); });
 window.addEventListener("keydown", (e) => { if (e.key === "Escape" && !cameraModal.hidden) closeCameraModal(); });
 window.addEventListener("beforeunload", stopMindAR);
+window.addEventListener("pagehide", handlePageHidden);
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") handlePageHidden();
+    else handlePageVisible();
+});
 window.addEventListener("resize", handleViewportChange);
 window.addEventListener("orientationchange", handleViewportChange);
 window.visualViewport?.addEventListener("resize", handleViewportChange);
