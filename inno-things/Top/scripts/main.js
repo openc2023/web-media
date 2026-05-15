@@ -35,6 +35,7 @@ let introSequence = null;
 let petalGroup = null;
 let petalInstances = [];
 let petalTextureDisposers = [];
+let backgroundTextureDisposers = [];
 let previewStream = null;
 let preferredFacingMode = "environment";
 let currentXrCameraDirection = "BACK";
@@ -55,7 +56,7 @@ const clock = new THREE.Clock(false);
 
 const IMAGE_TARGET_NAME = "000-top";
 const PAINTING_WIDTH_M = 0.20;
-const ASSET_VERSION = "20260515-assets7";
+const ASSET_VERSION = "20260515-assets8";
 const withAssetVersion = (path) => {
     const url = new URL(path, import.meta.url);
     url.searchParams.set("v", ASSET_VERSION);
@@ -83,8 +84,11 @@ const resolvedPetalUrls = [
     url.searchParams.set("v", ASSET_VERSION);
     return url.href;
 });
+const resolvedInteriorBackgroundUrl = new URL("../assets/3d/png/bg1.png", import.meta.url);
+resolvedInteriorBackgroundUrl.searchParams.set("v", ASSET_VERSION);
 const resolvedFlameGifUrlString = resolvedFlameGifUrl.href;
 const resolvedIntroVideoUrlString = resolvedIntroVideoUrl.href;
+const resolvedInteriorBackgroundUrlString = resolvedInteriorBackgroundUrl.href;
 const flamePlaybackFps = 24;
 const flameFrameDurationMs = 1000 / flamePlaybackFps;
 const flameFrameOffsetByMesh = new Map([
@@ -118,7 +122,7 @@ const MEDIA_REQUEST_TIMEOUT_MS = 10000;
 const XR_CAMERA_BOOT_TIMEOUT_MS = 9000;
 const TARGET_FETCH_TIMEOUT_MS = 12000;
 const ENABLE_INTRO_SEQUENCE = false;
-const PETAL_COUNT_MIN = 14;
+const PETAL_COUNT_MIN = 15;
 const PETAL_COUNT_MAX = 18;
 const pseudoRandom = (seed) => {
     const x = Math.sin(seed * 127.1 + seed * seed * 311.7) * 43758.5453123;
@@ -611,10 +615,12 @@ const cleanupXrRuntime = ({ stopPreview = false, resetModel = false } = {}) => {
         gifTextureDisposers.forEach((d) => d());
         introTextureDisposers.forEach((d) => d());
         petalTextureDisposers.forEach((d) => d());
+        backgroundTextureDisposers.forEach((d) => d());
         gifTextureDisposers = [];
         gifUpdaters = [];
         introTextureDisposers = [];
         petalTextureDisposers = [];
+        backgroundTextureDisposers = [];
         introVideoElements = [];
         introFadeMaterials = [];
         introSequence = null;
@@ -892,10 +898,10 @@ const createPetalField = async (model) => {
     const width = Math.max(size.x, 0.18);
     const height = Math.max(size.y, 0.22);
     const depth = Math.max(size.z, 0.12);
-    const petalSize = Math.min(width, height) * 0.09;
-    const insetX = Math.min(width * 0.12, petalSize * 0.75);
-    const insetY = Math.min(height * 0.08, petalSize * 0.6);
-    const insetZ = Math.min(depth * 0.12, petalSize * 0.75);
+    const petalSize = Math.min(width, height) * 0.072;
+    const insetX = Math.min(width * 0.09, petalSize * 0.52);
+    const insetY = Math.min(height * 0.06, petalSize * 0.45);
+    const insetZ = Math.min(depth * 0.1, petalSize * 0.58);
 
     const group = new THREE.Group();
     group.name = "petal-field";
@@ -915,30 +921,36 @@ const createPetalField = async (model) => {
         const randomB = pseudoRandom(index + 21);
         const randomC = pseudoRandom(index + 57);
         const randomD = pseudoRandom(index + 103);
+        const depthLayer = index % 3;
+        const layerDepthFactor = [0.18, 0.5, 0.82][depthLayer];
+        const layerScaleFactor = [1.14, 0.92, 0.76][depthLayer];
+        const layerOpacityFactor = [0.8, 0.62, 0.42][depthLayer];
         const material = new THREE.MeshBasicMaterial({
             map: texture,
             transparent: true,
-            opacity: 0.48 + randomA * 0.16,
-            alphaTest: 0.002,
+            opacity: (0.38 + randomA * 0.12) * layerOpacityFactor,
+            alphaTest: 0.0,
             depthWrite: false,
             depthTest: true,
             side: THREE.DoubleSide,
             toneMapped: false,
+            premultipliedAlpha: true,
         });
         const mesh = new THREE.Mesh(geometry, material);
         mesh.userData.arRole = "interior";
         mesh.renderOrder = 6;
         mesh.frustumCulled = false;
-        const meshScale = 0.26 + randomA * 0.24;
+        const meshScale = (0.17 + randomA * 0.15) * layerScaleFactor;
         mesh.scale.setScalar(meshScale);
         group.add(mesh);
 
         const phase = randomB;
-        const xAnchor = 0.03 + randomC * 0.94;
-        const zAnchor = 0.04 + randomD * 0.92;
+        const xAnchor = 0.02 + randomC * 0.96;
+        const zAnchor = 0.08 + randomD * 0.84;
         const baseX = THREE.MathUtils.lerp(xMin, xMax, xAnchor);
-        const edgeZ = THREE.MathUtils.lerp(zMin, zMax, zAnchor);
-        const baseZ = THREE.MathUtils.lerp(edgeZ, center.z, 0.18);
+        const layerZ = THREE.MathUtils.lerp(zMin, zMax, layerDepthFactor);
+        const scatterZ = THREE.MathUtils.lerp(-depth * 0.09, depth * 0.09, zAnchor);
+        const baseZ = THREE.MathUtils.clamp(layerZ + scatterZ, zMin, zMax);
         return {
             mesh,
             material,
@@ -947,21 +959,21 @@ const createPetalField = async (model) => {
             maxY: yMax,
             baseX,
             baseZ,
-            driftAmplitudeX: width * (0.024 + randomB * 0.06),
-            driftAmplitudeZ: depth * (0.018 + randomC * 0.06),
-            driftFrequency: 0.36 + randomD * 0.55,
-            windAmplitudeX: width * (0.012 + randomA * 0.02),
-            windAmplitudeZ: depth * (0.01 + randomB * 0.018),
-            windFrequencyX: 0.12 + randomC * 0.14,
-            windFrequencyZ: 0.1 + randomD * 0.12,
+            driftAmplitudeX: width * (0.03 + randomB * 0.07),
+            driftAmplitudeZ: depth * (0.024 + randomC * 0.065),
+            driftFrequency: 0.28 + randomD * 0.42,
+            windAmplitudeX: width * (0.008 + randomA * 0.016),
+            windAmplitudeZ: depth * (0.008 + randomB * 0.015),
+            windFrequencyX: 0.08 + randomC * 0.09,
+            windFrequencyZ: 0.08 + randomD * 0.08,
             windPhaseX: pseudoRandom(index + 201) * Math.PI * 2,
             windPhaseZ: pseudoRandom(index + 301) * Math.PI * 2,
-            spinSpeedX: 0.2 + randomA * 0.45,
-            spinSpeedY: 0.26 + randomB * 0.55,
-            spinSpeedZ: 0.12 + randomC * 0.35,
-            fallSpeed: 0.035 + randomD * 0.045,
+            spinSpeedX: 0.16 + randomA * 0.32,
+            spinSpeedY: 0.22 + randomB * 0.4,
+            spinSpeedZ: 0.08 + randomC * 0.22,
+            fallSpeed: 0.028 + randomD * 0.032,
             phase,
-            baseOpacity: 0.48 + randomA * 0.16,
+            baseOpacity: (0.38 + randomA * 0.12) * layerOpacityFactor,
         };
     });
 
@@ -985,11 +997,10 @@ const updatePetalField = () => {
         const t = now * petal.fallSpeed + petal.phase;
         const loopProgress = t - Math.floor(t);
         const fallRange = petal.maxY - petal.minY;
-        const fadeWindow = 0.38;
-        const fadeIn = THREE.MathUtils.smoothstep(loopProgress, 0, fadeWindow);
-        const fadeOut = 1 - THREE.MathUtils.smoothstep(loopProgress, 1 - fadeWindow, 1);
-        const softPulse = 0.82 + 0.18 * Math.sin(now * 0.75 + petal.phase * Math.PI * 2);
-        const fadeEnvelope = Math.pow(Math.max(0, Math.min(1, fadeIn * fadeOut)), 0.8);
+        const fadeIn = THREE.MathUtils.smoothstep(loopProgress, 0.04, 0.28);
+        const fadeOut = 1 - THREE.MathUtils.smoothstep(loopProgress, 0.72, 0.98);
+        const softPulse = 0.88 + 0.12 * Math.sin(now * 0.46 + petal.phase * Math.PI * 2);
+        const fadeEnvelope = Math.pow(Math.max(0, Math.min(1, fadeIn * fadeOut)), 1.15);
         const opacity = fadeEnvelope * petal.baseOpacity * softPulse;
         const driftX = Math.sin(now * petal.driftFrequency + petal.phase * Math.PI * 2) * petal.driftAmplitudeX;
         const driftZ = Math.cos(now * (petal.driftFrequency * 0.8) + petal.phase * Math.PI) * petal.driftAmplitudeZ;
@@ -1092,6 +1103,57 @@ const attachIntroVideo = async (model) => {
         video: introAnim.video,
         updater: introAnim.update,
         disposer: introAnim.dispose,
+    };
+};
+
+const attachInteriorBackground = async (model) => {
+    const bgTexture = await loadTexture(resolvedInteriorBackgroundUrlString);
+    bgTexture.flipY = false;
+    bgTexture.wrapS = bgTexture.wrapT = THREE.ClampToEdgeWrapping;
+    bgTexture.minFilter = bgTexture.magFilter = THREE.LinearFilter;
+    setTextureColorSpace(bgTexture);
+
+    const priorityNames = new Set(["top2", "cube001", "top3"]);
+    const candidates = [];
+    model.traverse((obj) => {
+        if (!obj.isMesh || !obj.material) return;
+        if (getMeshRole(obj) !== "interior") return;
+        const normalizedName = normalizeMeshName(obj.name);
+        if (normalizedName.includes("petal")) return;
+        obj.geometry?.computeBoundingBox?.();
+        const bounds = obj.geometry?.boundingBox?.clone();
+        const center = bounds ? bounds.getCenter(new THREE.Vector3()) : new THREE.Vector3();
+        candidates.push({ obj, normalizedName, localCenterX: center.x });
+    });
+
+    const selected = candidates
+        .sort((a, b) => {
+            const ap = priorityNames.has(a.normalizedName) ? 0 : 1;
+            const bp = priorityNames.has(b.normalizedName) ? 0 : 1;
+            if (ap !== bp) return ap - bp;
+            return a.localCenterX - b.localCenterX;
+        })
+        .slice(0, 3);
+
+    selected.forEach(({ obj }) => {
+        const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+        const nextMaterials = materials.map((mat) => {
+            const nextMat = mat.clone();
+            nextMat.map = bgTexture;
+            nextMat.transparent = true;
+            nextMat.opacity = 1;
+            nextMat.color?.set?.("#f2efe6");
+            if ("roughness" in nextMat) nextMat.roughness = 1;
+            if ("metalness" in nextMat) nextMat.metalness = 0;
+            nextMat.needsUpdate = true;
+            return nextMat;
+        });
+        obj.material = Array.isArray(obj.material) ? nextMaterials : nextMaterials[0];
+    });
+
+    return {
+        dispose: () => bgTexture.dispose(),
+        attachedMeshes: selected.map(({ obj }) => obj.name),
     };
 };
 
@@ -1241,9 +1303,17 @@ const configureModelRendering = (model) => {
                 nextMat.opacity = 0;
             } else if (role === "shell") {
                 nextMat.depthTest = true;
+                if (nextMat.color && normalizeMeshName(obj.name).startsWith("box")) {
+                    nextMat.color.lerp(new THREE.Color("#667379"), 0.42);
+                }
+                if ("roughness" in nextMat) nextMat.roughness = Math.min(1, (nextMat.roughness ?? 0.8) + 0.12);
+                if ("metalness" in nextMat) nextMat.metalness = Math.max(0, (nextMat.metalness ?? 0) * 0.35);
             } else if (role === "interior" || role === "flame") {
                 obj.frustumCulled = false;
                 nextMat.depthTest = true;
+                if (role === "interior" && nextMat.color) {
+                    nextMat.color.lerp(new THREE.Color("#b6b0a2"), 0.24);
+                }
                 if (role === "flame") {
                     nextMat.transparent = true;
                     nextMat.depthWrite = false;
@@ -1574,6 +1644,10 @@ const startMindAR = async () => {
         throwIfStartCancelled(startToken);
         gifUpdaters = updaters;
         gifTextureDisposers = disposers;
+        const interiorBackground = await attachInteriorBackground(boxModel);
+        throwIfStartCancelled(startToken);
+        backgroundTextureDisposers = [interiorBackground.dispose];
+        console.info("[top-ar] interior background attached to:", interiorBackground.attachedMeshes);
         introFadeMaterials = [];
         introVideoElements = [];
         introTextureDisposers = [];
@@ -1596,6 +1670,16 @@ const startMindAR = async () => {
                 action.clampWhenFinished = false;
                 action.enabled = true;
                 return action;
+            });
+            mixerActions.forEach((action) => {
+                action.reset();
+                action.enabled = true;
+                action.setLoop(THREE.LoopRepeat, Infinity);
+                action.clampWhenFinished = false;
+                action.setEffectiveTimeScale(1);
+                action.setEffectiveWeight(1);
+                action.play();
+                action.paused = true;
             });
         }
 
