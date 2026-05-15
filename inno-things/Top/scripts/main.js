@@ -57,7 +57,7 @@ const clock = new THREE.Clock(false);
 
 const IMAGE_TARGET_NAME = "000-top";
 const PAINTING_WIDTH_M = 0.20;
-const ASSET_VERSION = "20260516-assets1";
+const ASSET_VERSION = "20260516-assets2";
 const withAssetVersion = (path) => {
     const url = new URL(path, import.meta.url);
     url.searchParams.set("v", ASSET_VERSION);
@@ -123,8 +123,8 @@ const MEDIA_REQUEST_TIMEOUT_MS = 10000;
 const XR_CAMERA_BOOT_TIMEOUT_MS = 9000;
 const TARGET_FETCH_TIMEOUT_MS = 12000;
 const ENABLE_INTRO_SEQUENCE = false;
-const PETAL_COUNT_MIN = 22;
-const PETAL_COUNT_MAX = 28;
+const PETAL_COUNT_MIN = 17;
+const PETAL_COUNT_MAX = 22;
 const pseudoRandom = (seed) => {
     const x = Math.sin(seed * 127.1 + seed * seed * 311.7) * 43758.5453123;
     return x - Math.floor(x);
@@ -901,7 +901,7 @@ const createPetalField = async (model) => {
     const width = Math.max(size.x, 0.18);
     const height = Math.max(size.y, 0.22);
     const depth = Math.max(size.z, 0.12);
-    const petalSize = Math.min(width, height) * 0.112;
+    const petalSize = Math.min(width, height) * 0.122;
     const insetX = Math.min(width * 0.09, petalSize * 0.52);
     const insetY = Math.min(height * 0.06, petalSize * 0.45);
     const insetZ = Math.min(depth * 0.1, petalSize * 0.58);
@@ -945,7 +945,7 @@ const createPetalField = async (model) => {
         mesh.userData.arRole = "interior";
         mesh.renderOrder = 6;
         mesh.frustumCulled = false;
-        const meshScale = (0.272 + randomA * 0.23) * layerScaleFactor;
+        const meshScale = (0.29 + randomA * 0.24) * layerScaleFactor;
         mesh.scale.setScalar(meshScale);
         group.add(mesh);
 
@@ -976,7 +976,7 @@ const createPetalField = async (model) => {
             spinSpeedX: 0.08 + randomA * 0.18,
             spinSpeedY: 0.1 + randomB * 0.22,
             spinSpeedZ: 0.04 + randomC * 0.12,
-            fallSpeed: 0.028 + randomD * 0.028,
+            fallSpeed: 0.034 + randomD * 0.032,
             phase,
             baseOpacity: (0.76 + randomA * 0.18) * layerOpacityFactor,
         };
