@@ -57,7 +57,7 @@ const clock = new THREE.Clock(false);
 
 const IMAGE_TARGET_NAME = "000-top";
 const PAINTING_WIDTH_M = 0.20;
-const ASSET_VERSION = "20260516-assets2";
+const ASSET_VERSION = "20260516-assets3";
 const withAssetVersion = (path) => {
     const url = new URL(path, import.meta.url);
     url.searchParams.set("v", ASSET_VERSION);
@@ -1533,6 +1533,7 @@ const buildAppModule = () => ({
         if (status === "hasVideo") {
             appendDebug("camera: video ready");
             markXrSessionHealthy();
+            setArPresentationActive(true);
             return;
         }
         if (status === "failed") {
@@ -1560,12 +1561,9 @@ const buildAppModule = () => ({
     },
 
     onStart: () => {
-        markXrSessionHealthy();
         const { scene } = XR8.Threejs.xrScene();
 
         syncXrViewport();
-        hideXrBodyVideos();
-
 
         scene.add(new THREE.AmbientLight(0xf4efe5, 0.14));
         scene.add(new THREE.HemisphereLight(0xf8f4eb, 0x7d8eae, 0.34));
@@ -1778,7 +1776,7 @@ const startMindAR = async () => {
         // makes iOS Safari create a 0?? WebGL context ??"No valid session manager").
         arCanvas = document.getElementById("xr8-canvas");
         if (!arCanvas) throw new Error("xr8-canvas not found.");
-        setArPresentationActive(true);
+        setArPresentationActive(false);
 
         // iOS 13+: motion permission must be requested from a user gesture
         if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
