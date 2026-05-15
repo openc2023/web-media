@@ -55,7 +55,7 @@ const clock = new THREE.Clock(false);
 
 const IMAGE_TARGET_NAME = "000-top";
 const PAINTING_WIDTH_M = 0.20;
-const ASSET_VERSION = "20260515-assets5";
+const ASSET_VERSION = "20260515-assets6";
 const withAssetVersion = (path) => {
     const url = new URL(path, import.meta.url);
     url.searchParams.set("v", ASSET_VERSION);
@@ -118,7 +118,8 @@ const MEDIA_REQUEST_TIMEOUT_MS = 10000;
 const XR_CAMERA_BOOT_TIMEOUT_MS = 9000;
 const TARGET_FETCH_TIMEOUT_MS = 12000;
 const ENABLE_INTRO_SEQUENCE = false;
-const PETAL_COUNT = 12;
+const PETAL_COUNT_MIN = 12;
+const PETAL_COUNT_MAX = 15;
 const pseudoRandom = (seed) => {
     const x = Math.sin(seed * 127.1 + seed * seed * 311.7) * 43758.5453123;
     return x - Math.floor(x);
@@ -891,7 +892,7 @@ const createPetalField = async (model) => {
     const width = Math.max(size.x, 0.18);
     const height = Math.max(size.y, 0.22);
     const depth = Math.max(size.z, 0.12);
-    const petalSize = Math.min(width, height) * 0.14;
+    const petalSize = Math.min(width, height) * 0.11;
     const insetX = Math.min(width * 0.12, petalSize * 0.75);
     const insetY = Math.min(height * 0.08, petalSize * 0.6);
     const insetZ = Math.min(depth * 0.12, petalSize * 0.75);
@@ -907,7 +908,8 @@ const createPetalField = async (model) => {
     const yMax = localBounds.max.y - insetY;
     const zMin = localBounds.min.z + insetZ;
     const zMax = localBounds.max.z - insetZ;
-    const instances = Array.from({ length: PETAL_COUNT }, (_, index) => {
+    const petalCount = PETAL_COUNT_MIN + Math.floor(Math.random() * (PETAL_COUNT_MAX - PETAL_COUNT_MIN + 1));
+    const instances = Array.from({ length: petalCount }, (_, index) => {
         const texture = textures[index % textures.length];
         const randomA = pseudoRandom(index + 1);
         const randomB = pseudoRandom(index + 21);
@@ -916,8 +918,8 @@ const createPetalField = async (model) => {
         const material = new THREE.MeshBasicMaterial({
             map: texture,
             transparent: true,
-            opacity: 0.58 + randomA * 0.18,
-            alphaTest: 0.05,
+            opacity: 0.52 + randomA * 0.16,
+            alphaTest: 0.015,
             depthWrite: false,
             depthTest: true,
             side: THREE.DoubleSide,
@@ -927,7 +929,7 @@ const createPetalField = async (model) => {
         mesh.userData.arRole = "interior";
         mesh.renderOrder = 6;
         mesh.frustumCulled = false;
-        const meshScale = 0.42 + randomA * 0.42;
+        const meshScale = 0.34 + randomA * 0.3;
         mesh.scale.setScalar(meshScale);
         group.add(mesh);
 
@@ -935,7 +937,8 @@ const createPetalField = async (model) => {
         const xAnchor = 0.08 + randomC * 0.84;
         const zAnchor = 0.1 + randomD * 0.8;
         const baseX = THREE.MathUtils.lerp(xMin, xMax, xAnchor);
-        const baseZ = THREE.MathUtils.lerp(zMin, zMax, zAnchor);
+        const edgeZ = THREE.MathUtils.lerp(zMin, zMax, zAnchor);
+        const baseZ = THREE.MathUtils.lerp(edgeZ, center.z, 0.32);
         return {
             mesh,
             material,
@@ -958,7 +961,7 @@ const createPetalField = async (model) => {
             spinSpeedZ: 0.12 + randomC * 0.35,
             fallSpeed: 0.035 + randomD * 0.045,
             phase,
-            baseOpacity: 0.58 + randomA * 0.18,
+            baseOpacity: 0.52 + randomA * 0.16,
         };
     });
 
@@ -982,10 +985,11 @@ const updatePetalField = () => {
         const t = now * petal.fallSpeed + petal.phase;
         const loopProgress = t - Math.floor(t);
         const fallRange = petal.maxY - petal.minY;
-        const fadeWindow = 0.18;
+        const fadeWindow = 0.26;
         const fadeIn = THREE.MathUtils.smoothstep(loopProgress, 0, fadeWindow);
         const fadeOut = 1 - THREE.MathUtils.smoothstep(loopProgress, 1 - fadeWindow, 1);
-        const opacity = Math.max(0, Math.min(1, fadeIn * fadeOut)) * petal.baseOpacity;
+        const softPulse = 0.86 + 0.14 * Math.sin(now * 0.9 + petal.phase * Math.PI * 2);
+        const opacity = Math.max(0, Math.min(1, fadeIn * fadeOut)) * petal.baseOpacity * softPulse;
         const driftX = Math.sin(now * petal.driftFrequency + petal.phase * Math.PI * 2) * petal.driftAmplitudeX;
         const driftZ = Math.cos(now * (petal.driftFrequency * 0.8) + petal.phase * Math.PI) * petal.driftAmplitudeZ;
         const windX = Math.sin(now * petal.windFrequencyX + petal.windPhaseX) * petal.windAmplitudeX;
@@ -1115,6 +1119,33 @@ const restartIntroVideo = () => {
     });
 };
 
+const pauseModelAnimations = () => {
+    if (!mixer || mixerActions.length === 0) return;
+    mixerActions.forEach((action) => {
+        action.paused = true;
+    });
+    clock.stop();
+};
+
+const playModelAnimations = ({ restart = false } = {}) => {
+    if (!mixer || mixerActions.length === 0) return;
+    clock.start();
+    mixerActions.forEach((action) => {
+        action.enabled = true;
+        action.setLoop(THREE.LoopRepeat, Infinity);
+        action.clampWhenFinished = false;
+        action.setEffectiveTimeScale(1);
+        action.setEffectiveWeight(1);
+        action.paused = false;
+        if (restart) {
+            action.reset();
+            action.play();
+            return;
+        }
+        if (!action.isRunning()) action.play();
+    });
+};
+
 const beginIntroSequence = () => {
     if (!introModel) return false;
     introSequence = {
@@ -1130,25 +1161,14 @@ const beginIntroSequence = () => {
         boxModel.visible = false;
         setModelOpacity(0);
     }
-    if (mixer) {
-        mixerActions.forEach((a) => { a.paused = true; });
-        clock.stop();
-    }
+    pauseModelAnimations();
     return true;
 };
 
 const ensureBoxPlaybackStarted = () => {
     if (!introSequence || introSequence.boxPlaybackStarted) return;
     introSequence.boxPlaybackStarted = true;
-    if (mixer && mixerActions.length > 0) {
-        clock.start();
-        mixerActions.forEach((action) => {
-            action.setLoop(THREE.LoopRepeat, Infinity);
-            action.clampWhenFinished = false;
-            action.paused = false;
-            action.reset().play();   // LoopOnce：每次从头播
-        });
-    }
+    playModelAnimations({ restart: true });
 };
 
 const finishIntroSequence = () => {
@@ -1159,15 +1179,7 @@ const finishIntroSequence = () => {
         boxModel.visible = true;
         setModelOpacity(1);
     }
-    if (mixer && mixerActions.length > 0) {
-        clock.start();
-        mixerActions.forEach((a) => {
-            a.setLoop(THREE.LoopRepeat, Infinity);
-            a.clampWhenFinished = false;
-            a.paused = false;
-            a.reset().play();
-        });
-    }
+    playModelAnimations({ restart: true });
 };
 
 const updateIntroSequence = () => {
@@ -1440,15 +1452,7 @@ const buildAppModule = () => ({
                 if (!startedIntro) {
                     boxModel.visible = true;
                     setModelOpacity(1);
-                    if (mixer && mixerActions.length > 0) {
-                        clock.start();
-                        mixerActions.forEach((a) => {
-                            a.setLoop(THREE.LoopRepeat, Infinity);
-                            a.clampWhenFinished = false;
-                            if (!a.isRunning()) a.play();
-                            else a.paused = false;
-                        });
-                    }
+                    playModelAnimations({ restart: true });
                 }
                 setState("found");
                 setStatus("top.statusFound");
@@ -1477,7 +1481,7 @@ const buildAppModule = () => ({
                 introSequence = null;
                 applyIntroOpacity(0);
                 if (introModel) introModel.visible = false;
-                if (mixer) { mixerActions.forEach((a) => { a.paused = true; }); clock.stop(); }
+                pauseModelAnimations();
                 resetFilters();
 
                 // ???? ?λ끀?썹삜猿뉗틞 ????????????????????????????????????????????????????????????????????????????????????????????????????
@@ -1587,6 +1591,7 @@ const startMindAR = async () => {
                 action.loop = THREE.LoopOnce;   // 播一次，停在最后一帧
                 action.clampWhenFinished = true;
                 action.setLoop(THREE.LoopRepeat, Infinity);
+                action.loop = THREE.LoopRepeat;
                 action.clampWhenFinished = false;
                 action.enabled = true;
                 return action;
