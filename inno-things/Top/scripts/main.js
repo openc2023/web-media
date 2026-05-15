@@ -116,8 +116,7 @@ const INTRO_FADE_OUT_MS = 8000;
 const MEDIA_REQUEST_TIMEOUT_MS = 10000;
 const XR_CAMERA_BOOT_TIMEOUT_MS = 9000;
 const TARGET_FETCH_TIMEOUT_MS = 12000;
-const PETAL_FALL_MIN_Y = -0.18;
-const PETAL_FALL_MAX_Y = 0.22;
+const PETAL_FORWARD_BIAS = 0.12;
 
 const normalizeMeshName = (name = "") => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -839,7 +838,7 @@ const loadTexture = (src) =>
         new THREE.TextureLoader().load(src, resolve, undefined, reject);
     });
 
-const createPetalField = async () => {
+const createPetalField = async (model) => {
     const textures = await Promise.all(resolvedPetalUrls.map((url) => loadTexture(url)));
     textures.forEach((texture) => {
         texture.flipY = false;
@@ -848,16 +847,36 @@ const createPetalField = async () => {
         setTextureColorSpace(texture);
     });
 
+    model.updateMatrixWorld(true);
+    let petalHost = null;
+    model.traverse((obj) => {
+        if (petalHost || !obj.isMesh) return;
+        if (normalizeMeshName(obj.name) === "box") petalHost = obj;
+    });
+    petalHost ||= model;
+
+    const bounds = new THREE.Box3().setFromObject(petalHost);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    bounds.getSize(size);
+    bounds.getCenter(center);
+
+    const width = Math.max(size.x, 0.18);
+    const height = Math.max(size.y, 0.22);
+    const depth = Math.max(size.z, 0.12);
+    const petalSize = Math.min(width, height) * 0.22;
+
     const group = new THREE.Group();
     group.name = "petal-field";
-    group.position.set(0, 0.02, 0.02);
+    group.position.copy(center);
+    group.position.z += depth * PETAL_FORWARD_BIAS;
 
-    const geometry = new THREE.PlaneGeometry(0.085, 0.085);
+    const geometry = new THREE.PlaneGeometry(petalSize, petalSize);
     const instances = textures.map((texture, index) => {
         const material = new THREE.MeshBasicMaterial({
             map: texture,
             transparent: true,
-            opacity: 0.92,
+            opacity: 0.98,
             alphaTest: 0.05,
             depthWrite: false,
             depthTest: true,
@@ -865,21 +884,25 @@ const createPetalField = async () => {
             toneMapped: false,
         });
         const mesh = new THREE.Mesh(geometry, material);
-        mesh.renderOrder = 5;
+        mesh.userData.arRole = "interior";
+        mesh.renderOrder = 6;
         mesh.frustumCulled = false;
+        mesh.position.z = (index - 1) * depth * 0.04;
         group.add(mesh);
 
         const phase = index / textures.length;
         return {
             mesh,
             material,
-            driftAmplitudeX: 0.028 + index * 0.008,
-            driftAmplitudeZ: 0.01 + index * 0.004,
+            minY: -height * 0.28,
+            maxY: height * 0.3,
+            driftAmplitudeX: width * (0.12 + index * 0.03),
+            driftAmplitudeZ: depth * (0.08 + index * 0.03),
             driftFrequency: 0.7 + index * 0.18,
             spinSpeedX: 0.35 + index * 0.08,
             spinSpeedY: 0.5 + index * 0.12,
             spinSpeedZ: 0.2 + index * 0.06,
-            fallSpeed: 0.055 + index * 0.01,
+            fallSpeed: 0.08 + index * 0.018,
             phase,
         };
     });
@@ -898,13 +921,13 @@ const createPetalField = async () => {
 const updatePetalField = () => {
     if (!petalInstances.length) return;
     const now = performance.now() * 0.001;
-    const fallRange = PETAL_FALL_MAX_Y - PETAL_FALL_MIN_Y;
 
     petalInstances.forEach((petal) => {
         const t = now * petal.fallSpeed + petal.phase;
         const loopProgress = t - Math.floor(t);
+        const fallRange = petal.maxY - petal.minY;
         petal.mesh.position.x = Math.sin(now * petal.driftFrequency + petal.phase * Math.PI * 2) * petal.driftAmplitudeX;
-        petal.mesh.position.y = PETAL_FALL_MAX_Y - loopProgress * fallRange;
+        petal.mesh.position.y = petal.maxY - loopProgress * fallRange;
         petal.mesh.position.z = Math.cos(now * (petal.driftFrequency * 0.8) + petal.phase * Math.PI) * petal.driftAmplitudeZ;
         petal.mesh.rotation.x = now * petal.spinSpeedX + petal.phase * Math.PI;
         petal.mesh.rotation.y = now * petal.spinSpeedY + petal.phase * Math.PI * 0.7;
@@ -1471,7 +1494,7 @@ const startMindAR = async () => {
         introFadeMaterials = introVideo.materials;
         introVideoElements = [introVideo.video];
         introTextureDisposers = [introVideo.disposer];
-        const petalField = await createPetalField();
+        const petalField = await createPetalField(boxModel);
         throwIfStartCancelled(startToken);
         petalGroup = petalField.group;
         petalInstances = petalField.instances;
