@@ -55,7 +55,7 @@ const clock = new THREE.Clock(false);
 
 const IMAGE_TARGET_NAME = "000-top";
 const PAINTING_WIDTH_M = 0.20;
-const ASSET_VERSION = "20260515-assets1";
+const ASSET_VERSION = "20260515-assets2";
 const withAssetVersion = (path) => {
     const url = new URL(path, import.meta.url);
     url.searchParams.set("v", ASSET_VERSION);
@@ -117,6 +117,7 @@ const MEDIA_REQUEST_TIMEOUT_MS = 10000;
 const XR_CAMERA_BOOT_TIMEOUT_MS = 9000;
 const TARGET_FETCH_TIMEOUT_MS = 12000;
 const ENABLE_INTRO_SEQUENCE = false;
+const PETAL_COUNT = 12;
 
 const normalizeMeshName = (name = "") => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -893,9 +894,10 @@ const createPetalField = async (model) => {
     const yMax = localBounds.max.y - insetY;
     const zMin = localBounds.min.z + insetZ;
     const zMax = localBounds.max.z - insetZ;
-    const xAnchors = [0.22, 0.5, 0.78];
-    const zAnchors = [0.28, 0.62, 0.8];
-    const instances = textures.map((texture, index) => {
+    const sampleRatios = [0.1, 0.18, 0.26, 0.34, 0.43, 0.52, 0.61, 0.69, 0.77, 0.84, 0.9, 0.95];
+    const sizeJitter = [0.7, 0.82, 0.94, 1.08, 0.76, 1.16, 0.88, 1.02, 0.8, 1.12, 0.92, 1.05];
+    const instances = Array.from({ length: PETAL_COUNT }, (_, index) => {
+        const texture = textures[index % textures.length];
         const material = new THREE.MeshBasicMaterial({
             map: texture,
             transparent: true,
@@ -910,27 +912,30 @@ const createPetalField = async (model) => {
         mesh.userData.arRole = "interior";
         mesh.renderOrder = 6;
         mesh.frustumCulled = false;
+        const meshScale = sizeJitter[index % sizeJitter.length];
+        mesh.scale.setScalar(meshScale);
         group.add(mesh);
 
-        const phase = index / textures.length;
-        const xAnchor = xAnchors[index % xAnchors.length];
-        const zAnchor = zAnchors[index % zAnchors.length];
+        const phase = index / PETAL_COUNT;
+        const xAnchor = sampleRatios[index % sampleRatios.length];
+        const zAnchor = sampleRatios[(index * 2 + 1) % sampleRatios.length];
         const baseX = THREE.MathUtils.lerp(xMin, xMax, xAnchor);
         const baseZ = THREE.MathUtils.lerp(zMin, zMax, zAnchor);
         return {
             mesh,
             material,
+            meshScale,
             minY: yMin,
             maxY: yMax,
             baseX,
             baseZ,
-            driftAmplitudeX: width * (0.035 + index * 0.01),
-            driftAmplitudeZ: depth * (0.03 + index * 0.01),
-            driftFrequency: 0.55 + index * 0.12,
-            spinSpeedX: 0.35 + index * 0.08,
-            spinSpeedY: 0.5 + index * 0.12,
-            spinSpeedZ: 0.2 + index * 0.06,
-            fallSpeed: 0.06 + index * 0.012,
+            driftAmplitudeX: width * (0.03 + index * 0.008),
+            driftAmplitudeZ: depth * (0.025 + index * 0.008),
+            driftFrequency: 0.52 + index * 0.1,
+            spinSpeedX: 0.3 + index * 0.06,
+            spinSpeedY: 0.44 + index * 0.08,
+            spinSpeedZ: 0.16 + index * 0.05,
+            fallSpeed: 0.055 + index * 0.009,
             phase,
         };
     });
