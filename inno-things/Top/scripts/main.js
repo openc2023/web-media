@@ -57,7 +57,7 @@ const clock = new THREE.Clock(false);
 
 const IMAGE_TARGET_NAME = "000-top";
 const PAINTING_WIDTH_M = 0.20;
-const ASSET_VERSION = "20260516-assets3";
+const ASSET_VERSION = "20260516-assets4";
 const withAssetVersion = (path) => {
     const url = new URL(path, import.meta.url);
     url.searchParams.set("v", ASSET_VERSION);
@@ -344,6 +344,76 @@ const isDesktopLikeEnvironment = () => {
     return !mobileUa && !coarsePointer && touchPoints === 0;
 };
 
+const detectDeviceProfile = () => {
+    const ua = navigator.userAgent || "";
+    const isIphone = /iPhone|iPad|iPod/i.test(ua);
+    const isAndroid = /Android/i.test(ua);
+    const isSamsung = /SamsungBrowser|SM-|Galaxy/i.test(ua);
+    const isChrome = /Chrome|CriOS/i.test(ua) && !/Edg|OPR|SamsungBrowser/i.test(ua);
+    if (isDesktopLikeEnvironment()) {
+        return {
+            key: "desktop",
+            cameraWidth: 1920,
+            cameraHeight: 1080,
+            aspectRatio: 9 / 16,
+            xrBootTimeoutMs: XR_CAMERA_BOOT_TIMEOUT_MS,
+            petalCountMin: PETAL_COUNT_MIN,
+            petalCountMax: PETAL_COUNT_MAX,
+        };
+    }
+    if (isIphone) {
+        return {
+            key: "iphone-safari",
+            cameraWidth: 1280,
+            cameraHeight: 720,
+            aspectRatio: 9 / 16,
+            xrBootTimeoutMs: 11000,
+            petalCountMin: Math.max(14, PETAL_COUNT_MIN - 2),
+            petalCountMax: Math.max(18, PETAL_COUNT_MAX - 2),
+        };
+    }
+    if (isSamsung) {
+        return {
+            key: "samsung",
+            cameraWidth: 1280,
+            cameraHeight: 720,
+            aspectRatio: 9 / 16,
+            xrBootTimeoutMs: 12000,
+            petalCountMin: Math.max(13, PETAL_COUNT_MIN - 3),
+            petalCountMax: Math.max(17, PETAL_COUNT_MAX - 3),
+        };
+    }
+    if (isAndroid && isChrome) {
+        return {
+            key: "android-chrome",
+            cameraWidth: 1600,
+            cameraHeight: 900,
+            aspectRatio: 9 / 16,
+            xrBootTimeoutMs: 9500,
+            petalCountMin: PETAL_COUNT_MIN,
+            petalCountMax: PETAL_COUNT_MAX,
+        };
+    }
+    return {
+        key: isAndroid ? "android-other" : "mobile-other",
+        cameraWidth: 1280,
+        cameraHeight: 720,
+        aspectRatio: 9 / 16,
+        xrBootTimeoutMs: 11000,
+        petalCountMin: Math.max(14, PETAL_COUNT_MIN - 2),
+        petalCountMax: Math.max(18, PETAL_COUNT_MAX - 2),
+    };
+};
+
+const DEVICE_PROFILE = detectDeviceProfile();
+
+const buildVideoConstraints = (facingMode) => ({
+    facingMode: { ideal: facingMode },
+    width: { ideal: DEVICE_PROFILE.cameraWidth },
+    height: { ideal: DEVICE_PROFILE.cameraHeight },
+    aspectRatio: { ideal: DEVICE_PROFILE.aspectRatio },
+});
+
 const listVideoInputs = async () =>
     (await withTimeout(navigator.mediaDevices.enumerateDevices(), 4000, "enumerateDevices"))
         .filter((device) => device.kind === "videoinput");
@@ -441,7 +511,7 @@ const scheduleXrCameraBootTimeout = () => {
         cleanupXrRuntime({ stopPreview: false, resetModel: false });
         setArPresentationActive(false);
         arCanvas = null;
-    }, XR_CAMERA_BOOT_TIMEOUT_MS);
+    }, DEVICE_PROFILE.xrBootTimeoutMs);
 };
 
 const schedulePreviewFallback = () => {
@@ -466,12 +536,7 @@ const startPreviewStream = async (facingMode = preferredFacingMode) => {
     const video = ensurePreviewVideo();
     previewStream = await withTimeout(navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: {
-            facingMode: { ideal: facingMode },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-            aspectRatio: { ideal: 9 / 16 },
-        },
+        video: buildVideoConstraints(facingMode),
     }), MEDIA_REQUEST_TIMEOUT_MS, "preview getUserMedia");
     video.srcObject = previewStream;
     try { await video.play(); } catch (_) {}
@@ -497,12 +562,7 @@ const probeCameraDirection = async () => {
             appendDebug(`probe: ${attempt.facingMode}`);
             const stream = await withTimeout(navigator.mediaDevices.getUserMedia({
                 audio: false,
-                video: {
-                    facingMode: { ideal: attempt.facingMode },
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 },
-                    aspectRatio: { ideal: 9 / 16 },
-                },
+                video: buildVideoConstraints(attempt.facingMode),
             }), MEDIA_REQUEST_TIMEOUT_MS, `probe ${attempt.facingMode}`);
             const [track] = stream.getVideoTracks();
             const actualFacingMode = track?.getSettings?.().facingMode;
@@ -554,6 +614,7 @@ const applyXrVideoFullscreen = (video) => {
     video.style.setProperty("z-index",        "29",              "important");
     video.style.setProperty("pointer-events", "none",            "important");
     video.style.setProperty("opacity",        "1",               "important");
+    video.style.setProperty("visibility",     "visible",         "important");
     console.log("[top-ar] xr video fullscreen applied:", video);
     appendDebug(`xr-video: ${video.videoWidth || 0}x${video.videoHeight || 0}`);
 };
@@ -581,7 +642,14 @@ const hideXrBodyVideos = () => {
     document.querySelectorAll("body > video").forEach((video) => {
         if (video.id === "camera-preview") return;
         video.style.setProperty("opacity", "0", "important");
-        video.style.setProperty("visibility", "hidden", "important");
+    });
+};
+
+const revealXrBodyVideos = () => {
+    document.querySelectorAll("body > video").forEach((video) => {
+        if (video.id === "camera-preview") return;
+        video.style.setProperty("opacity", "1", "important");
+        video.style.setProperty("visibility", "visible", "important");
     });
 };
 
@@ -603,6 +671,7 @@ const cleanupXrRuntime = ({ stopPreview = false, resetModel = false } = {}) => {
     });
 
     if (stopPreview) stopPreviewStream();
+    revealXrBodyVideos();
 
     if (resetModel && mixer) {
         mixer.stopAllAction();
@@ -917,7 +986,7 @@ const createPetalField = async (model) => {
     const yMax = localBounds.max.y - insetY;
     const zMin = localBounds.min.z + insetZ;
     const zMax = localBounds.max.z - insetZ;
-    const petalCount = PETAL_COUNT_MIN + Math.floor(Math.random() * (PETAL_COUNT_MAX - PETAL_COUNT_MIN + 1));
+    const petalCount = DEVICE_PROFILE.petalCountMin + Math.floor(Math.random() * (DEVICE_PROFILE.petalCountMax - DEVICE_PROFILE.petalCountMin + 1));
     const instances = Array.from({ length: petalCount }, (_, index) => {
         const texture = textures[index % textures.length];
         const randomA = pseudoRandom(index + 1);
@@ -1565,14 +1634,17 @@ const buildAppModule = () => ({
 
         syncXrViewport();
 
-        scene.add(new THREE.AmbientLight(0xf4efe5, 0.14));
-        scene.add(new THREE.HemisphereLight(0xf8f4eb, 0x7d8eae, 0.34));
-        const dir = new THREE.DirectionalLight(0xfff4e8, 0.2);
-        dir.position.set(0, 2, 1.5);
-        scene.add(dir);
-        const fill = new THREE.DirectionalLight(0xc8d7ef, 0.06);
-        fill.position.set(-1.6, 0.8, -1.2);
-        scene.add(fill);
+        if (!scene.userData.topArLightsAdded) {
+            scene.add(new THREE.AmbientLight(0xf4efe5, 0.14));
+            scene.add(new THREE.HemisphereLight(0xf8f4eb, 0x7d8eae, 0.34));
+            const dir = new THREE.DirectionalLight(0xfff4e8, 0.2);
+            dir.position.set(0, 2, 1.5);
+            scene.add(dir);
+            const fill = new THREE.DirectionalLight(0xc8d7ef, 0.06);
+            fill.position.set(-1.6, 0.8, -1.2);
+            scene.add(fill);
+            scene.userData.topArLightsAdded = true;
+        }
         if (ENABLE_INTRO_SEQUENCE && introModel) scene.add(introModel);
         scene.add(boxModel);
 
@@ -1595,6 +1667,7 @@ const buildAppModule = () => ({
                 if (lostTimer) { clearTimeout(lostTimer); lostTimer = null; }
 
                 markXrSessionHealthy();
+                hideXrBodyVideos();
                 snapPose(detail);
                 const startedIntro = ENABLE_INTRO_SEQUENCE ? beginIntroSequence() : false;
                 if (!startedIntro) {
@@ -1626,6 +1699,7 @@ const buildAppModule = () => ({
             process: () => {
                 setState("lost");
                 setStatus("top.statusLost");
+                revealXrBodyVideos();
                 introSequence = null;
                 applyIntroOpacity(0);
                 if (introModel) introModel.visible = false;
@@ -1675,6 +1749,7 @@ const startMindAR = async () => {
 
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     throwIfStartCancelled(startToken);
+    appendDebug(`profile: ${DEVICE_PROFILE.key} ${DEVICE_PROFILE.cameraWidth}x${DEVICE_PROFILE.cameraHeight}`);
 
     try {
         if (isDesktopLikeEnvironment()) {
