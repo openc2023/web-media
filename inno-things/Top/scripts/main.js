@@ -57,7 +57,7 @@ const clock = new THREE.Clock(false);
 
 const IMAGE_TARGET_NAME = "000-top";
 const PAINTING_WIDTH_M = 0.20;
-const ASSET_VERSION = "20260515-assets19";
+const ASSET_VERSION = "20260516-assets1";
 const withAssetVersion = (path) => {
     const url = new URL(path, import.meta.url);
     url.searchParams.set("v", ASSET_VERSION);
@@ -901,7 +901,7 @@ const createPetalField = async (model) => {
     const width = Math.max(size.x, 0.18);
     const height = Math.max(size.y, 0.22);
     const depth = Math.max(size.z, 0.12);
-    const petalSize = Math.min(width, height) * 0.104;
+    const petalSize = Math.min(width, height) * 0.112;
     const insetX = Math.min(width * 0.09, petalSize * 0.52);
     const insetY = Math.min(height * 0.06, petalSize * 0.45);
     const insetZ = Math.min(depth * 0.1, petalSize * 0.58);
@@ -945,7 +945,7 @@ const createPetalField = async (model) => {
         mesh.userData.arRole = "interior";
         mesh.renderOrder = 6;
         mesh.frustumCulled = false;
-        const meshScale = (0.258 + randomA * 0.22) * layerScaleFactor;
+        const meshScale = (0.272 + randomA * 0.23) * layerScaleFactor;
         mesh.scale.setScalar(meshScale);
         group.add(mesh);
 
@@ -976,7 +976,7 @@ const createPetalField = async (model) => {
             spinSpeedX: 0.08 + randomA * 0.18,
             spinSpeedY: 0.1 + randomB * 0.22,
             spinSpeedZ: 0.04 + randomC * 0.12,
-            fallSpeed: 0.024 + randomD * 0.024,
+            fallSpeed: 0.028 + randomD * 0.028,
             phase,
             baseOpacity: (0.76 + randomA * 0.18) * layerOpacityFactor,
         };
