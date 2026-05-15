@@ -55,7 +55,7 @@ const clock = new THREE.Clock(false);
 
 const IMAGE_TARGET_NAME = "000-top";
 const PAINTING_WIDTH_M = 0.20;
-const ASSET_VERSION = "20260515-assets2";
+const ASSET_VERSION = "20260515-assets4";
 const withAssetVersion = (path) => {
     const url = new URL(path, import.meta.url);
     url.searchParams.set("v", ASSET_VERSION);
@@ -99,6 +99,7 @@ const LEGACY_ROLES = {
     box: "shell",
     box1: "shell",
     box2: "shell",
+    petalarea: "petal-area",
     plane004: "flame",
     plane005: "flame",
     top2: "interior",
@@ -118,6 +119,10 @@ const XR_CAMERA_BOOT_TIMEOUT_MS = 9000;
 const TARGET_FETCH_TIMEOUT_MS = 12000;
 const ENABLE_INTRO_SEQUENCE = false;
 const PETAL_COUNT = 12;
+const pseudoRandom = (seed) => {
+    const x = Math.sin(seed * 127.1 + seed * seed * 311.7) * 43758.5453123;
+    return x - Math.floor(x);
+};
 
 const normalizeMeshName = (name = "") => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -137,6 +142,7 @@ const getMeshRole = (obj) => {
     if (n.endsWith('shell')) return 'shell';
     if (n.endsWith('int') || n.endsWith('interior')) return 'interior';
     if (n.endsWith('flame') || n.endsWith('fire')) return 'flame';
+    if (n.includes('petalarea') || n.endsWith('petal') || n.includes('petalrange')) return 'petal-area';
 
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     if (mats.some((m) => m && flameMaterialNames.has(m.name))) return 'flame';
@@ -852,6 +858,13 @@ const createPetalField = async (model) => {
     let petalHost = null;
     model.traverse((obj) => {
         if (petalHost || !obj.isMesh) return;
+        if (getMeshRole(obj) === "petal-area") {
+            petalHost = obj;
+            return;
+        }
+    });
+    model.traverse((obj) => {
+        if (petalHost || !obj.isMesh) return;
         if (normalizeMeshName(obj.name) === "box") petalHost = obj;
     });
     petalHost ||= model;
@@ -894,14 +907,16 @@ const createPetalField = async (model) => {
     const yMax = localBounds.max.y - insetY;
     const zMin = localBounds.min.z + insetZ;
     const zMax = localBounds.max.z - insetZ;
-    const sampleRatios = [0.1, 0.18, 0.26, 0.34, 0.43, 0.52, 0.61, 0.69, 0.77, 0.84, 0.9, 0.95];
-    const sizeJitter = [0.7, 0.82, 0.94, 1.08, 0.76, 1.16, 0.88, 1.02, 0.8, 1.12, 0.92, 1.05];
     const instances = Array.from({ length: PETAL_COUNT }, (_, index) => {
         const texture = textures[index % textures.length];
+        const randomA = pseudoRandom(index + 1);
+        const randomB = pseudoRandom(index + 21);
+        const randomC = pseudoRandom(index + 57);
+        const randomD = pseudoRandom(index + 103);
         const material = new THREE.MeshBasicMaterial({
             map: texture,
             transparent: true,
-            opacity: 1,
+            opacity: 0.82 + randomA * 0.18,
             alphaTest: 0.05,
             depthWrite: false,
             depthTest: true,
@@ -912,13 +927,13 @@ const createPetalField = async (model) => {
         mesh.userData.arRole = "interior";
         mesh.renderOrder = 6;
         mesh.frustumCulled = false;
-        const meshScale = sizeJitter[index % sizeJitter.length];
+        const meshScale = 0.62 + randomA * 0.72;
         mesh.scale.setScalar(meshScale);
         group.add(mesh);
 
-        const phase = index / PETAL_COUNT;
-        const xAnchor = sampleRatios[index % sampleRatios.length];
-        const zAnchor = sampleRatios[(index * 2 + 1) % sampleRatios.length];
+        const phase = randomB;
+        const xAnchor = 0.08 + randomC * 0.84;
+        const zAnchor = 0.1 + randomD * 0.8;
         const baseX = THREE.MathUtils.lerp(xMin, xMax, xAnchor);
         const baseZ = THREE.MathUtils.lerp(zMin, zMax, zAnchor);
         return {
@@ -929,13 +944,13 @@ const createPetalField = async (model) => {
             maxY: yMax,
             baseX,
             baseZ,
-            driftAmplitudeX: width * (0.03 + index * 0.008),
-            driftAmplitudeZ: depth * (0.025 + index * 0.008),
-            driftFrequency: 0.52 + index * 0.1,
-            spinSpeedX: 0.3 + index * 0.06,
-            spinSpeedY: 0.44 + index * 0.08,
-            spinSpeedZ: 0.16 + index * 0.05,
-            fallSpeed: 0.055 + index * 0.009,
+            driftAmplitudeX: width * (0.018 + randomB * 0.05),
+            driftAmplitudeZ: depth * (0.014 + randomC * 0.05),
+            driftFrequency: 0.36 + randomD * 0.55,
+            spinSpeedX: 0.2 + randomA * 0.45,
+            spinSpeedY: 0.26 + randomB * 0.55,
+            spinSpeedZ: 0.12 + randomC * 0.35,
+            fallSpeed: 0.035 + randomD * 0.045,
             phase,
         };
     });
@@ -1112,6 +1127,9 @@ const ensureBoxPlaybackStarted = () => {
     if (mixer && mixerActions.length > 0) {
         clock.start();
         mixerActions.forEach((action) => {
+            action.setLoop(THREE.LoopRepeat, Infinity);
+            action.clampWhenFinished = false;
+            action.paused = false;
             action.reset().play();   // LoopOnce：每次从头播
         });
     }
@@ -1127,7 +1145,12 @@ const finishIntroSequence = () => {
     }
     if (mixer && mixerActions.length > 0) {
         clock.start();
-        mixerActions.forEach((a) => { a.reset().play(); });
+        mixerActions.forEach((a) => {
+            a.setLoop(THREE.LoopRepeat, Infinity);
+            a.clampWhenFinished = false;
+            a.paused = false;
+            a.reset().play();
+        });
     }
 };
 
@@ -1180,6 +1203,13 @@ const configureModelRendering = (model) => {
                 nextMat.depthTest = true;
                 nextMat.transparent = false;
                 nextMat.opacity = 1;
+            } else if (role === "petal-area") {
+                obj.frustumCulled = false;
+                nextMat.colorWrite = false;
+                nextMat.depthWrite = false;
+                nextMat.depthTest = false;
+                nextMat.transparent = true;
+                nextMat.opacity = 0;
             } else if (role === "shell") {
                 nextMat.depthTest = true;
             } else if (role === "interior" || role === "flame") {
@@ -1197,7 +1227,7 @@ const configureModelRendering = (model) => {
         });
         obj.material = Array.isArray(obj.material) ? nextMaterials : nextMaterials[0];
 
-        const renderOrders = { occluder: 1, shell: 2, interior: 3, flame: 4 };
+        const renderOrders = { occluder: 1, shell: 2, interior: 3, flame: 4, "petal-area": 0 };
         obj.renderOrder = renderOrders[role] ?? 2;
     });
     console.log("[top-ar] mesh roles:", roleLog);
@@ -1396,7 +1426,12 @@ const buildAppModule = () => ({
                     setModelOpacity(1);
                     if (mixer && mixerActions.length > 0) {
                         clock.start();
-                        mixerActions.forEach((a) => { if (!a.isRunning()) a.play(); else a.paused = false; });
+                        mixerActions.forEach((a) => {
+                            a.setLoop(THREE.LoopRepeat, Infinity);
+                            a.clampWhenFinished = false;
+                            if (!a.isRunning()) a.play();
+                            else a.paused = false;
+                        });
                     }
                 }
                 setState("found");
@@ -1537,6 +1572,7 @@ const startMindAR = async () => {
                 action.clampWhenFinished = true;
                 action.setLoop(THREE.LoopRepeat, Infinity);
                 action.clampWhenFinished = false;
+                action.enabled = true;
                 return action;
             });
         }
