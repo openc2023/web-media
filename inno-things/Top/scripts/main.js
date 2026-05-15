@@ -32,6 +32,9 @@ let introTextureDisposers = [];
 let introVideoElements = [];
 let introFadeMaterials = [];
 let introSequence = null;
+let petalGroup = null;
+let petalInstances = [];
+let petalTextureDisposers = [];
 let previewStream = null;
 let preferredFacingMode = "environment";
 let currentXrCameraDirection = "BACK";
@@ -64,6 +67,11 @@ const resolvedIntroVideoUrl = new URL(
     "../assets/3d/gltf/shipin.mp4",
     import.meta.url
 ).href;
+const resolvedPetalUrls = [
+    new URL("../assets/3d/png/huaban1.png", import.meta.url).href,
+    new URL("../assets/3d/png/huaban2.png", import.meta.url).href,
+    new URL("../assets/3d/png/huaban3.png", import.meta.url).href,
+];
 const flamePlaybackFps = 24;
 const flameFrameDurationMs = 1000 / flamePlaybackFps;
 const flameFrameOffsetByMesh = new Map([
@@ -95,6 +103,8 @@ const INTRO_FADE_OUT_MS = 8000;
 const MEDIA_REQUEST_TIMEOUT_MS = 10000;
 const XR_CAMERA_BOOT_TIMEOUT_MS = 9000;
 const TARGET_FETCH_TIMEOUT_MS = 12000;
+const PETAL_FALL_MIN_Y = -0.18;
+const PETAL_FALL_MAX_Y = 0.22;
 
 const normalizeMeshName = (name = "") => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -283,6 +293,7 @@ const warmAssetCache = () => {
         warmStaticAsset(introModelUrl),
         warmStaticAsset(resolvedFlameGifUrl),
         warmStaticAsset(resolvedIntroVideoUrl),
+        ...resolvedPetalUrls.map((url) => warmStaticAsset(url)),
         preloadTargetData(),
     ]);
     return assetWarmupPromise;
@@ -579,12 +590,16 @@ const cleanupXrRuntime = ({ stopPreview = false, resetModel = false } = {}) => {
         clock.stop();
         gifTextureDisposers.forEach((d) => d());
         introTextureDisposers.forEach((d) => d());
+        petalTextureDisposers.forEach((d) => d());
         gifTextureDisposers = [];
         gifUpdaters = [];
         introTextureDisposers = [];
+        petalTextureDisposers = [];
         introVideoElements = [];
         introFadeMaterials = [];
         introSequence = null;
+        petalInstances = [];
+        petalGroup = null;
         resetFilters();
         boxModel = null;
         introModel = null;
@@ -804,6 +819,84 @@ const createLoopingVideoTexture = async (src) => {
             texture.dispose();
         },
     };
+};
+
+const loadTexture = (src) =>
+    new Promise((resolve, reject) => {
+        new THREE.TextureLoader().load(src, resolve, undefined, reject);
+    });
+
+const createPetalField = async () => {
+    const textures = await Promise.all(resolvedPetalUrls.map((url) => loadTexture(url)));
+    textures.forEach((texture) => {
+        texture.flipY = false;
+        texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+        texture.minFilter = texture.magFilter = THREE.LinearFilter;
+        setTextureColorSpace(texture);
+    });
+
+    const group = new THREE.Group();
+    group.name = "petal-field";
+    group.position.set(0, 0.02, 0.02);
+
+    const geometry = new THREE.PlaneGeometry(0.085, 0.085);
+    const instances = textures.map((texture, index) => {
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            opacity: 0.92,
+            alphaTest: 0.05,
+            depthWrite: false,
+            depthTest: true,
+            side: THREE.DoubleSide,
+            toneMapped: false,
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.renderOrder = 5;
+        mesh.frustumCulled = false;
+        group.add(mesh);
+
+        const phase = index / textures.length;
+        return {
+            mesh,
+            material,
+            driftAmplitudeX: 0.028 + index * 0.008,
+            driftAmplitudeZ: 0.01 + index * 0.004,
+            driftFrequency: 0.7 + index * 0.18,
+            spinSpeedX: 0.35 + index * 0.08,
+            spinSpeedY: 0.5 + index * 0.12,
+            spinSpeedZ: 0.2 + index * 0.06,
+            fallSpeed: 0.055 + index * 0.01,
+            phase,
+        };
+    });
+
+    return {
+        group,
+        instances,
+        dispose: () => {
+            geometry.dispose();
+            instances.forEach(({ material }) => material.dispose());
+            textures.forEach((texture) => texture.dispose());
+        },
+    };
+};
+
+const updatePetalField = () => {
+    if (!petalInstances.length) return;
+    const now = performance.now() * 0.001;
+    const fallRange = PETAL_FALL_MAX_Y - PETAL_FALL_MIN_Y;
+
+    petalInstances.forEach((petal) => {
+        const t = now * petal.fallSpeed + petal.phase;
+        const loopProgress = t - Math.floor(t);
+        petal.mesh.position.x = Math.sin(now * petal.driftFrequency + petal.phase * Math.PI * 2) * petal.driftAmplitudeX;
+        petal.mesh.position.y = PETAL_FALL_MAX_Y - loopProgress * fallRange;
+        petal.mesh.position.z = Math.cos(now * (petal.driftFrequency * 0.8) + petal.phase * Math.PI) * petal.driftAmplitudeZ;
+        petal.mesh.rotation.x = now * petal.spinSpeedX + petal.phase * Math.PI;
+        petal.mesh.rotation.y = now * petal.spinSpeedY + petal.phase * Math.PI * 0.7;
+        petal.mesh.rotation.z = now * petal.spinSpeedZ + petal.phase * Math.PI * 1.3;
+    });
 };
 
 const attachExternalFlameGif = async (model) => {
@@ -1281,6 +1374,7 @@ const buildAppModule = () => ({
 
     onUpdate: () => {
         updateIntroSequence();
+        updatePetalField();
         gifUpdaters.forEach((fn) => fn());
         if (mixer && clock.running) mixer.update(clock.getDelta());
     },
@@ -1364,6 +1458,12 @@ const startMindAR = async () => {
         introFadeMaterials = introVideo.materials;
         introVideoElements = [introVideo.video];
         introTextureDisposers = [introVideo.disposer];
+        const petalField = await createPetalField();
+        throwIfStartCancelled(startToken);
+        petalGroup = petalField.group;
+        petalInstances = petalField.instances;
+        petalTextureDisposers = [petalField.dispose];
+        boxModel.add(petalGroup);
         configureModelRendering(boxModel);
 
         if (gltf.animations?.length > 0) {
