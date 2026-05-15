@@ -57,7 +57,7 @@ const clock = new THREE.Clock(false);
 
 const IMAGE_TARGET_NAME = "000-top";
 const PAINTING_WIDTH_M = 0.20;
-const ASSET_VERSION = "20260515-assets14";
+const ASSET_VERSION = "20260515-assets16";
 const withAssetVersion = (path) => {
     const url = new URL(path, import.meta.url);
     url.searchParams.set("v", ASSET_VERSION);
@@ -928,6 +928,7 @@ const createPetalField = async (model) => {
         const layerDepthFactor = [0.14, 0.5, 0.88][depthLayer];
         const layerScaleFactor = [1.28, 1.04, 0.86][depthLayer];
         const layerOpacityFactor = [1.0, 0.88, 0.72][depthLayer];
+        const dreamyTint = ["#e5f1ff", "#edf0ff", "#e8e4ff"][depthLayer];
         const material = new THREE.MeshBasicMaterial({
             map: texture,
             transparent: true,
@@ -936,7 +937,7 @@ const createPetalField = async (model) => {
             depthWrite: false,
             depthTest: true,
             side: THREE.DoubleSide,
-            color: 0xffffff,
+            color: new THREE.Color(dreamyTint),
             toneMapped: false,
             premultipliedAlpha: true,
         });
@@ -946,6 +947,25 @@ const createPetalField = async (model) => {
         mesh.frustumCulled = false;
         const meshScale = (0.245 + randomA * 0.21) * layerScaleFactor;
         mesh.scale.setScalar(meshScale);
+
+        const auraMaterial = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            opacity: 0,
+            alphaTest: 0.0,
+            depthWrite: false,
+            depthTest: true,
+            side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending,
+            color: new THREE.Color(["#cfe4ff", "#d9dcff", "#d8d3ff"][depthLayer]),
+            toneMapped: false,
+            premultipliedAlpha: true,
+        });
+        const auraMesh = new THREE.Mesh(geometry, auraMaterial);
+        auraMesh.scale.setScalar(1.14 + depthLayer * 0.03);
+        auraMesh.renderOrder = 7;
+        auraMesh.frustumCulled = false;
+        mesh.add(auraMesh);
         group.add(mesh);
 
         const phase = randomB;
@@ -958,6 +978,7 @@ const createPetalField = async (model) => {
         return {
             mesh,
             material,
+            auraMaterial,
             meshScale,
             minY: yMin,
             maxY: yMax,
@@ -965,17 +986,17 @@ const createPetalField = async (model) => {
             baseZ,
             driftAmplitudeX: width * (0.036 + randomB * 0.084),
             driftAmplitudeZ: depth * (0.034 + randomC * 0.085),
-            driftFrequency: 0.28 + randomD * 0.42,
+            driftFrequency: 0.2 + randomD * 0.28,
             windAmplitudeX: width * (0.008 + randomA * 0.016),
             windAmplitudeZ: depth * (0.008 + randomB * 0.015),
-            windFrequencyX: 0.08 + randomC * 0.09,
-            windFrequencyZ: 0.08 + randomD * 0.08,
+            windFrequencyX: 0.05 + randomC * 0.06,
+            windFrequencyZ: 0.05 + randomD * 0.06,
             windPhaseX: pseudoRandom(index + 201) * Math.PI * 2,
             windPhaseZ: pseudoRandom(index + 301) * Math.PI * 2,
-            spinSpeedX: 0.16 + randomA * 0.32,
-            spinSpeedY: 0.22 + randomB * 0.4,
-            spinSpeedZ: 0.08 + randomC * 0.22,
-            fallSpeed: 0.028 + randomD * 0.032,
+            spinSpeedX: 0.08 + randomA * 0.18,
+            spinSpeedY: 0.1 + randomB * 0.22,
+            spinSpeedZ: 0.04 + randomC * 0.12,
+            fallSpeed: 0.02 + randomD * 0.022,
             phase,
             baseOpacity: (0.62 + randomA * 0.18) * layerOpacityFactor,
         };
@@ -987,7 +1008,10 @@ const createPetalField = async (model) => {
         instances,
         dispose: () => {
             geometry.dispose();
-            instances.forEach(({ material }) => material.dispose());
+            instances.forEach(({ material, auraMaterial }) => {
+                material.dispose();
+                auraMaterial.dispose();
+            });
             textures.forEach((texture) => texture.dispose());
         },
     };
@@ -1003,8 +1027,8 @@ const updatePetalField = () => {
         const fallRange = petal.maxY - petal.minY;
         const fadeIn = THREE.MathUtils.smoothstep(loopProgress, 0.015, 0.18);
         const fadeOut = 1 - THREE.MathUtils.smoothstep(loopProgress, 0.84, 0.99);
-        const softPulse = 0.96 + 0.04 * Math.sin(now * 0.36 + petal.phase * Math.PI * 2);
-        const fadeEnvelope = 0.62 + 0.38 * Math.pow(Math.max(0, Math.min(1, fadeIn * fadeOut)), 0.7);
+        const softPulse = 0.94 + 0.06 * Math.sin(now * 0.24 + petal.phase * Math.PI * 2);
+        const fadeEnvelope = 0.68 + 0.32 * Math.pow(Math.max(0, Math.min(1, fadeIn * fadeOut)), 0.62);
         const opacity = fadeEnvelope * petal.baseOpacity * softPulse;
         const driftX = Math.sin(now * petal.driftFrequency + petal.phase * Math.PI * 2) * petal.driftAmplitudeX;
         const driftZ = Math.cos(now * (petal.driftFrequency * 0.8) + petal.phase * Math.PI) * petal.driftAmplitudeZ;
@@ -1017,6 +1041,7 @@ const updatePetalField = () => {
         petal.mesh.rotation.y = now * petal.spinSpeedY + petal.phase * Math.PI * 0.7;
         petal.mesh.rotation.z = now * petal.spinSpeedZ + petal.phase * Math.PI * 1.3;
         petal.material.opacity = opacity;
+        petal.auraMaterial.opacity = opacity * 0.12;
     });
 };
 
