@@ -117,6 +117,7 @@ const MEDIA_REQUEST_TIMEOUT_MS = 10000;
 const XR_CAMERA_BOOT_TIMEOUT_MS = 9000;
 const TARGET_FETCH_TIMEOUT_MS = 12000;
 const PETAL_FORWARD_BIAS = 0.12;
+const ENABLE_INTRO_SEQUENCE = false;
 
 const normalizeMeshName = (name = "") => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -1347,7 +1348,7 @@ const buildAppModule = () => ({
         const dir = new THREE.DirectionalLight(0xffffff, 0.5);
         dir.position.set(0, 2, 1.5);
         scene.add(dir);
-        if (introModel) scene.add(introModel);
+        if (ENABLE_INTRO_SEQUENCE && introModel) scene.add(introModel);
         scene.add(boxModel);
 
         // Debug
@@ -1370,7 +1371,7 @@ const buildAppModule = () => ({
 
                 markXrSessionHealthy();
                 snapPose(detail);
-                const startedIntro = beginIntroSequence();
+                const startedIntro = ENABLE_INTRO_SEQUENCE ? beginIntroSequence() : false;
                 if (!startedIntro) {
                     boxModel.visible = true;
                     setModelOpacity(1);
@@ -1423,7 +1424,7 @@ const buildAppModule = () => ({
     ],
 
     onUpdate: () => {
-        updateIntroSequence();
+        if (ENABLE_INTRO_SEQUENCE) updateIntroSequence();
         updatePetalField();
         gifUpdaters.forEach((fn) => fn());
         if (mixer && clock.running) mixer.update(clock.getDelta());
@@ -1488,26 +1489,19 @@ const startMindAR = async () => {
         const targetDataPromise = preloadTargetData().then(buildImageTargetData);
 
         // Load model + GIF before XR8 starts
-        const [gltf, introGltf] = await Promise.all([
-            withTimeout(loadBoxModel(), 25000, "loadBoxModel"),
-            withTimeout(loadIntroModel(), 25000, "loadIntroModel"),
-        ]);
+        const gltf = await withTimeout(loadBoxModel(), 25000, "loadBoxModel");
         throwIfStartCancelled(startToken);
         boxModel = gltf.scene;
         boxModel.visible = false;
-        introModel = introGltf.scene;
-        introModel.visible = false;
+        introModel = null;
 
-        const [{ updaters, disposers }, introVideo] = await Promise.all([
-            attachExternalFlameGif(boxModel),
-            attachIntroVideo(introModel),
-        ]);
+        const { updaters, disposers } = await attachExternalFlameGif(boxModel);
         throwIfStartCancelled(startToken);
         gifUpdaters = updaters;
         gifTextureDisposers = disposers;
-        introFadeMaterials = introVideo.materials;
-        introVideoElements = [introVideo.video];
-        introTextureDisposers = [introVideo.disposer];
+        introFadeMaterials = [];
+        introVideoElements = [];
+        introTextureDisposers = [];
         const petalField = await createPetalField(boxModel);
         throwIfStartCancelled(startToken);
         petalGroup = petalField.group;
