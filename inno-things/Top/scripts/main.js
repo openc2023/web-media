@@ -855,16 +855,29 @@ const createPetalField = async (model) => {
     });
     petalHost ||= model;
 
-    const bounds = new THREE.Box3().setFromObject(petalHost);
+    let localBounds = null;
+    if (petalHost.isMesh && petalHost.geometry) {
+        petalHost.geometry.computeBoundingBox?.();
+        if (petalHost.geometry.boundingBox) {
+            localBounds = petalHost.geometry.boundingBox.clone();
+        }
+    }
+    if (!localBounds) {
+        localBounds = new THREE.Box3(
+            new THREE.Vector3(-0.5, -0.5, -0.5),
+            new THREE.Vector3(0.5, 0.5, 0.5)
+        );
+    }
+
     const size = new THREE.Vector3();
     const center = new THREE.Vector3();
-    bounds.getSize(size);
-    bounds.getCenter(center);
+    localBounds.getSize(size);
+    localBounds.getCenter(center);
 
     const width = Math.max(size.x, 0.18);
     const height = Math.max(size.y, 0.22);
     const depth = Math.max(size.z, 0.12);
-    const petalSize = Math.min(width, height) * 0.22;
+    const petalSize = Math.min(width, height) * 0.28;
 
     const group = new THREE.Group();
     group.name = "petal-field";
@@ -876,7 +889,7 @@ const createPetalField = async (model) => {
         const material = new THREE.MeshBasicMaterial({
             map: texture,
             transparent: true,
-            opacity: 0.98,
+            opacity: 1,
             alphaTest: 0.05,
             depthWrite: false,
             depthTest: true,
@@ -887,7 +900,7 @@ const createPetalField = async (model) => {
         mesh.userData.arRole = "interior";
         mesh.renderOrder = 6;
         mesh.frustumCulled = false;
-        mesh.position.z = (index - 1) * depth * 0.04;
+        mesh.position.z = (index - 1) * depth * 0.06;
         group.add(mesh);
 
         const phase = index / textures.length;
@@ -896,8 +909,8 @@ const createPetalField = async (model) => {
             material,
             minY: -height * 0.28,
             maxY: height * 0.3,
-            driftAmplitudeX: width * (0.12 + index * 0.03),
-            driftAmplitudeZ: depth * (0.08 + index * 0.03),
+            driftAmplitudeX: width * (0.14 + index * 0.035),
+            driftAmplitudeZ: depth * (0.1 + index * 0.03),
             driftFrequency: 0.7 + index * 0.18,
             spinSpeedX: 0.35 + index * 0.08,
             spinSpeedY: 0.5 + index * 0.12,
@@ -909,6 +922,7 @@ const createPetalField = async (model) => {
 
     return {
         group,
+        host: petalHost,
         instances,
         dispose: () => {
             geometry.dispose();
@@ -1499,7 +1513,7 @@ const startMindAR = async () => {
         petalGroup = petalField.group;
         petalInstances = petalField.instances;
         petalTextureDisposers = [petalField.dispose];
-        boxModel.add(petalGroup);
+        petalField.host.add(petalGroup);
         configureModelRendering(boxModel);
 
         if (gltf.animations?.length > 0) {
