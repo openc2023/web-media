@@ -116,7 +116,6 @@ const INTRO_FADE_OUT_MS = 8000;
 const MEDIA_REQUEST_TIMEOUT_MS = 10000;
 const XR_CAMERA_BOOT_TIMEOUT_MS = 9000;
 const TARGET_FETCH_TIMEOUT_MS = 12000;
-const PETAL_FORWARD_BIAS = 0.12;
 const ENABLE_INTRO_SEQUENCE = false;
 
 const normalizeMeshName = (name = "") => name.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -878,14 +877,24 @@ const createPetalField = async (model) => {
     const width = Math.max(size.x, 0.18);
     const height = Math.max(size.y, 0.22);
     const depth = Math.max(size.z, 0.12);
-    const petalSize = Math.min(width, height) * 0.28;
+    const petalSize = Math.min(width, height) * 0.22;
+    const insetX = Math.min(width * 0.12, petalSize * 0.75);
+    const insetY = Math.min(height * 0.08, petalSize * 0.6);
+    const insetZ = Math.min(depth * 0.12, petalSize * 0.75);
 
     const group = new THREE.Group();
     group.name = "petal-field";
-    group.position.copy(center);
-    group.position.z += depth * PETAL_FORWARD_BIAS;
+    group.position.set(0, 0, 0);
 
     const geometry = new THREE.PlaneGeometry(petalSize, petalSize);
+    const xMin = localBounds.min.x + insetX;
+    const xMax = localBounds.max.x - insetX;
+    const yMin = localBounds.min.y + insetY;
+    const yMax = localBounds.max.y - insetY;
+    const zMin = localBounds.min.z + insetZ;
+    const zMax = localBounds.max.z - insetZ;
+    const xAnchors = [0.22, 0.5, 0.78];
+    const zAnchors = [0.28, 0.62, 0.8];
     const instances = textures.map((texture, index) => {
         const material = new THREE.MeshBasicMaterial({
             map: texture,
@@ -901,22 +910,27 @@ const createPetalField = async (model) => {
         mesh.userData.arRole = "interior";
         mesh.renderOrder = 6;
         mesh.frustumCulled = false;
-        mesh.position.z = (index - 1) * depth * 0.06;
         group.add(mesh);
 
         const phase = index / textures.length;
+        const xAnchor = xAnchors[index % xAnchors.length];
+        const zAnchor = zAnchors[index % zAnchors.length];
+        const baseX = THREE.MathUtils.lerp(xMin, xMax, xAnchor);
+        const baseZ = THREE.MathUtils.lerp(zMin, zMax, zAnchor);
         return {
             mesh,
             material,
-            minY: -height * 0.28,
-            maxY: height * 0.3,
-            driftAmplitudeX: width * (0.14 + index * 0.035),
-            driftAmplitudeZ: depth * (0.1 + index * 0.03),
-            driftFrequency: 0.7 + index * 0.18,
+            minY: yMin,
+            maxY: yMax,
+            baseX,
+            baseZ,
+            driftAmplitudeX: width * (0.035 + index * 0.01),
+            driftAmplitudeZ: depth * (0.03 + index * 0.01),
+            driftFrequency: 0.55 + index * 0.12,
             spinSpeedX: 0.35 + index * 0.08,
             spinSpeedY: 0.5 + index * 0.12,
             spinSpeedZ: 0.2 + index * 0.06,
-            fallSpeed: 0.08 + index * 0.018,
+            fallSpeed: 0.06 + index * 0.012,
             phase,
         };
     });
@@ -941,9 +955,9 @@ const updatePetalField = () => {
         const t = now * petal.fallSpeed + petal.phase;
         const loopProgress = t - Math.floor(t);
         const fallRange = petal.maxY - petal.minY;
-        petal.mesh.position.x = Math.sin(now * petal.driftFrequency + petal.phase * Math.PI * 2) * petal.driftAmplitudeX;
+        petal.mesh.position.x = petal.baseX + Math.sin(now * petal.driftFrequency + petal.phase * Math.PI * 2) * petal.driftAmplitudeX;
         petal.mesh.position.y = petal.maxY - loopProgress * fallRange;
-        petal.mesh.position.z = Math.cos(now * (petal.driftFrequency * 0.8) + petal.phase * Math.PI) * petal.driftAmplitudeZ;
+        petal.mesh.position.z = petal.baseZ + Math.cos(now * (petal.driftFrequency * 0.8) + petal.phase * Math.PI) * petal.driftAmplitudeZ;
         petal.mesh.rotation.x = now * petal.spinSpeedX + petal.phase * Math.PI;
         petal.mesh.rotation.y = now * petal.spinSpeedY + petal.phase * Math.PI * 0.7;
         petal.mesh.rotation.z = now * petal.spinSpeedZ + petal.phase * Math.PI * 1.3;
