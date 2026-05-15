@@ -56,7 +56,7 @@ const clock = new THREE.Clock(false);
 
 const IMAGE_TARGET_NAME = "000-top";
 const PAINTING_WIDTH_M = 0.20;
-const ASSET_VERSION = "20260515-assets10";
+const ASSET_VERSION = "20260515-assets12";
 const withAssetVersion = (path) => {
     const url = new URL(path, import.meta.url);
     url.searchParams.set("v", ASSET_VERSION);
@@ -122,8 +122,8 @@ const MEDIA_REQUEST_TIMEOUT_MS = 10000;
 const XR_CAMERA_BOOT_TIMEOUT_MS = 9000;
 const TARGET_FETCH_TIMEOUT_MS = 12000;
 const ENABLE_INTRO_SEQUENCE = false;
-const PETAL_COUNT_MIN = 19;
-const PETAL_COUNT_MAX = 24;
+const PETAL_COUNT_MIN = 22;
+const PETAL_COUNT_MAX = 28;
 const pseudoRandom = (seed) => {
     const x = Math.sin(seed * 127.1 + seed * seed * 311.7) * 43758.5453123;
     return x - Math.floor(x);
@@ -898,7 +898,7 @@ const createPetalField = async (model) => {
     const width = Math.max(size.x, 0.18);
     const height = Math.max(size.y, 0.22);
     const depth = Math.max(size.z, 0.12);
-    const petalSize = Math.min(width, height) * 0.089;
+    const petalSize = Math.min(width, height) * 0.098;
     const insetX = Math.min(width * 0.09, petalSize * 0.52);
     const insetY = Math.min(height * 0.06, petalSize * 0.45);
     const insetZ = Math.min(depth * 0.1, petalSize * 0.58);
@@ -923,24 +923,29 @@ const createPetalField = async (model) => {
         const randomD = pseudoRandom(index + 103);
         const depthLayer = index % 3;
         const layerDepthFactor = [0.14, 0.5, 0.88][depthLayer];
-        const layerScaleFactor = [1.2, 0.98, 0.8][depthLayer];
-        const layerOpacityFactor = [0.94, 0.76, 0.56][depthLayer];
-        const material = new THREE.MeshBasicMaterial({
+        const layerScaleFactor = [1.28, 1.04, 0.86][depthLayer];
+        const layerOpacityFactor = [1.0, 0.88, 0.72][depthLayer];
+        const material = new THREE.MeshPhongMaterial({
             map: texture,
             transparent: true,
-            opacity: (0.5 + randomA * 0.16) * layerOpacityFactor,
+            opacity: (0.62 + randomA * 0.18) * layerOpacityFactor,
             alphaTest: 0.0,
             depthWrite: false,
             depthTest: true,
             side: THREE.DoubleSide,
-            toneMapped: false,
+            color: new THREE.Color(["#fff4e7", "#ffe7dc", "#fff8ef"][depthLayer]),
+            emissive: new THREE.Color(["#2f2418", "#251b12", "#1d1712"][depthLayer]),
+            emissiveIntensity: [0.08, 0.05, 0.03][depthLayer],
+            specular: new THREE.Color("#fff8ef"),
+            shininess: [38, 26, 18][depthLayer],
+            toneMapped: true,
             premultipliedAlpha: true,
         });
         const mesh = new THREE.Mesh(geometry, material);
         mesh.userData.arRole = "interior";
         mesh.renderOrder = 6;
         mesh.frustumCulled = false;
-        const meshScale = (0.225 + randomA * 0.19) * layerScaleFactor;
+        const meshScale = (0.245 + randomA * 0.21) * layerScaleFactor;
         mesh.scale.setScalar(meshScale);
         group.add(mesh);
 
@@ -959,8 +964,8 @@ const createPetalField = async (model) => {
             maxY: yMax,
             baseX,
             baseZ,
-            driftAmplitudeX: width * (0.034 + randomB * 0.078),
-            driftAmplitudeZ: depth * (0.03 + randomC * 0.078),
+            driftAmplitudeX: width * (0.036 + randomB * 0.084),
+            driftAmplitudeZ: depth * (0.034 + randomC * 0.085),
             driftFrequency: 0.28 + randomD * 0.42,
             windAmplitudeX: width * (0.008 + randomA * 0.016),
             windAmplitudeZ: depth * (0.008 + randomB * 0.015),
@@ -973,7 +978,7 @@ const createPetalField = async (model) => {
             spinSpeedZ: 0.08 + randomC * 0.22,
             fallSpeed: 0.028 + randomD * 0.032,
             phase,
-            baseOpacity: (0.5 + randomA * 0.16) * layerOpacityFactor,
+            baseOpacity: (0.62 + randomA * 0.18) * layerOpacityFactor,
         };
     });
 
@@ -997,10 +1002,10 @@ const updatePetalField = () => {
         const t = now * petal.fallSpeed + petal.phase;
         const loopProgress = t - Math.floor(t);
         const fallRange = petal.maxY - petal.minY;
-        const fadeIn = THREE.MathUtils.smoothstep(loopProgress, 0.02, 0.2);
-        const fadeOut = 1 - THREE.MathUtils.smoothstep(loopProgress, 0.82, 0.985);
-        const softPulse = 0.93 + 0.07 * Math.sin(now * 0.42 + petal.phase * Math.PI * 2);
-        const fadeEnvelope = 0.42 + 0.58 * Math.pow(Math.max(0, Math.min(1, fadeIn * fadeOut)), 0.82);
+        const fadeIn = THREE.MathUtils.smoothstep(loopProgress, 0.015, 0.18);
+        const fadeOut = 1 - THREE.MathUtils.smoothstep(loopProgress, 0.84, 0.99);
+        const softPulse = 0.96 + 0.04 * Math.sin(now * 0.36 + petal.phase * Math.PI * 2);
+        const fadeEnvelope = 0.62 + 0.38 * Math.pow(Math.max(0, Math.min(1, fadeIn * fadeOut)), 0.7);
         const opacity = fadeEnvelope * petal.baseOpacity * softPulse;
         const driftX = Math.sin(now * petal.driftFrequency + petal.phase * Math.PI * 2) * petal.driftAmplitudeX;
         const driftZ = Math.cos(now * (petal.driftFrequency * 0.8) + petal.phase * Math.PI) * petal.driftAmplitudeZ;
@@ -1495,10 +1500,23 @@ const buildAppModule = () => ({
         hideXrBodyVideos();
 
 
-        scene.add(new THREE.HemisphereLight(0xffffff, 0xbbbbff, 0.6));
-        const dir = new THREE.DirectionalLight(0xffffff, 0.5);
+        scene.add(new THREE.AmbientLight(0xf4efe5, 0.32));
+        scene.add(new THREE.HemisphereLight(0xf8f4eb, 0x7d8eae, 0.82));
+        const dir = new THREE.DirectionalLight(0xfff4e8, 0.62);
         dir.position.set(0, 2, 1.5);
         scene.add(dir);
+        const fill = new THREE.DirectionalLight(0xc8d7ef, 0.26);
+        fill.position.set(-1.6, 0.8, -1.2);
+        scene.add(fill);
+        if (boxModel) {
+            const innerWarm = new THREE.PointLight(0xfff0d9, 0.85, 1.8, 2);
+            innerWarm.position.set(0, 0.14, 0.1);
+            boxModel.add(innerWarm);
+
+            const innerCool = new THREE.PointLight(0xa8b9d6, 0.26, 1.8, 2);
+            innerCool.position.set(0, -0.04, -0.12);
+            boxModel.add(innerCool);
+        }
         if (ENABLE_INTRO_SEQUENCE && introModel) scene.add(introModel);
         scene.add(boxModel);
 
