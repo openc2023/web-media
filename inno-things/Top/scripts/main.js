@@ -57,7 +57,7 @@ const clock = new THREE.Clock(false);
 
 const IMAGE_TARGET_NAME = "000-top";
 const PAINTING_WIDTH_M = 0.20;
-const ASSET_VERSION = "20260515-assets13";
+const ASSET_VERSION = "20260515-assets14";
 const withAssetVersion = (path) => {
     const url = new URL(path, import.meta.url);
     url.searchParams.set("v", ASSET_VERSION);
@@ -928,7 +928,7 @@ const createPetalField = async (model) => {
         const layerDepthFactor = [0.14, 0.5, 0.88][depthLayer];
         const layerScaleFactor = [1.28, 1.04, 0.86][depthLayer];
         const layerOpacityFactor = [1.0, 0.88, 0.72][depthLayer];
-        const material = new THREE.MeshPhongMaterial({
+        const material = new THREE.MeshBasicMaterial({
             map: texture,
             transparent: true,
             opacity: (0.62 + randomA * 0.18) * layerOpacityFactor,
@@ -936,12 +936,8 @@ const createPetalField = async (model) => {
             depthWrite: false,
             depthTest: true,
             side: THREE.DoubleSide,
-            color: new THREE.Color(["#fff4e7", "#ffe7dc", "#fff8ef"][depthLayer]),
-            emissive: new THREE.Color(["#2f2418", "#251b12", "#1d1712"][depthLayer]),
-            emissiveIntensity: [0.08, 0.05, 0.03][depthLayer],
-            specular: new THREE.Color("#fff8ef"),
-            shininess: [38, 26, 18][depthLayer],
-            toneMapped: true,
+            color: 0xffffff,
+            toneMapped: false,
             premultipliedAlpha: true,
         });
         const mesh = new THREE.Mesh(geometry, material);
@@ -950,24 +946,6 @@ const createPetalField = async (model) => {
         mesh.frustumCulled = false;
         const meshScale = (0.245 + randomA * 0.21) * layerScaleFactor;
         mesh.scale.setScalar(meshScale);
-
-        const glowMaterial = new THREE.MeshBasicMaterial({
-            map: texture,
-            transparent: true,
-            opacity: 0,
-            depthWrite: false,
-            depthTest: true,
-            side: THREE.DoubleSide,
-            blending: THREE.AdditiveBlending,
-            color: new THREE.Color(["#ffd9bc", "#ffd6c8", "#fff1dc"][depthLayer]),
-            toneMapped: false,
-            premultipliedAlpha: true,
-        });
-        const glowMesh = new THREE.Mesh(geometry, glowMaterial);
-        glowMesh.scale.setScalar(1.22);
-        glowMesh.renderOrder = 7;
-        glowMesh.frustumCulled = false;
-        mesh.add(glowMesh);
         group.add(mesh);
 
         const phase = randomB;
@@ -980,7 +958,6 @@ const createPetalField = async (model) => {
         return {
             mesh,
             material,
-            glowMaterial,
             meshScale,
             minY: yMin,
             maxY: yMax,
@@ -1010,10 +987,7 @@ const createPetalField = async (model) => {
         instances,
         dispose: () => {
             geometry.dispose();
-            instances.forEach(({ material, glowMaterial }) => {
-                material.dispose();
-                glowMaterial.dispose();
-            });
+            instances.forEach(({ material }) => material.dispose());
             textures.forEach((texture) => texture.dispose());
         },
     };
@@ -1043,7 +1017,6 @@ const updatePetalField = () => {
         petal.mesh.rotation.y = now * petal.spinSpeedY + petal.phase * Math.PI * 0.7;
         petal.mesh.rotation.z = now * petal.spinSpeedZ + petal.phase * Math.PI * 1.3;
         petal.material.opacity = opacity;
-        petal.glowMaterial.opacity = opacity * 0.26;
     });
 };
 
@@ -1591,23 +1564,14 @@ const buildAppModule = () => ({
         hideXrBodyVideos();
 
 
-        scene.add(new THREE.AmbientLight(0xf4efe5, 0.2));
-        scene.add(new THREE.HemisphereLight(0xf8f4eb, 0x7d8eae, 0.52));
-        const dir = new THREE.DirectionalLight(0xfff4e8, 0.38);
+        scene.add(new THREE.AmbientLight(0xf4efe5, 0.14));
+        scene.add(new THREE.HemisphereLight(0xf8f4eb, 0x7d8eae, 0.34));
+        const dir = new THREE.DirectionalLight(0xfff4e8, 0.2);
         dir.position.set(0, 2, 1.5);
         scene.add(dir);
-        const fill = new THREE.DirectionalLight(0xc8d7ef, 0.14);
+        const fill = new THREE.DirectionalLight(0xc8d7ef, 0.06);
         fill.position.set(-1.6, 0.8, -1.2);
         scene.add(fill);
-        if (boxModel) {
-            const innerWarm = new THREE.PointLight(0xfff0d9, 0.38, 1.5, 2);
-            innerWarm.position.set(0, 0.14, 0.1);
-            boxModel.add(innerWarm);
-
-            const innerCool = new THREE.PointLight(0xa8b9d6, 0.12, 1.5, 2);
-            innerCool.position.set(0, -0.04, -0.12);
-            boxModel.add(innerCool);
-        }
         if (ENABLE_INTRO_SEQUENCE && introModel) scene.add(introModel);
         scene.add(boxModel);
 
