@@ -55,23 +55,36 @@ const clock = new THREE.Clock(false);
 
 const IMAGE_TARGET_NAME = "000-top";
 const PAINTING_WIDTH_M = 0.20;
-const boxModelUrl = "./assets/3d/gltf/box.glb";
-const introModelUrl = "./assets/3d/gltf/shipin.glb";
-const targetDataUrl = "./assets/targets/000-top/000-top.json";
+const ASSET_VERSION = "20260515-assets1";
+const withAssetVersion = (path) => {
+    const url = new URL(path, import.meta.url);
+    url.searchParams.set("v", ASSET_VERSION);
+    return url.href;
+};
+const boxModelUrl = withAssetVersion("../assets/3d/gltf/box.glb");
+const introModelUrl = withAssetVersion("../assets/3d/gltf/shipin.glb");
+const targetDataUrl = withAssetVersion("../assets/targets/000-top/000-top.json");
 
 const resolvedFlameGifUrl = new URL(
     "../assets/3d/gltf/%E7%81%AB%E7%84%B0%E6%97%8B%E8%BD%AC.gif",
     import.meta.url
-).href;
+);
+resolvedFlameGifUrl.searchParams.set("v", ASSET_VERSION);
 const resolvedIntroVideoUrl = new URL(
     "../assets/3d/gltf/shipin.mp4",
     import.meta.url
-).href;
+);
+resolvedIntroVideoUrl.searchParams.set("v", ASSET_VERSION);
 const resolvedPetalUrls = [
-    new URL("../assets/3d/png/huaban1.png", import.meta.url).href,
-    new URL("../assets/3d/png/huaban2.png", import.meta.url).href,
-    new URL("../assets/3d/png/huaban3.png", import.meta.url).href,
-];
+    new URL("../assets/3d/png/huaban1.png", import.meta.url),
+    new URL("../assets/3d/png/huaban2.png", import.meta.url),
+    new URL("../assets/3d/png/huaban3.png", import.meta.url),
+].map((url) => {
+    url.searchParams.set("v", ASSET_VERSION);
+    return url.href;
+});
+const resolvedFlameGifUrlString = resolvedFlameGifUrl.href;
+const resolvedIntroVideoUrlString = resolvedIntroVideoUrl.href;
 const flamePlaybackFps = 24;
 const flameFrameDurationMs = 1000 / flamePlaybackFps;
 const flameFrameOffsetByMesh = new Map([
@@ -291,8 +304,8 @@ const warmAssetCache = () => {
     assetWarmupPromise = Promise.allSettled([
         warmStaticAsset(boxModelUrl),
         warmStaticAsset(introModelUrl),
-        warmStaticAsset(resolvedFlameGifUrl),
-        warmStaticAsset(resolvedIntroVideoUrl),
+        warmStaticAsset(resolvedFlameGifUrlString),
+        warmStaticAsset(resolvedIntroVideoUrlString),
         ...resolvedPetalUrls.map((url) => warmStaticAsset(url)),
         preloadTargetData(),
     ]);
@@ -930,7 +943,7 @@ const attachExternalFlameGif = async (model) => {
         const key = String(frameOffset);
         let anim = cache.get(key);
         if (!anim) {
-            anim = await createAnimatedGifTexture(resolvedFlameGifUrl, frameOffset);
+            anim = await createAnimatedGifTexture(resolvedFlameGifUrlString, frameOffset);
             cache.set(key, anim);
             updaters.push(anim.update);
             disposers.push(anim.dispose);
@@ -949,7 +962,7 @@ const attachExternalFlameGif = async (model) => {
 };
 
 const attachIntroVideo = async (model) => {
-    const introAnim = await createLoopingVideoTexture(resolvedIntroVideoUrl);
+    const introAnim = await createLoopingVideoTexture(resolvedIntroVideoUrlString);
     const fadeMaterials = [];
 
     model.traverse((obj) => {
