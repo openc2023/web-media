@@ -55,7 +55,7 @@ const clock = new THREE.Clock(false);
 
 const IMAGE_TARGET_NAME = "000-top";
 const PAINTING_WIDTH_M = 0.20;
-const ASSET_VERSION = "20260515-assets4";
+const ASSET_VERSION = "20260515-assets5";
 const withAssetVersion = (path) => {
     const url = new URL(path, import.meta.url);
     url.searchParams.set("v", ASSET_VERSION);
@@ -891,7 +891,7 @@ const createPetalField = async (model) => {
     const width = Math.max(size.x, 0.18);
     const height = Math.max(size.y, 0.22);
     const depth = Math.max(size.z, 0.12);
-    const petalSize = Math.min(width, height) * 0.22;
+    const petalSize = Math.min(width, height) * 0.14;
     const insetX = Math.min(width * 0.12, petalSize * 0.75);
     const insetY = Math.min(height * 0.08, petalSize * 0.6);
     const insetZ = Math.min(depth * 0.12, petalSize * 0.75);
@@ -916,7 +916,7 @@ const createPetalField = async (model) => {
         const material = new THREE.MeshBasicMaterial({
             map: texture,
             transparent: true,
-            opacity: 0.82 + randomA * 0.18,
+            opacity: 0.58 + randomA * 0.18,
             alphaTest: 0.05,
             depthWrite: false,
             depthTest: true,
@@ -927,7 +927,7 @@ const createPetalField = async (model) => {
         mesh.userData.arRole = "interior";
         mesh.renderOrder = 6;
         mesh.frustumCulled = false;
-        const meshScale = 0.62 + randomA * 0.72;
+        const meshScale = 0.42 + randomA * 0.42;
         mesh.scale.setScalar(meshScale);
         group.add(mesh);
 
@@ -947,11 +947,18 @@ const createPetalField = async (model) => {
             driftAmplitudeX: width * (0.018 + randomB * 0.05),
             driftAmplitudeZ: depth * (0.014 + randomC * 0.05),
             driftFrequency: 0.36 + randomD * 0.55,
+            windAmplitudeX: width * (0.012 + randomA * 0.02),
+            windAmplitudeZ: depth * (0.01 + randomB * 0.018),
+            windFrequencyX: 0.12 + randomC * 0.14,
+            windFrequencyZ: 0.1 + randomD * 0.12,
+            windPhaseX: pseudoRandom(index + 201) * Math.PI * 2,
+            windPhaseZ: pseudoRandom(index + 301) * Math.PI * 2,
             spinSpeedX: 0.2 + randomA * 0.45,
             spinSpeedY: 0.26 + randomB * 0.55,
             spinSpeedZ: 0.12 + randomC * 0.35,
             fallSpeed: 0.035 + randomD * 0.045,
             phase,
+            baseOpacity: 0.58 + randomA * 0.18,
         };
     });
 
@@ -975,12 +982,21 @@ const updatePetalField = () => {
         const t = now * petal.fallSpeed + petal.phase;
         const loopProgress = t - Math.floor(t);
         const fallRange = petal.maxY - petal.minY;
-        petal.mesh.position.x = petal.baseX + Math.sin(now * petal.driftFrequency + petal.phase * Math.PI * 2) * petal.driftAmplitudeX;
+        const fadeWindow = 0.18;
+        const fadeIn = THREE.MathUtils.smoothstep(loopProgress, 0, fadeWindow);
+        const fadeOut = 1 - THREE.MathUtils.smoothstep(loopProgress, 1 - fadeWindow, 1);
+        const opacity = Math.max(0, Math.min(1, fadeIn * fadeOut)) * petal.baseOpacity;
+        const driftX = Math.sin(now * petal.driftFrequency + petal.phase * Math.PI * 2) * petal.driftAmplitudeX;
+        const driftZ = Math.cos(now * (petal.driftFrequency * 0.8) + petal.phase * Math.PI) * petal.driftAmplitudeZ;
+        const windX = Math.sin(now * petal.windFrequencyX + petal.windPhaseX) * petal.windAmplitudeX;
+        const windZ = Math.cos(now * petal.windFrequencyZ + petal.windPhaseZ) * petal.windAmplitudeZ;
+        petal.mesh.position.x = petal.baseX + driftX + windX;
         petal.mesh.position.y = petal.maxY - loopProgress * fallRange;
-        petal.mesh.position.z = petal.baseZ + Math.cos(now * (petal.driftFrequency * 0.8) + petal.phase * Math.PI) * petal.driftAmplitudeZ;
+        petal.mesh.position.z = petal.baseZ + driftZ + windZ;
         petal.mesh.rotation.x = now * petal.spinSpeedX + petal.phase * Math.PI;
         petal.mesh.rotation.y = now * petal.spinSpeedY + petal.phase * Math.PI * 0.7;
         petal.mesh.rotation.z = now * petal.spinSpeedZ + petal.phase * Math.PI * 1.3;
+        petal.material.opacity = opacity;
     });
 };
 
