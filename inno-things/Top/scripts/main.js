@@ -55,7 +55,7 @@ const clock = new THREE.Clock(false);
 
 const IMAGE_TARGET_NAME = "000-top";
 const PAINTING_WIDTH_M = 0.20;
-const ASSET_VERSION = "20260515-assets6";
+const ASSET_VERSION = "20260515-assets7";
 const withAssetVersion = (path) => {
     const url = new URL(path, import.meta.url);
     url.searchParams.set("v", ASSET_VERSION);
@@ -118,8 +118,8 @@ const MEDIA_REQUEST_TIMEOUT_MS = 10000;
 const XR_CAMERA_BOOT_TIMEOUT_MS = 9000;
 const TARGET_FETCH_TIMEOUT_MS = 12000;
 const ENABLE_INTRO_SEQUENCE = false;
-const PETAL_COUNT_MIN = 12;
-const PETAL_COUNT_MAX = 15;
+const PETAL_COUNT_MIN = 14;
+const PETAL_COUNT_MAX = 18;
 const pseudoRandom = (seed) => {
     const x = Math.sin(seed * 127.1 + seed * seed * 311.7) * 43758.5453123;
     return x - Math.floor(x);
@@ -892,7 +892,7 @@ const createPetalField = async (model) => {
     const width = Math.max(size.x, 0.18);
     const height = Math.max(size.y, 0.22);
     const depth = Math.max(size.z, 0.12);
-    const petalSize = Math.min(width, height) * 0.11;
+    const petalSize = Math.min(width, height) * 0.09;
     const insetX = Math.min(width * 0.12, petalSize * 0.75);
     const insetY = Math.min(height * 0.08, petalSize * 0.6);
     const insetZ = Math.min(depth * 0.12, petalSize * 0.75);
@@ -918,8 +918,8 @@ const createPetalField = async (model) => {
         const material = new THREE.MeshBasicMaterial({
             map: texture,
             transparent: true,
-            opacity: 0.52 + randomA * 0.16,
-            alphaTest: 0.015,
+            opacity: 0.48 + randomA * 0.16,
+            alphaTest: 0.002,
             depthWrite: false,
             depthTest: true,
             side: THREE.DoubleSide,
@@ -929,16 +929,16 @@ const createPetalField = async (model) => {
         mesh.userData.arRole = "interior";
         mesh.renderOrder = 6;
         mesh.frustumCulled = false;
-        const meshScale = 0.34 + randomA * 0.3;
+        const meshScale = 0.26 + randomA * 0.24;
         mesh.scale.setScalar(meshScale);
         group.add(mesh);
 
         const phase = randomB;
-        const xAnchor = 0.08 + randomC * 0.84;
-        const zAnchor = 0.1 + randomD * 0.8;
+        const xAnchor = 0.03 + randomC * 0.94;
+        const zAnchor = 0.04 + randomD * 0.92;
         const baseX = THREE.MathUtils.lerp(xMin, xMax, xAnchor);
         const edgeZ = THREE.MathUtils.lerp(zMin, zMax, zAnchor);
-        const baseZ = THREE.MathUtils.lerp(edgeZ, center.z, 0.32);
+        const baseZ = THREE.MathUtils.lerp(edgeZ, center.z, 0.18);
         return {
             mesh,
             material,
@@ -947,8 +947,8 @@ const createPetalField = async (model) => {
             maxY: yMax,
             baseX,
             baseZ,
-            driftAmplitudeX: width * (0.018 + randomB * 0.05),
-            driftAmplitudeZ: depth * (0.014 + randomC * 0.05),
+            driftAmplitudeX: width * (0.024 + randomB * 0.06),
+            driftAmplitudeZ: depth * (0.018 + randomC * 0.06),
             driftFrequency: 0.36 + randomD * 0.55,
             windAmplitudeX: width * (0.012 + randomA * 0.02),
             windAmplitudeZ: depth * (0.01 + randomB * 0.018),
@@ -961,7 +961,7 @@ const createPetalField = async (model) => {
             spinSpeedZ: 0.12 + randomC * 0.35,
             fallSpeed: 0.035 + randomD * 0.045,
             phase,
-            baseOpacity: 0.52 + randomA * 0.16,
+            baseOpacity: 0.48 + randomA * 0.16,
         };
     });
 
@@ -985,11 +985,12 @@ const updatePetalField = () => {
         const t = now * petal.fallSpeed + petal.phase;
         const loopProgress = t - Math.floor(t);
         const fallRange = petal.maxY - petal.minY;
-        const fadeWindow = 0.26;
+        const fadeWindow = 0.38;
         const fadeIn = THREE.MathUtils.smoothstep(loopProgress, 0, fadeWindow);
         const fadeOut = 1 - THREE.MathUtils.smoothstep(loopProgress, 1 - fadeWindow, 1);
-        const softPulse = 0.86 + 0.14 * Math.sin(now * 0.9 + petal.phase * Math.PI * 2);
-        const opacity = Math.max(0, Math.min(1, fadeIn * fadeOut)) * petal.baseOpacity * softPulse;
+        const softPulse = 0.82 + 0.18 * Math.sin(now * 0.75 + petal.phase * Math.PI * 2);
+        const fadeEnvelope = Math.pow(Math.max(0, Math.min(1, fadeIn * fadeOut)), 0.8);
+        const opacity = fadeEnvelope * petal.baseOpacity * softPulse;
         const driftX = Math.sin(now * petal.driftFrequency + petal.phase * Math.PI * 2) * petal.driftAmplitudeX;
         const driftZ = Math.cos(now * (petal.driftFrequency * 0.8) + petal.phase * Math.PI) * petal.driftAmplitudeZ;
         const windX = Math.sin(now * petal.windFrequencyX + petal.windPhaseX) * petal.windAmplitudeX;
