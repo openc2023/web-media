@@ -122,8 +122,8 @@ const MEDIA_REQUEST_TIMEOUT_MS = 10000;
 const XR_CAMERA_BOOT_TIMEOUT_MS = 9000;
 const TARGET_FETCH_TIMEOUT_MS = 12000;
 const ENABLE_INTRO_SEQUENCE = false;
-const PETAL_COUNT_MIN = 15;
-const PETAL_COUNT_MAX = 18;
+const PETAL_COUNT_MIN = 17;
+const PETAL_COUNT_MAX = 21;
 const pseudoRandom = (seed) => {
     const x = Math.sin(seed * 127.1 + seed * seed * 311.7) * 43758.5453123;
     return x - Math.floor(x);
@@ -898,7 +898,7 @@ const createPetalField = async (model) => {
     const width = Math.max(size.x, 0.18);
     const height = Math.max(size.y, 0.22);
     const depth = Math.max(size.z, 0.12);
-    const petalSize = Math.min(width, height) * 0.072;
+    const petalSize = Math.min(width, height) * 0.078;
     const insetX = Math.min(width * 0.09, petalSize * 0.52);
     const insetY = Math.min(height * 0.06, petalSize * 0.45);
     const insetZ = Math.min(depth * 0.1, petalSize * 0.58);
@@ -940,7 +940,7 @@ const createPetalField = async (model) => {
         mesh.userData.arRole = "interior";
         mesh.renderOrder = 6;
         mesh.frustumCulled = false;
-        const meshScale = (0.17 + randomA * 0.15) * layerScaleFactor;
+        const meshScale = (0.19 + randomA * 0.16) * layerScaleFactor;
         mesh.scale.setScalar(meshScale);
         group.add(mesh);
 
@@ -1113,34 +1113,19 @@ const attachInteriorBackground = async (model) => {
     bgTexture.minFilter = bgTexture.magFilter = THREE.LinearFilter;
     setTextureColorSpace(bgTexture);
 
-    const priorityNames = new Set(["top2", "cube001", "top3"]);
-    const candidates = [];
+    const selected = [];
     model.traverse((obj) => {
-        if (!obj.isMesh || !obj.material) return;
-        if (getMeshRole(obj) !== "interior") return;
-        const normalizedName = normalizeMeshName(obj.name);
-        if (normalizedName.includes("petal")) return;
-        obj.geometry?.computeBoundingBox?.();
-        const bounds = obj.geometry?.boundingBox?.clone();
-        const center = bounds ? bounds.getCenter(new THREE.Vector3()) : new THREE.Vector3();
-        candidates.push({ obj, normalizedName, localCenterX: center.x });
+        if (selected.length || !obj.isMesh || !obj.material) return;
+        if (normalizeMeshName(obj.name) !== "box") return;
+        selected.push({ obj });
     });
-
-    const selected = candidates
-        .sort((a, b) => {
-            const ap = priorityNames.has(a.normalizedName) ? 0 : 1;
-            const bp = priorityNames.has(b.normalizedName) ? 0 : 1;
-            if (ap !== bp) return ap - bp;
-            return a.localCenterX - b.localCenterX;
-        })
-        .slice(0, 3);
 
     selected.forEach(({ obj }) => {
         const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
         const nextMaterials = materials.map((mat) => {
             const nextMat = mat.clone();
             nextMat.map = bgTexture;
-            nextMat.transparent = true;
+            nextMat.transparent = false;
             nextMat.opacity = 1;
             nextMat.color?.set?.("#f2efe6");
             if ("roughness" in nextMat) nextMat.roughness = 1;
@@ -1286,6 +1271,13 @@ const configureModelRendering = (model) => {
         const nextMaterials = materials.map((mat) => {
             if (!mat) return mat;
             const nextMat = mat.clone();
+            const originalOpacity = mat.opacity ?? 1;
+            const originalTransparent = Boolean(mat.transparent) || originalOpacity < 0.999;
+            nextMat.userData = {
+                ...(nextMat.userData || {}),
+                originalOpacity,
+                originalTransparent,
+            };
             if (role === "occluder") {
                 obj.userData.isOccluder = true;
                 obj.frustumCulled = false;
@@ -1314,6 +1306,10 @@ const configureModelRendering = (model) => {
                 if (role === "interior" && nextMat.color) {
                     nextMat.color.lerp(new THREE.Color("#b6b0a2"), 0.24);
                 }
+                if (role === "interior") {
+                    nextMat.transparent = originalTransparent;
+                    nextMat.opacity = originalOpacity;
+                }
                 if (role === "flame") {
                     nextMat.transparent = true;
                     nextMat.depthWrite = false;
@@ -1340,6 +1336,8 @@ const setModelOpacity = (opacity) => {
         const materials = Array.isArray(object.material) ? object.material : [object.material];
         materials.forEach((mat) => {
             if (!mat) return;
+            const originalOpacity = mat.userData?.originalOpacity ?? 1;
+            const originalTransparent = mat.userData?.originalTransparent ?? (originalOpacity < 0.999);
             if (role === "occluder") {
                 mat.colorWrite = false; mat.depthWrite = true;
                 mat.depthTest = true; mat.transparent = false; mat.opacity = 1;
@@ -1349,7 +1347,12 @@ const setModelOpacity = (opacity) => {
                     mat.depthWrite = false;
                     mat.alphaTest = Math.max(mat.alphaTest ?? 0, 0.005);
                 }
-                mat.opacity = opacity;
+                if (role === "interior") {
+                    mat.transparent = originalTransparent;
+                    mat.opacity = originalOpacity * opacity;
+                } else {
+                    mat.opacity = opacity;
+                }
             }
             mat.needsUpdate = true;
         });
