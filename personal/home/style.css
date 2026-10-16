@@ -37,9 +37,6 @@ body {
     font: 400 14px/1.75 var(--mono);
     letter-spacing: .01em;
     transition: background-color .4s, color .4s;
-    /* 字符网格点阵 */
-    background-image: radial-gradient(var(--dot) 1px, transparent 1.2px);
-    background-size: 16.8px 16.8px;
 }
 body::after {
     content: "";
@@ -79,8 +76,11 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
     border-radius: 2px;
     letter-spacing: 0;
 }
-.bar-fill { flex: 1; overflow: hidden; white-space: nowrap; color: var(--line); }
-.bar-fill::before { content: "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────"; }
+.bar-fill { position: relative; flex: 1; overflow: hidden; white-space: nowrap; color: var(--line); }
+.bar-fill::before, .bar-prog::before { content: "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────"; }
+/* 阅读进度：同一串框线字符，已读部分换成强调色 */
+.bar-prog { position: absolute; left: 0; top: 0; width: 0; overflow: hidden; color: var(--accent); }
+.bar-pct { font-variant-numeric: tabular-nums; color: var(--ink-dim); }
 .bar-lang { display: flex; gap: 2px; }
 .bar-lang button { padding: 2px 7px; border-radius: 2px; }
 .bar-lang button[aria-pressed="true"] { color: var(--bg); background: var(--ink); }
@@ -91,9 +91,42 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
 /* ── hero（全宽字符场） ── */
 html { overflow-x: clip; }
-main { max-width: 1280px; margin: 0 auto; padding: 0 var(--gutter); }
+main { position: relative; z-index: 1; max-width: 1280px; margin: 0 auto; padding: 0 var(--gutter); }
+
+/* ── 全页背景字符场 ── */
+.bg-field { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none; opacity: 0; transition: opacity .3s linear; }
+
+/* ── 开场 ── */
+.boot {
+    position: fixed; inset: 0; z-index: 300;
+    display: grid; place-items: center;
+    background: var(--bg);
+    transition: opacity .45s ease, visibility .45s;
+}
+.boot pre { margin: 0; padding: 0 var(--gutter); font: 400 12px/1.9 var(--mono); color: var(--ink-2); white-space: pre-wrap; min-width: min(420px, 100%); }
+.boot.out { opacity: 0; visibility: hidden; }
+.booting .hero-text > *, .booting .cmd::after { animation-play-state: paused; }
+
+/* ── 解码中的字：原字透明占位，乱码叠在上面，版面不动 ── */
+.sc.on { position: relative; color: transparent; }
+.sc.on::after { content: attr(data-c); position: absolute; left: 0; top: 0; color: var(--accent); }
+
+/* ── 头图坐标读数 ── */
+.readout {
+    position: absolute; left: 0; top: 0; z-index: 3;
+    pointer-events: none;
+    font: 400 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-2);
+    padding: 4px 6px;
+    background: color-mix(in srgb, var(--bg) 75%, transparent);
+    border: 1px solid var(--line);
+    opacity: 0; transition: opacity .2s;
+    white-space: nowrap;
+}
+.readout.on { opacity: 1; }
 .hero {
     position: relative;
+    z-index: 1;
     min-height: calc(100svh - 44px);
     display: grid;
     align-items: end;
@@ -176,7 +209,8 @@ main { max-width: 1280px; margin: 0 auto; padding: 0 var(--gutter); }
     border-bottom: 1px solid var(--line);
 }
 .index a { display: inline-flex; align-items: center; gap: 7px; transition: color .2s; }
-.index a:hover { color: var(--ink); }
+.index a:hover, .index a.on { color: var(--ink); }
+.index a.on kbd { border-color: var(--accent); color: var(--bg); background: var(--accent); }
 .index kbd {
     font: 500 10px/1 var(--mono);
     padding: 3px 5px 2px;
@@ -268,7 +302,7 @@ main { max-width: 1280px; margin: 0 auto; padding: 0 var(--gutter); }
 .contact a:hover { background-size: 100% 1px; color: var(--accent); }
 
 /* ── terminal footer ── */
-.term { max-width: 1280px; margin: clamp(72px, 10vw, 128px) auto 0; padding: 22px var(--gutter) 28px; border-top: 1px solid var(--line); font-size: 13px; }
+.term { position: relative; z-index: 1; max-width: 1280px; margin: clamp(72px, 10vw, 128px) auto 0; padding: 22px var(--gutter) 28px; border-top: 1px solid var(--line); font-size: 13px; }
 .term-out p { margin: 0 0 6px; color: var(--ink-2); }
 .term-out .res { color: var(--ink); padding-left: 2ch; display: inline-block; }
 .term-line { display: flex; gap: 10px; align-items: center; }
@@ -280,6 +314,27 @@ main { max-width: 1280px; margin: 0 auto; padding: 0 var(--gutter); }
 }
 .term-line input::placeholder { color: var(--ink-dim); }
 .foot { margin: 22px 0 0; font-size: 11px; color: var(--ink-dim); letter-spacing: .08em; }
+
+/* ── papers grep ── */
+.grep {
+    display: flex; align-items: center; gap: 12px;
+    margin: -8px 0 18px; padding: 8px 0;
+    font-size: 12px;
+    border-bottom: 1px dashed var(--line);
+}
+.grep .ps1 { white-space: nowrap; }
+.grep input {
+    flex: 1; min-width: 0;
+    font: inherit; color: var(--ink); caret-color: var(--accent);
+    background: none; border: 0; outline: 0; padding: 2px 0;
+}
+.grep input::placeholder { color: var(--ink-dim); }
+.grep input::-webkit-search-cancel-button { filter: grayscale(1); }
+.grep-n { color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+mark { background: var(--accent); color: var(--bg); padding: 0 1px; }
+.table li.empty { color: var(--ink-dim); }
+.table li.empty:hover { background: none; padding-left: 0; }
+.table li.empty::before { display: none; }
 
 /* ── responsive ── */
 @media (max-width: 900px) {
@@ -295,7 +350,7 @@ main { max-width: 1280px; margin: 0 auto; padding: 0 var(--gutter); }
 @media (max-width: 520px) {
     body { font-size: 13px; }
     .bar { gap: 10px; }
-    .bar-id span:last-child, .bar-fill { display: none; }
+    .bar-id span:last-child, .bar-fill, .bar-pct { display: none; }
     .bar-id { margin-right: auto; }
     .bar-clock { min-width: 0; }
     .stats dt { font-size: 24px; }

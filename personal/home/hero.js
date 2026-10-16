@@ -40,6 +40,7 @@
         var ripples = [];
         var start = performance.now();
         var visible = true;
+        var fade = 0;                       // 滚动离开时整片场溶解成稀疏点阵
 
         function grid() {
             var small = W < 640;
@@ -185,7 +186,7 @@
                     }
 
                     var reveal = smooth((front - d * 0.9) * 2.2);
-                    v *= reveal;
+                    v *= reveal * (1 - fade * (0.55 + 0.45 * n2));
                     var w = ink[i];
                     v += w * 0.75;
 
@@ -254,6 +255,7 @@
             getMode: function () { return mode; },
             setMode: function (m) { if (MODES.indexOf(m) > -1 && m !== mode) { mode = m; grid(); } },
             refresh: function () { buildMask(); },
+            setFade: function (f) { fade = Math.max(0, Math.min(1, f)); },
             replay: function () { start = performance.now(); }
         };
     }

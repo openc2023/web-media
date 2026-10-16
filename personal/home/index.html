@@ -16,11 +16,14 @@
 </head>
 <body>
     <a class="skip" href="#about">skip</a>
+    <canvas id="bgField" class="bg-field" aria-hidden="true"></canvas>
+    <div class="boot" id="boot" aria-hidden="true"><pre id="bootLog"></pre></div>
 
     <header class="bar">
         <a class="bar-id" href="#top" aria-label="top"><span class="seal" aria-hidden="true">漢</span><span>TIAN HAN</span></a>
         <span class="bar-path" aria-hidden="true">~/personal/home</span>
-        <span class="bar-fill" aria-hidden="true"></span>
+        <span class="bar-fill" aria-hidden="true"><span class="bar-prog" id="barProg"></span></span>
+        <span class="bar-pct" id="barPct" aria-hidden="true">000%</span>
         <nav class="bar-lang" aria-label="Language">
             <button type="button" data-lang="zh">中</button>
             <button type="button" data-lang="en">EN</button>
@@ -33,6 +36,7 @@
     <section class="hero" id="top">
         <canvas id="heroCanvas" aria-label="ASCII 田漢"></canvas>
         <div class="hero-veil" aria-hidden="true"></div>
+        <div class="readout" id="readout" aria-hidden="true"></div>
         <div class="hero-meta">
             <div class="modes" id="modes" role="radiogroup" aria-label="Render"></div>
             <p class="hero-hint" data-t="hint"></p>
@@ -64,6 +68,7 @@
 
         <section class="pane" id="papers" data-n="03">
             <h2 class="pane-h"></h2>
+            <label class="grep"><span class="ps1">$ grep</span><input id="grepIn" type="search" spellcheck="false" autocomplete="off"><span class="grep-n" id="grepN"></span></label>
             <ol class="table" id="paperList"></ol>
         </section>
 
@@ -98,7 +103,9 @@
     </footer>
 
     <script src="data.js"></script>
+    <script src="fx.js"></script>
     <script src="hero.js"></script>
+    <script src="bgfield.js"></script>
     <script src="main.js"></script>
 </body>
 </html>

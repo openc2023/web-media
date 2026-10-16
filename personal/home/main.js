@@ -1,4 +1,4 @@
-/* home/main.js — 渲染、语言、主题、键盘导航与底部命令行 */
+/* home/main.js — 渲染、语言、主题、键盘导航、底部命令行，以及滚动与文字解码等交互 */
 (function () {
     'use strict';
 
@@ -40,7 +40,7 @@
         }).join('');
 
         $('index').innerHTML = ORDER.map(function (k, i) {
-            return '<a href="#' + k + '"><kbd>' + (i + 1) + '</kbd>' + esc(d.sections[k]) + '</a>';
+            return '<a href="#' + k + '" data-sec="' + k + '"><kbd>' + (i + 1) + '</kbd><span class="lbl">' + esc(d.sections[k]) + '</span></a>';
         }).join('');
         document.querySelectorAll('.pane').forEach(function (p) {
             p.querySelector('.pane-h').innerHTML = '<span class="n">' + p.dataset.n + '</span><span class="t">' + esc(d.sections[p.id]) + '</span><span class="rule" aria-hidden="true"></span>';
@@ -56,13 +56,8 @@
                 '<time>' + esc(p.date) + '</time><strong>' + esc(p.title) + '</strong><span class="sub">' + esc(p.body) + '</span></li>';
         }).join('');
 
-        $('paperList').innerHTML = S.papers.map(function (p, i) {
-            var row = d.papers[i];
-            return '<li' + (p.award ? ' class="award"' : '') + '><span class="c1">' + p.year + '</span>' +
-                '<span class="c2"><strong>' + esc(row[1]) + '</strong>' +
-                (p.award ? '<em>★ ' + esc(d.awardLabel) + '</em>' : '') + '</span>' +
-                '<span class="c3">' + esc(row[0]) + '</span></li>';
-        }).reverse().join('');
+        $('grepIn').placeholder = d.grep;
+        renderPapers();
 
         function rows(list) {
             return list.map(function (w) {
@@ -90,11 +85,42 @@
         $('termIn').placeholder = d.prompt.placeholder;
     }
 
+    /* 论文：grep 式筛选，命中部分高亮 */
+    var query = '';
+    function mark(text) {
+        var t = esc(text);
+        if (!query) return t;
+        var i = text.toLowerCase().indexOf(query);
+        if (i < 0) return t;
+        return esc(text.slice(0, i)) + '<mark>' + esc(text.slice(i, i + query.length)) + '</mark>' + esc(text.slice(i + query.length));
+    }
+    function renderPapers() {
+        var d = DATA[lang];
+        var shown = 0;
+        var html = S.papers.map(function (p, i) {
+            var row = d.papers[i];
+            var hay = (p.year + ' ' + row[0] + ' ' + row[1] + ' ' + (p.award ? '★ ' + d.awardLabel : '')).toLowerCase();
+            if (query && hay.indexOf(query) < 0) return '';
+            shown++;
+            return '<li' + (p.award ? ' class="award"' : '') + '><span class="c1">' + mark(p.year) + '</span>' +
+                '<span class="c2"><strong>' + mark(row[1]) + '</strong>' +
+                (p.award ? '<em>★ ' + mark(d.awardLabel) + '</em>' : '') + '</span>' +
+                '<span class="c3">' + mark(row[0]) + '</span></li>';
+        }).reverse().join('');
+        $('paperList').innerHTML = html || '<li class="empty"><span class="c1">0</span><span class="c2">grep: no match</span></li>';
+        $('grepN').textContent = pad(shown) + '/' + pad(S.papers.length);
+    }
+    $('grepIn').addEventListener('input', function () {
+        query = this.value.trim().toLowerCase();
+        renderPapers();
+    });
+
     function setLang(l) {
         if (!DATA[l]) return;
         lang = l;
         try { localStorage.setItem('ascii-lang', l); } catch (e) {}
         render();
+        decodeVisible();
     }
 
     /* ── theme ── */
@@ -121,7 +147,8 @@
     var colors = null;
     function readColors() {
         var cs = getComputedStyle(root);
-        colors = { g1: cs.getPropertyValue('--g1').trim(), g2: cs.getPropertyValue('--g2').trim(), hot: cs.getPropertyValue('--hot').trim() };
+        var v = function (n) { return cs.getPropertyValue(n).trim(); };
+        colors = { g1: v('--g1'), g2: v('--g2'), hot: v('--hot'), dot: v('--accent'), char: v('--ink-2') };
     }
     readColors();
     new MutationObserver(readColors).observe(root, { attributes: true, attributeFilter: ['data-theme'] });
@@ -160,7 +187,12 @@
     /* ── reveal panes on scroll ── */
     if ('IntersectionObserver' in window) {
         var io = new IntersectionObserver(function (es) {
-            es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+            es.forEach(function (e) {
+                if (!e.isIntersecting) return;
+                e.target.classList.add('in');
+                io.unobserve(e.target);
+                window.FX.scramble(e.target.querySelector('.pane-h .t'), { duration: 900, delay: 150 });
+            });
         }, { rootMargin: '0px 0px -10% 0px' });
         document.querySelectorAll('.pane').forEach(function (p) { io.observe(p); });
     } else {
@@ -222,4 +254,105 @@
     });
 
     render();
+
+    /* ── 文字解码 ── */
+    function decodeVisible() {
+        document.querySelectorAll('.pane.in .pane-h .t').forEach(function (t) { window.FX.scramble(t, { duration: 650 }); });
+        window.FX.scramble(document.querySelector('.name [data-t="name"]'), { duration: 650 });
+    }
+    function hoverDecode(container, hostSel, targetSel) {
+        container.addEventListener('pointerover', function (e) {
+            var host = e.target.closest(hostSel);
+            if (!host || !container.contains(host) || host.contains(e.relatedTarget)) return;
+            window.FX.scramble(host.querySelector(targetSel), { duration: 420 });
+        });
+    }
+    hoverDecode($('linkList'), 'a', 'strong');
+    hoverDecode($('index'), 'a', '.lbl');
+
+    /* ── 背景字符场 + 滚动 ── */
+    var bg = window.AsciiBg.mount($('bgField'), { getColors: function () { return colors; } });
+    var heroEl = $('top'), prog = $('barProg'), pct = $('barPct');
+    var ticking = false;
+    function onScroll() {
+        ticking = false;
+        var y = window.scrollY, hh = heroEl.offsetHeight;
+        var max = document.documentElement.scrollHeight - window.innerHeight;
+        var p = max > 0 ? Math.min(1, y / max) : 0;
+        prog.style.width = (p * 100).toFixed(2) + '%';
+        pct.textContent = ('00' + Math.round(p * 100)).slice(-3) + '%';
+        hero.setFade(Math.min(1, Math.max(0, y / (hh * 0.85))));
+        bg.setOpacity(Math.min(1, Math.max(0, (y - hh * 0.35) / (hh * 0.5))));
+    }
+    window.addEventListener('scroll', function () {
+        if (!ticking) { ticking = true; requestAnimationFrame(onScroll); }
+    }, { passive: true });
+    window.addEventListener('resize', onScroll);
+
+    /* ── 当前栏目高亮 ── */
+    if ('IntersectionObserver' in window) {
+        var spy = new IntersectionObserver(function (es) {
+            es.forEach(function (e) {
+                if (!e.isIntersecting) return;
+                document.querySelectorAll('#index a').forEach(function (a) {
+                    a.classList.toggle('on', a.dataset.sec === e.target.id);
+                });
+            });
+        }, { rootMargin: '-40% 0px -55% 0px' });
+        document.querySelectorAll('.pane').forEach(function (p) { spy.observe(p); });
+    }
+
+    /* ── 头图坐标读数 ── */
+    var readout = $('readout');
+    heroEl.addEventListener('pointermove', function (e) {
+        if (e.pointerType === 'touch' || e.target.closest('.hero-text, .hero-meta')) { readout.classList.remove('on'); return; }
+        var r = heroEl.getBoundingClientRect();
+        var x = e.clientX - r.left, y = e.clientY - r.top;
+        readout.style.transform = 'translate(' + (x + 16) + 'px,' + (y + 14) + 'px)';
+        readout.textContent = 'x' + ('000' + Math.round(x)).slice(-4) + ' y' + ('000' + Math.round(y)).slice(-4) + ' · ' + hero.getMode();
+        readout.classList.add('on');
+    });
+    heroEl.addEventListener('pointerleave', function () { readout.classList.remove('on'); });
+
+    /* ── 开场：每次会话只播一次，点击或按键可跳过 ── */
+    function intro() {
+        window.FX.scramble(document.querySelector('.name [data-t="name"]'), { duration: 900, delay: 900 });
+        document.querySelectorAll('#stats dt').forEach(function (dt, i) {
+            window.FX.scramble(dt, { digits: true, duration: 900, delay: 1500 + i * 90 });
+        });
+    }
+    (function boot() {
+        var el = $('boot'), log = $('bootLog');
+        var seen = false;
+        try { seen = sessionStorage.getItem('ascii-booted') === '1'; sessionStorage.setItem('ascii-booted', '1'); } catch (e) {}
+        if (seen) { el.remove(); intro(); return; }
+        root.classList.add('booting');
+        function dots(label) { return label + ' ' + new Array(Math.max(4, 32 - label.length)).join('.') + ' ok'; }
+        var lines = [
+            'TIAN HAN / 田漢 — personal terminal',
+            dots('> mount ~/personal/home'),
+            dots('> field ' + hero.getMode()),
+            dots('> locale ' + DATA[lang].htmlLang),
+            '> ready_'
+        ];
+        var i = 0, done = false;
+        function finish() {
+            if (done) return;
+            done = true;
+            el.classList.add('out');
+            root.classList.remove('booting');
+            hero.replay();
+            intro();
+            setTimeout(function () { el.remove(); }, 500);
+        }
+        (function next() {
+            if (done) return;
+            if (i >= lines.length) { setTimeout(finish, 260); return; }
+            log.textContent += (i ? '\n' : '') + lines[i++];
+            setTimeout(next, 150);
+        })();
+        el.addEventListener('pointerdown', finish);
+        window.addEventListener('keydown', finish, { once: true });
+    })();
+    onScroll();
 })();

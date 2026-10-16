@@ -64,6 +64,7 @@ window.ASCII_DATA = {
             ["博士论文", "城市再生中的新媒体艺术应用研究"]
         ],
         awardLabel: "优秀发表奖",
+        grep: "筛选：年份、标题、学会…",
         works: [
             { year: "2025", title: "中国长白山博物馆 · 华城中央图书馆", body: "媒体动画制作" },
             { year: "2024", title: "蔚山博物馆", body: "以漫画为基础的媒体艺术" },
@@ -135,6 +136,7 @@ window.ASCII_DATA = {
             ["PhD thesis", "Application of New Media Art in Urban Regeneration"]
         ],
         awardLabel: "Outstanding Presentation Award",
+        grep: "filter: year, title, venue…",
         works: [
             { year: "2025", title: "Changbaishan Museum · Hwaseong Central Library", body: "Media animation" },
             { year: "2024", title: "Ulsan Museum", body: "Comics-based media art" },
@@ -206,6 +208,7 @@ window.ASCII_DATA = {
             ["박사 학위 논문", "도시재생에서의 뉴미디어아트 적용 연구"]
         ],
         awardLabel: "우수발표상",
+        grep: "필터: 연도, 제목, 학회…",
         works: [
             { year: "2025", title: "중국 장백산 박물관 · 화성중앙도서관", body: "미디어 애니메이션 제작" },
             { year: "2024", title: "울산박물관", body: "만화 기반 미디어아트" },
