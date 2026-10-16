@@ -9,7 +9,9 @@
 | 位置 | 用途 |
 | --- | --- |
 | `scripts/main.js` | AR、摄像头生命周期和 3D 展示 |
-| `styles/` | 项目布局；`styles/theme/` 为页面使用的主题变量与基础组件 |
+| `styles/` | `main.css` 引入基础主题、布局与相机层规则；`skin.css` 在其后覆盖入口页外观（主页同款黑底电光蓝、展签布局、相机层配色），不改相机层定位 |
+| `scripts/popout.js` | 入口页的纸面倾斜与炸弹凸起效果；只写 `#sheet` 的 CSS 变量，不参与识别流程 |
+| `assets/images/top-1.png` | 从画作中抠出的炸弹层，入口页用它做凸起效果（位置与 000-top.png 对齐：左 14.71%、上 52.81%、宽 23.92%） |
 | `assets/images/` | 作品图、识别图和二维码 |
 | `assets/targets/000-top/000-top.json` | 当前 XR8 识别目标 |
 | `assets/targets/000-top.mind` | 历史 MindAR 目标，保留备用 |

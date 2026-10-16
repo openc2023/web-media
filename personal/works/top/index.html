@@ -8,18 +8,20 @@
     <meta name="description" content="TOP 画作识别入口。">
 
     <!-- 移动端体验 -->
-    <meta name="theme-color" content="#f6f1e7">
+    <meta name="theme-color" content="#040508">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="TOP AR">
     <link rel="icon" href="./assets/images/000-top.png">
 
-    <!-- Geist 字体预连接：减少 FOUT -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Noto+Serif+SC:wght@400;600;900&family=Noto+Serif+KR:wght@400;600&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="./styles/main.css?v=20260515-mobile8">
+    <!-- 主页同款配色与展签布局；只改外观，识别逻辑与相机层的定位规则仍在 main.css -->
+    <link rel="stylesheet" href="./styles/skin.css?v=20261017">
 </head>
 <body>
     <!-- XR8 camera canvas: always in DOM with full viewport dimensions so WebGL
@@ -28,67 +30,57 @@
          the modal transparent to reveal the camera feed. -->
     <canvas id="xr8-canvas" aria-hidden="true"></canvas>
 
-    <header class="site-header">
-        <a class="brand" href="../../../">TIAN HAN</a>
+    <header class="site-header bar">
+        <a class="brand" href="../../../"><span class="seal" aria-hidden="true">漢</span><span>TIAN HAN</span></a>
+        <span class="crumb" aria-hidden="true">~/works/top</span>
+        <span class="fill" aria-hidden="true"></span>
         <div class="locale-switcher" aria-label="Language switcher">
-            <button class="locale-button" type="button" data-locale="zh-CN">zh-CN</button>
-            <button class="locale-button" type="button" data-locale="en">en</button>
-            <button class="locale-button" type="button" data-locale="ko">ko</button>
+            <button class="locale-button" type="button" data-locale="zh-CN">中</button>
+            <button class="locale-button" type="button" data-locale="en">EN</button>
+            <button class="locale-button" type="button" data-locale="ko">한</button>
         </div>
     </header>
 
-    <main>
-        <section class="entry section">
-            <div class="section-inner entry-layout">
-                <section class="intro-panel surface-panel">
-                    <div class="intro-top">
-                        <div>
-                            <p class="eyebrow" data-i18n="top.eyebrow">TOP</p>
-                            <p class="intro-code" data-i18n="top.code">000-top</p>
-                        </div>
-                        <p class="intro-index" aria-hidden="true" data-i18n="top.index">01</p>
-                    </div>
+    <main class="room">
+        <!-- 展签 -->
+        <aside class="placard">
+            <p class="pl-artist" data-i18n="top.artist">田漢</p>
+            <h1 class="pl-title" data-i18n="top.workTitle">童趣里的暴力</h1>
+            <p class="pl-alt" data-i18n="top.workTitleAlt">Violence in Childlike Play</p>
+            <p class="pl-medium" data-i18n="top.medium">水墨纸本 · 图像识别 AR · 2026.04</p>
+            <p class="pl-text" data-i18n="top.concept">儿童游戏「抽陀螺」里，陀螺被换成了一枚炸弹。</p>
+            <p class="pl-text" data-i18n="top.concept2">孩子留在纸面上；鞭子与陀螺炸弹凸出纸面，进入现实。</p>
+            <dl class="pl-meta" aria-label="Artwork Info">
+                <div><dt data-i18n="top.metaTargetLabel">识别图</dt><dd data-i18n="top.metaTargetValue">000-top</dd></div>
+                <div><dt data-i18n="top.metaModelLabel">模型</dt><dd data-i18n="top.metaModelValue">box.glb</dd></div>
+                <div><dt data-i18n="top.metaModeLabel">模式</dt><dd data-i18n="top.metaModeValue">AR</dd></div>
+            </dl>
+        </aside>
 
-                    <div class="intro-head">
-                        <h1 data-i18n="top.heading">先看画作</h1>
-                        <p class="lead" data-i18n="top.lead">确认画作后，再开始识别。</p>
-                    </div>
-
-                    <div class="hero-actions">
-                        <button class="button button-primary" id="start-recognition" type="button" data-i18n="top.start">开始识别</button>
-                    </div>
-
-                    <div class="intro-meta" aria-label="Artwork Info">
-                        <div class="intro-meta-item">
-                            <span class="intro-meta-label" data-i18n="top.metaTargetLabel">识别图</span>
-                            <span class="intro-meta-value" data-i18n="top.metaTargetValue">000-top</span>
-                        </div>
-                        <div class="intro-meta-item">
-                            <span class="intro-meta-label" data-i18n="top.metaModelLabel">模型</span>
-                            <span class="intro-meta-value" data-i18n="top.metaModelValue">box.glb</span>
-                        </div>
-                        <div class="intro-meta-item">
-                            <span class="intro-meta-label" data-i18n="top.metaModeLabel">模式</span>
-                            <span class="intro-meta-value" data-i18n="top.metaModeValue">AR</span>
-                        </div>
-                    </div>
-
-                    <div class="entry-note">
-                        <p class="entry-note-title" data-i18n="top.noteTitle">识别前</p>
-                        <ul class="entry-note-list">
-                            <li data-i18n="top.noteItem1">尽量让整幅画进入取景框</li>
-                            <li data-i18n="top.noteItem2">保持镜头稳定，慢慢靠近</li>
-                        </ul>
-                    </div>
-
-                    <p class="camera-status" id="camera-status" data-i18n="top.statusIdle">等待开始识别。</p>
-                </section>
-
-                <figure class="artwork-panel">
-                    <img src="./assets/images/000-top.png" data-i18n-alt="top.artworkAlt" alt="000-top 画作">
-                    <figcaption data-i18n="top.artworkCaption">000-top</figcaption>
-                </figure>
+        <!-- 画作：炸弹一层单独抠出，随光标从纸面凸起 -->
+        <figure class="artwork">
+            <div class="sheet" id="sheet">
+                <img class="paper" src="./assets/images/000-top.png" data-i18n-alt="top.artworkAlt" alt="000-top 画作">
+                <span class="patch" aria-hidden="true"></span>
+                <span class="shadow" aria-hidden="true"></span>
+                <img class="bomb" src="./assets/images/top-1.png" alt="" aria-hidden="true">
             </div>
+            <figcaption><span data-i18n="top.artworkCaption">000-top</span><span class="hint" data-i18n="top.hint">移动鼠标 · 炸弹会离开纸面</span></figcaption>
+        </figure>
+
+        <!-- 识别入口 -->
+        <section class="action">
+            <p class="eyebrow"><span data-i18n="top.eyebrow">TOP</span> · <span data-i18n="top.code">000-top</span></p>
+            <h2 data-i18n="top.heading">凝视原作</h2>
+            <p class="lead" data-i18n="top.lead">找到画作后，再开始识别。</p>
+            <button class="button button-primary start" id="start-recognition" type="button" data-i18n="top.start">开始识别</button>
+            <p class="steps-title" data-i18n="top.noteTitle">识别前</p>
+            <ol class="steps">
+                <li data-i18n="top.noteItem1">尽量让整幅画进入取景框</li>
+                <li data-i18n="top.noteItem2">保持镜头稳定，慢慢靠近</li>
+                <li data-i18n="top.step3">看陀螺炸弹从纸上凸出来</li>
+            </ol>
+            <p class="camera-status" id="camera-status" data-i18n="top.statusIdle">等待开始识别。</p>
         </section>
     </main>
 
@@ -157,6 +149,7 @@
             document.head.appendChild(s);
         })();
     </script>
+    <script src="./scripts/popout.js?v=20261017"></script>
     <script type="module" src="./scripts/main.js?v=20260516-mobile36"></script>
 </body>
 </html>

@@ -1,20 +1,17 @@
-/* 山海 — 展厅：左展签、中画卷、右材质。每种材质换一套展厅强调色与画卷底。 */
+/* 山海 — 展厅：左展签、中画卷、右材质。外框用主页配色，每种材质只换画卷本身。 */
 
 :root {
-    --bg: #11100e;
-    --ink: #ece4d4;
-    --ink-2: #a89d8a;
-    --ink-dim: #6c6455;
-    --line: #2b2823;
-    --accent: #b8915c;          /* 赭金，与题字同色 */
+    /* 与主页同一套：黑底、冷白字、电光蓝 */
+    --bg: #040508;
+    --ink: #e8eef7;
+    --ink-2: #8b97ab;
+    --ink-dim: #525d70;
+    --line: #182030;
+    --accent: #3fa4ff;
     --mono: "IBM Plex Mono", "Noto Serif SC", ui-monospace, monospace;
     --serif: "Noto Serif SC", serif;
     --gutter: clamp(16px, 3.5vw, 48px);
 }
-body[data-style="qinglv"] { --accent: #5f9a86; }
-body[data-style="ascii"]  { --accent: #3fa4ff; }
-body[data-style="dither"] { --accent: #6d8fd0; }
-body[data-style="night"]  { --accent: #b9c7e2; }
 
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; }
@@ -42,8 +39,12 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     font-size: 12px; color: var(--ink-2);
     border-bottom: 1px solid var(--line);
 }
-.back { color: var(--ink); letter-spacing: .12em; }
-.back:hover { color: var(--accent); }
+.back { display: flex; align-items: center; gap: 10px; color: var(--ink); font-weight: 500; letter-spacing: .14em; }
+.back:hover span:last-child { color: var(--accent); }
+.back .mark {
+    display: inline-grid; place-items: center; width: 22px; height: 22px;
+    font: 900 13px/1 var(--serif); color: var(--bg); background: var(--accent); border-radius: 2px; letter-spacing: 0;
+}
 .fill { flex: 1; overflow: hidden; white-space: nowrap; color: var(--line); }
 .fill::before { content: "────────────────────────────────────────────────────────────────────────────────────────────────────────────"; }
 .sound[aria-pressed="true"] { color: var(--accent); }

@@ -4,8 +4,8 @@ const DEFAULT_LOCALE = "zh-CN";
 const DICTIONARIES = {
     "zh-CN": {
         page: {
-            title: "TOP | Recognition Entry",
-            description: "TOP 画作识别入口。",
+            title: "TOP · 童趣里的暴力 — TIAN HAN",
+            description: "田漢《童趣里的暴力》：水墨纸本与图像识别 AR。",
         },
         top: {
             eyebrow: "TOP",
@@ -45,12 +45,20 @@ const DICTIONARIES = {
             statusMindMissing: "找不到 000-top.mind，请确认 target 文件已上传到服务器。",
             statusStartTimeout: "启动超时，AR 引擎初始化或相机握手卡住，请刷新重试。",
             statusStartFailed: "启动失败：{message}，请刷新后重试。",
+            artist: "田漢",
+            workTitle: "童趣里的暴力",
+            workTitleAlt: "Violence in Childlike Play",
+            medium: "水墨纸本 · 图像识别 AR · 2026.04",
+            concept: "儿童游戏「抽陀螺」里，陀螺被换成了一枚炸弹。",
+            concept2: "孩子留在纸面上；鞭子与陀螺炸弹凸出纸面，进入现实。",
+            hint: "移动鼠标 · 炸弹会离开纸面",
+            step3: "看陀螺炸弹从纸上凸出来",
         },
     },
     en: {
         page: {
-            title: "TOP | Recognition Entry",
-            description: "Recognition entry for the TOP artwork.",
+            title: "TOP · Violence in Childlike Play — TIAN HAN",
+            description: "Tian Han, Violence in Childlike Play: ink on paper with image-tracking AR.",
         },
         top: {
             eyebrow: "TOP",
@@ -90,12 +98,20 @@ const DICTIONARIES = {
             statusMindMissing: "000-top.mind is missing. Make sure the target file is uploaded.",
             statusStartTimeout: "Startup timed out. The AR engine or the camera handshake is stuck. Refresh and try again.",
             statusStartFailed: "Startup failed: {message}. Refresh and try again.",
+            artist: "Tian Han",
+            workTitle: "Violence in Childlike Play",
+            workTitleAlt: "童趣里的暴力",
+            medium: "Ink on paper · Image-tracking AR · 2026.04",
+            concept: "In the children's game of whipping a spinning top, the top has become a bomb.",
+            concept2: "The child stays on the paper; the whip and the bomb push out of it into the real world.",
+            hint: "Move the mouse · the bomb lifts off the paper",
+            step3: "Watch the bomb rise off the page",
         },
     },
     ko: {
         page: {
-            title: "TOP | Recognition Entry",
-            description: "TOP 작품 인식 진입 페이지입니다.",
+            title: "TOP · 동심 속의 폭력 — TIAN HAN",
+            description: "티앤한 《동심 속의 폭력》: 종이에 수묵, 이미지 인식 AR.",
         },
         top: {
             eyebrow: "TOP",
@@ -135,6 +151,14 @@ const DICTIONARIES = {
             statusMindMissing: "000-top.mind 파일을 찾을 수 없습니다. target 파일 업로드를 확인해 주세요.",
             statusStartTimeout: "시작 시간이 초과되었습니다. AR 엔진 또는 카메라 초기화가 멈췄습니다. 새로고침 후 다시 시도해 주세요.",
             statusStartFailed: "시작 실패: {message}. 새로고침 후 다시 시도해 주세요.",
+            artist: "티앤한",
+            workTitle: "동심 속의 폭력",
+            workTitleAlt: "Violence in Childlike Play",
+            medium: "종이에 수묵 · 이미지 인식 AR · 2026.04",
+            concept: "팽이치기 놀이에서 팽이가 폭탄으로 바뀌었다.",
+            concept2: "아이는 종이 위에 남고, 채찍과 팽이 폭탄은 종이 밖 현실로 튀어나온다.",
+            hint: "마우스를 움직이면 폭탄이 종이에서 떠오릅니다",
+            step3: "팽이 폭탄이 종이에서 솟아오르는 것을 보세요",
         },
     },
 };
