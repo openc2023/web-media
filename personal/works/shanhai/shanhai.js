@@ -191,8 +191,8 @@
         ctx.shadowBlur = 0;
     }
 
-    // 画一条山脊，返回它的轮廓点（线描模式用）
-    function drawInkMountain(p, t) {
+    // 算一条山脊的轮廓；draw 为 false 时只算形状不画墨（青绿、字符、孔版用不到水墨画布）
+    function drawInkMountain(p, t, draw) {
         const N = Math.max(100, Math.floor(W / 3.5));
         const step = W / (N - 1);
         const progress = clamp(1 - (p.y / H), 0, 1);
@@ -214,6 +214,7 @@
             top[i] = p.y - p.amp * ampScale * g - noise1(u, t, 7.7) * PARAMS.noiseAmp * ampScale;
         }
 
+        if (!draw) return { top, step, fade: topFade, opacity: p.lineOpacity };
         for (const peak of p.peaks) drawPeakGradient(p, peak, t, progress, topFade, p.y);
 
         ctx.beginPath();
@@ -377,6 +378,7 @@
             vctx.stroke();
         }
     }
+    let echoBuf = new Float32Array(0);
     function renderQinglv(t, nowMs) {
         // 绢底
         let g = vctx.createLinearGradient(0, 0, 0, H);
@@ -385,22 +387,23 @@
         vctx.globalAlpha = 1;
         vctx.fillStyle = g;
         vctx.fillRect(0, 0, W, H);
-        // 远山：从轨迹里挑几条间隔开的旧山脊
-        const far = history.filter(h => nowMs - h.t < 12000 && h.fade < 0.9).sort((a, b) => a.base - b.base);
-        let lastBase = -Infinity, picked = 0;
-        for (const h of far) {
-            if (h.base - lastBase < H * 0.07 || picked >= 5) continue;
-            lastBase = h.base; picked++;
-            const a = clamp(1 - (nowMs - h.t) / 12000, 0, 1) * (1 - h.fade);
-            mountainLayer(h.top, h.step, QL_FAR, 0.35 * a, H * 0.16, 0.35 * a);
+        // 远影：每条山脊往上抬一段、起伏减半、颜色更淡，跟着本体一起移动
+        const order = shapes.map((sh, i) => ({ i, base: sh.top[0] })).sort((a, b) => a.base - b.base).map(o => o.i);
+        for (const i of order) {
+            const sh = shapes[i];
+            const a = 1 - sh.fade;
+            if (a <= 0.02) continue;
+            const lift = H * 0.075, base = sh.top[0];
+            const echo = echoBuf.length === sh.top.length ? echoBuf : (echoBuf = new Float32Array(sh.top.length));
+            for (let j = 0; j < echo.length; j++) echo[j] = base - lift + (sh.top[j] - base) * 0.55;
+            mountainLayer(echo, sh.step, QL_FAR, 0.38 * a, H * 0.14, 0.3 * a);
         }
         // 近山：当前的三条山脊，从远到近画
-        const order = shapes.map((s, i) => i).sort((a, b) => Math.min(...shapes[a].top) - Math.min(...shapes[b].top));
         for (const i of order) {
-            const s = shapes[i];
-            const a = 1 - s.fade;
+            const sh = shapes[i];
+            const a = 1 - sh.fade;
             if (a <= 0.02) continue;
-            mountainLayer(s.top, s.step, QL[i % QL.length], 0.92 * a, H * 0.24, 0.9 * a);
+            mountainLayer(sh.top, sh.step, QL[i % QL.length], 0.92 * a, H * 0.24, 0.9 * a);
         }
         drawSeaStrokes(t, [60, 120, 140], [176, 136, 66], 0.1);
     }
@@ -457,7 +460,7 @@
             }
         }
         vctx.font = `600 ${Math.round(ch * 0.9)}px "Noto Serif SC", serif`;
-        vctx.fillStyle = '#ffffff';
+        vctx.fillStyle = '#d6f2ff';
         for (let i = 0; i < cjk.length; i += 3) {
             vctx.globalAlpha = 0.75;
             vctx.fillText(hash(cjk[i], cjk[i + 1] + slot) > 0.5 ? '山' : '海', cjk[i] * cw - cw * 0.2, cjk[i + 1] * ch);
@@ -560,15 +563,18 @@
         const dt = Math.min(0.05, now - lastT);
         lastT = now;
 
-        ctx.fillStyle = `rgba(${PAPER_RGB}, ${fadeAlpha()})`;
-        ctx.fillRect(0, 0, W, H);
+        const usesInk = style === 'ink' || style === 'night';
+        if (usesInk) {
+            ctx.fillStyle = `rgba(${PAPER_RGB}, ${fadeAlpha()})`;
+            ctx.fillRect(0, 0, W, H);
+        }
 
         const mul = speedMul();
         shapes = [];
         for (let i = 0; i < pulses.length; i++) {
             const p = pulses[i];
             p.y -= p.speed * mul * dt;
-            const shape = drawInkMountain(p, now);
+            const shape = drawInkMountain(p, now, usesInk);
             shapes.push(shape);
             if (p.lastSnap - p.y > 7) {
                 p.lastSnap = p.y;
@@ -606,6 +612,10 @@
     }
     function setStyle(id) {
         if (!STYLES.some(s => s.id === id)) return;
+        if ((id === 'ink' || id === 'night') && style !== 'ink' && style !== 'night') {
+            ctx.fillStyle = PAPER;
+            ctx.fillRect(0, 0, W, H);
+        }
         style = id;
         try { localStorage.setItem('shanhai-style', id); } catch (e) {}
         renderStyles();

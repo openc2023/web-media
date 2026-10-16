@@ -102,24 +102,35 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
 /* 各材质下的画卷 */
 .stage[data-style="qinglv"] { background: #e9dcc0; }
-.stage[data-style="qinglv"] .title img, .stage[data-style="qinglv"] .poem img { filter: brightness(.9) sepia(.6) saturate(1.4) hue-rotate(-12deg); }
+.stage[data-style="qinglv"] .title img, .stage[data-style="qinglv"] .poem img {
+    /* 深青墨，和石青同色系 */
+    filter: grayscale(1) brightness(.55) sepia(1) hue-rotate(152deg) saturate(2.2) brightness(.62);
+}
+.stage[data-style="qinglv"] .seal { border-color: rgba(184, 138, 58, .7); background: rgba(255, 248, 230, .25); opacity: .85; }
+.stage[data-style="qinglv"] .seal img { filter: sepia(.4) saturate(1.3); }
+
 .stage[data-style="ascii"], .stage[data-style="night"] { background: #0b0d14; }
 .stage[data-style="ascii"] { background: #040508; }
 .stage[data-style="ascii"] canvas { filter: drop-shadow(0 0 3px rgba(80, 170, 255, .45)); }
 .stage[data-style="ascii"]::after {
     content: ""; position: absolute; inset: 0; pointer-events: none;
-    background:
-        radial-gradient(ellipse at 50% 50%, transparent 62%, rgba(0, 0, 0, .5) 100%);
+    background: radial-gradient(ellipse at 50% 50%, transparent 62%, rgba(0, 0, 0, .5) 100%);
 }
-/* 深色材质：题字反相成亮色，用滤色叠上去 */
-.stage[data-style="ascii"] .title img, .stage[data-style="ascii"] .poem img,
-.stage[data-style="night"] .title img, .stage[data-style="night"] .poem img {
-    mix-blend-mode: screen; filter: invert(1) hue-rotate(180deg) brightness(1.1) saturate(.8);
+/* 深色材质：题字反相成亮色，再染成该材质的颜色，用滤色叠上去 */
+.stage[data-style="ascii"] .title img, .stage[data-style="ascii"] .poem img, .stage[data-style="ascii"] .seal img {
+    mix-blend-mode: screen;
+    filter: grayscale(1) invert(1) sepia(1) hue-rotate(160deg) saturate(3.2) brightness(1.15) drop-shadow(0 0 4px rgba(80, 170, 255, .5));
 }
-.stage[data-style="ascii"] .seal, .stage[data-style="night"] .seal { border-color: rgba(255, 255, 255, .22); background: rgba(255, 255, 255, .04); }
-.stage[data-style="ascii"] .seal img, .stage[data-style="night"] .seal img { filter: invert(1) hue-rotate(180deg); mix-blend-mode: screen; }
+.stage[data-style="night"] .title img, .stage[data-style="night"] .poem img, .stage[data-style="night"] .seal img {
+    mix-blend-mode: screen;
+    filter: grayscale(1) invert(1) sepia(.5) hue-rotate(178deg) saturate(1.3) brightness(1.2);
+}
+.stage[data-style="ascii"] .seal { border-color: rgba(90, 175, 255, .45); background: rgba(40, 110, 255, .06); }
+.stage[data-style="night"] .seal { border-color: rgba(200, 212, 235, .3); background: rgba(255, 255, 255, .04); }
+
 .stage[data-style="dither"] { background: #f2ece0; }
 .stage[data-style="dither"] .title img, .stage[data-style="dither"] .poem img { filter: grayscale(1) sepia(1) hue-rotate(185deg) saturate(2.4) brightness(.85); }
+.stage[data-style="dither"] .seal { border-color: rgba(45, 79, 143, .5); }
 
 figcaption {
     display: flex; justify-content: space-between; gap: 16px;
