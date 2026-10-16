@@ -18,7 +18,7 @@
 
 - [作品入口](index.html) · [个人主页](../../../index.html)
 - 点击画面重新起山；`1`–`5` 切换材质，`M` 轮换；`S` 开关声音（`shanhai.mp3`，浏览器要求先与页面交互才能播放）。
-- 文件：`index.html` 页面，`style.css` 样式，`shanhai.js` 模拟与渲染；`山海.png`、`诗.png`、`7logo.png` 为画面上的题字、诗句与印章。
+- 文件：`index.html` 页面，`style.css` 样式，`shanhai.js` 模拟与渲染；`山海.png`、`诗.png` 为画面上的题字与诗句；印章用 STUDIO 7 新标（`img.7studio.org/logo/studio7.svg`，来自 openc2023/content）。
 - 历史版本与视觉实验已从仓库移除，需要时可在 git 历史中找回。
 
 从仓库根目录运行 `python -m http.server 8080 --bind 127.0.0.1`，访问 <http://localhost:8080/personal/works/shanhai/>。
