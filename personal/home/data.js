@@ -30,7 +30,7 @@ window.ASCII_DATA = {
         htmlLang: "zh-CN",
         name: "田漢",
         alias: "Tian Han · 티앤한",
-        roles: ["动画博士", "媒体艺术家", "制作总监"],
+        roles: ["动画博士", "媒体艺术家", "SUPERROOKIZ 组长"],
         lead: "研究韩中漫画动画图像、沉浸式媒体艺术与城市再生。把论文里的方法带进美术馆、博物馆和公共空间的影像里。",
         base: "釜山 · 2015 至今",
         quote: "让不可见之物成为必然。",
@@ -40,13 +40,13 @@ window.ASCII_DATA = {
         about: [
             "1993 年生于中国，2015 年起在韩国釜山学习与工作，至今十年。",
             "2025 年 2 月于釜山大学取得动画方向博士学位，论文研究城市再生中的新媒体艺术应用。",
-            "现任 SUPERROOKIZ（슈퍼루키즈）制作总监，兼任东明大学网络漫画动画学科讲师。",
+            "现任 SUPERROOKIZ（슈퍼루키즈）组长，东明大学网络漫画动画学科客座教授。",
             "中文母语，韩语熟练，可做中韩双语的研究、翻译与内容协作。"
         ],
         skills: ["沉浸式媒体", "投影映射", "生成艺术", "动画研究", "互动装置"],
         path: [
-            { date: "2025.02 —", title: "东明大学 · 兼任教授", body: "网络漫画动画学科，讲授动画课程" },
-            { date: "2024.02 —", title: "SUPERROOKIZ · 制作总监", body: "媒体影像制作与技术研究" },
+            { date: "2025.02 —", title: "东明大学 · 客座教授", body: "网络漫画动画学科，讲授动画课程" },
+            { date: "2024.02 —", title: "SUPERROOKIZ · 组长", body: "媒体影像制作与技术研究" },
             { date: "2021.09 — 2025.02", title: "釜山大学 · 博士", body: "城市再生语境中的沉浸式媒体艺术" },
             { date: "2020.09 — 2023.02", title: "釜山大学设计学科 · 研究助教", body: "研究辅助、教学支撑、影像制作" },
             { date: "2019.09 — 2021.09", title: "釜山大学 · 硕士", body: "韩中日漫画动画中的九尾狐形象研究" },
@@ -102,7 +102,7 @@ window.ASCII_DATA = {
         htmlLang: "en",
         name: "田漢",
         alias: "Tian Han · 티앤한",
-        roles: ["Animation PhD", "Media Artist", "Production Director"],
+        roles: ["Animation PhD", "Media Artist", "Team Lead, SUPERROOKIZ"],
         lead: "Researching Korean and Chinese comics and animation imagery, immersive media art, and urban regeneration, and carrying those methods into moving images for museums, galleries and public space.",
         base: "Busan · since 2015",
         quote: "Making the invisible feel inevitable.",
@@ -112,13 +112,13 @@ window.ASCII_DATA = {
         about: [
             "Born in China in 1993; studying and working in Busan, South Korea since 2015.",
             "PhD in Animation, Pusan National University (Feb 2025), with a thesis on new media art in urban regeneration.",
-            "Production Director at SUPERROOKIZ and Adjunct Professor of Webtoon & Animation at Dongmyeong University.",
+            "Team Lead at SUPERROOKIZ and Visiting Professor of Webtoon & Animation at Dongmyeong University.",
             "Chinese (native) and Korean (proficient): research, translation and content work across both languages."
         ],
         skills: ["Immersive media", "Projection mapping", "Generative art", "Animation research", "Interactive installation"],
         path: [
-            { date: "2025.02 —", title: "Dongmyeong Univ. · Adjunct Professor", body: "Teaching animation, Webtoon & Animation Dept." },
-            { date: "2024.02 —", title: "SUPERROOKIZ · Production Director", body: "Media production and technology research" },
+            { date: "2025.02 —", title: "Dongmyeong Univ. · Visiting Professor", body: "Teaching animation, Webtoon & Animation Dept." },
+            { date: "2024.02 —", title: "SUPERROOKIZ · Team Lead", body: "Media production and technology research" },
             { date: "2021.09 — 2025.02", title: "Pusan National Univ. · PhD", body: "Immersive media art in urban regeneration" },
             { date: "2020.09 — 2023.02", title: "PNU Design · Research Assistant", body: "Research, teaching support, video production" },
             { date: "2019.09 — 2021.09", title: "Pusan National Univ. · MA", body: "The nine-tailed fox in K/C/J comics and animation" },
@@ -174,7 +174,7 @@ window.ASCII_DATA = {
         htmlLang: "ko",
         name: "田漢",
         alias: "티앤한 · Tian Han",
-        roles: ["애니메이션 박사", "미디어 아티스트", "제작감독"],
+        roles: ["애니메이션 박사", "미디어 아티스트", "슈퍼루키즈 팀장"],
         lead: "한중 만화·애니메이션 이미지, 몰입형 미디어아트, 도시재생을 연구하고, 그 방법을 미술관·박물관·공공공간의 영상으로 옮깁니다.",
         base: "부산 · 2015년부터",
         quote: "보이지 않는 것을 필연으로 만든다.",
@@ -184,13 +184,13 @@ window.ASCII_DATA = {
         about: [
             "1993년 중국 출생. 2015년부터 부산에서 공부하고 일하고 있습니다.",
             "2025년 2월 부산대학교 애니메이션 박사. 도시재생에서의 뉴미디어아트 적용을 연구했습니다.",
-            "슈퍼루키즈(SUPERROOKIZ) 제작감독, 동명대학교 웹툰애니메이션학과 겸임교수.",
+            "슈퍼루키즈(SUPERROOKIZ) 팀장, 동명대학교 웹툰애니메이션학과 초빙교수.",
             "중국어(모국어)와 한국어(능숙)로 연구·번역·콘텐츠 협업이 가능합니다."
         ],
         skills: ["몰입형 미디어", "프로젝션 매핑", "제너러티브 아트", "애니메이션 연구", "인터랙티브 설치"],
         path: [
-            { date: "2025.02 —", title: "동명대학교 · 겸임교수", body: "웹툰애니메이션학과 애니메이션 수업" },
-            { date: "2024.02 —", title: "슈퍼루키즈 · 제작감독", body: "미디어 영상 제작과 기술 연구" },
+            { date: "2025.02 —", title: "동명대학교 · 초빙교수", body: "웹툰애니메이션학과 애니메이션 수업" },
+            { date: "2024.02 —", title: "슈퍼루키즈 · 팀장", body: "미디어 영상 제작과 기술 연구" },
             { date: "2021.09 — 2025.02", title: "부산대학교 · 박사", body: "도시재생 맥락의 몰입형 미디어아트" },
             { date: "2020.09 — 2023.02", title: "부산대학교 디자인학과 · 연구조교", body: "연구 보조, 수업 지원, 영상 제작" },
             { date: "2019.09 — 2021.09", title: "부산대학교 · 석사", body: "한중일 만화·애니메이션의 구미호 이미지 연구" },
