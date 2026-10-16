@@ -1,7 +1,7 @@
 /* 山海 — 一套山脊模拟，五种材质
    模拟（沿用原作算法）每帧画进一张离屏画布 inkCanvas。
-   水墨：原作，直接显示。青绿：同一模拟换石青石绿、勾金，叠在绢色上。
-   字符（琥珀旧屏）与孔版（双色 Riso）：由山脊几何算浓度，脊线最浓、往下如雾淡出。
+   水墨：原作，直接显示。青绿：按山脊几何在绢底上一层层画实的山，石青→石绿→赭金，勾金。
+   字符（黑底电光蓝）与孔版（双色 Riso）：由山脊几何算浓度，脊线最浓、往下淡出。
    夜山：把水墨画布反相，月下的山与海。
    釜山实时天气（水墨以外）：风速 → 山脊上升速度，湿度 → 墨迹残留时间。 */
 (function () {
@@ -33,12 +33,13 @@
     const MIST_RGB = [150, 138, 120];
     const MIST = 'rgb(150, 138, 120)';
     const OCHRE = '#a8814f';
+    const mix3 = (a, b, t) => [0, 1, 2].map(i => Math.round(a[i] + (b[i] - a[i]) * t));
     const mix = (a, b, t) => `rgb(${Math.round(a[0] + (b[0] - a[0]) * t)}, ${Math.round(a[1] + (b[1] - a[1]) * t)}, ${Math.round(a[2] + (b[2] - a[2]) * t)})`;
 
     const STYLES = [
         { id: 'ink', zh: '水墨', en: 'Ink', desc: '原作。灰墨在宣纸上层层晕开。' },
-        { id: 'qinglv', zh: '青绿', en: 'Azure', desc: '绢本金碧：石青、石绿设色，脊线勾金。' },
-        { id: 'ascii', zh: '字符', en: 'ASCII', desc: '琥珀色旧屏。山脊以 / \\ _ 写成，雾里偶尔浮出「山」「海」。' },
+        { id: 'qinglv', zh: '青绿', en: 'Azure', desc: '绢本青绿：峰顶石青，往下石绿，山脚赭金化入留白，脊线勾金。' },
+        { id: 'ascii', zh: '字符', en: 'ASCII', desc: '黑底电光蓝，与主页同一套字符语言：脊线以 / \\ _ 写成，山体由字符填满。' },
         { id: 'dither', zh: '孔版', en: 'Riso', desc: '双色孔版印刷：靛蓝山脊、赭黄雾气，略带错版。' },
         { id: 'night', zh: '夜山', en: 'Night', desc: '墨色反相。月下的山，与海上的微光。' }
     ];
@@ -84,16 +85,7 @@
         return (n1 * 0.5 + n2 * 0.3 + n3 * 0.2) * amp;
     }
 
-    // 青绿：远山石青、中景石绿、近山深青；脊线勾金（金碧山水）
-    const QL = [[86, 136, 162], [70, 130, 100], [34, 82, 92]];
-    const QL_LINE = [160, 118, 52];
     function getInkColors(lineIndex, total) {
-        if (style === 'qinglv') {
-            const b = QL[Math.min(QL.length - 1, lineIndex)];
-            const opac = 0.45 + Math.pow(lineIndex / total, 0.8) * 0.55;
-            const c = a => `rgba(${b[0]}, ${b[1]}, ${b[2]}, ${a})`;
-            return [c(0), c(0.4 * opac), c(0.7 * opac), c(0.9 * opac)];
-        }
         const base = [{ r: 60 }, { r: 80 }, { r: 100 }, { r: 120 }];
         const depth = 0.3 + Math.pow(lineIndex / total, 1.2) * 0.7;
         const opac = 0.3 + Math.pow(lineIndex / total, 0.8) * 0.7;
@@ -101,7 +93,7 @@
         return [c(0, 0), c(1, 0.4 * opac), c(2, 0.7 * opac), c(3, 0.9 * opac)];
     }
 
-    function lineRGB() { return style === 'qinglv' ? QL_LINE : [80, 80, 80]; }   // 水墨：原作勾线色
+    function lineRGB() { return [80, 80, 80]; }   // 原作勾线色
 
     // ======================== 山脊（原作） ========================
     function makePeak() {
@@ -172,14 +164,8 @@
         const grad = ctx.createLinearGradient(0, minY, 0, minY + peak.gradientHeight);
         grad.addColorStop(0, base);
         grad.addColorStop(0.3, withA(0.5));
-        if (style === 'qinglv') {
-            // 金碧：山脚晕一层赭金
-            grad.addColorStop(0.62, 'rgba(168, 129, 79, 0.22)');
-            grad.addColorStop(1, 'rgba(168, 129, 79, 0)');
-        } else {
-            grad.addColorStop(0.7, withA(0.2));
-            grad.addColorStop(1, withA(0));
-        }
+        grad.addColorStop(0.7, withA(0.2));
+        grad.addColorStop(1, withA(0));
 
         ctx.beginPath();
         ctx.moveTo(0, pts[0].y);
@@ -190,8 +176,7 @@
         }
         ctx.closePath();
         const of = 1 - Math.pow(topFadeFactor, 1.5);
-        // 水墨保持原作浓度；青绿每帧只薄涂一层，颜料慢慢积起
-        ctx.globalAlpha = p.lineOpacity * peak.peakOpacity * of * (style === 'qinglv' ? 0.12 : 1);
+        ctx.globalAlpha = p.lineOpacity * peak.peakOpacity * of;
         ctx.fillStyle = grad;
         ctx.fill();
         ctx.globalAlpha = 1;
@@ -285,7 +270,9 @@
     // 由山脊几何算每格浓度：脊线本身最浓，往下像雾一样淡出；轨迹里较新的山脊留下淡淡的线。
     // 同时记录每格最强脊线的斜率，字符模式用它挑 / \ _ 。
     let shapes = [];
-    function ridgeField(cols, rows, cw, ch, nowMs) {
+    function ridgeField(cols, rows, cw, ch, nowMs, opt) {
+        opt = opt || {};
+        const depthK = opt.depth || 0.045, gain = opt.gain || 0.42, histA = opt.hist == null ? 0.2 : opt.hist;
         const keep = new Float32Array(cols * rows).fill(1);   // Π(1 - c)，最后取 1 - keep
         const lineStr = new Float32Array(cols * rows);
         const slope = new Float32Array(cols * rows);
@@ -301,7 +288,7 @@
                     const cy = (r + 0.5) * ch;
                     const dy = cy - yr;
                     const line = Math.exp(-Math.abs(dy) / (ch * 0.55));
-                    const mist = dy > 0 && fillDepth > 0 ? Math.exp(-dy / fillDepth) * 0.42 : 0;
+                    const mist = dy > 0 && fillDepth > 0 ? Math.exp(-dy / fillDepth) * gain : 0;
                     const v = a * Math.max(line, mist);
                     if (v < 0.01) continue;
                     const k = r * cols + c;
@@ -311,10 +298,10 @@
             }
         }
         for (const h of history) {
-            const a = clamp(1 - (nowMs - h.t) / 7000, 0, 1) * (1 - h.fade) * 0.2;
+            const a = clamp(1 - (nowMs - h.t) / 7000, 0, 1) * (1 - h.fade) * histA;
             if (a > 0.02) add(h, a, 0);
         }
-        for (const s of shapes) add(s, (1 - s.fade) * (0.6 + s.opacity * 0.4), H * 0.045);
+        for (const s of shapes) add(s, (1 - s.fade) * (0.6 + s.opacity * 0.4), H * depthK);
         const v = new Float32Array(cols * rows);
         for (let k = 0; k < v.length; k++) v[k] = 1 - keep[k];
         return { v, lineStr, slope };
@@ -361,68 +348,118 @@
 
     function renderInk() { vctx.drawImage(inkCanvas, 0, 0, W, H); }
 
-    // 青绿：模拟画布叠在绢色上（正片叠底），卷底石青水纹
-    function renderQinglv(t) {
-        vctx.drawImage(inkCanvas, 0, 0, W, H);
-        vctx.globalCompositeOperation = 'multiply';
-        vctx.fillStyle = '#e9d7b1';
+    // 青绿：绢底上一层层实的山。峰顶石青、往下石绿、山脚赭金再淡出留白；远山更淡，脊线勾金。
+    const QL = [[36, 92, 118], [48, 118, 96], [28, 74, 96]];    // 每条山脊的峰顶色
+    const QL_GREEN = [88, 150, 116], QL_FAR = [120, 160, 170], QL_GOLD = [190, 144, 70];
+    function mountainLayer(top, step, rgb, alpha, depth, gold) {
+        const n = top.length;
+        let minY = Infinity;
+        for (let i = 0; i < n; i++) if (top[i] < minY) minY = top[i];
+        const g = vctx.createLinearGradient(0, minY, 0, minY + depth);
+        g.addColorStop(0, `rgba(${rgb.join(',')}, ${alpha})`);
+        g.addColorStop(0.32, `rgba(${QL_GREEN.join(',')}, ${alpha * 0.85})`);
+        g.addColorStop(0.68, `rgba(${QL_GOLD.join(',')}, ${alpha * 0.45})`);
+        g.addColorStop(1, `rgba(${QL_GOLD.join(',')}, 0)`);
+        vctx.beginPath();
+        vctx.moveTo(0, top[0]);
+        for (let i = 1; i < n; i++) vctx.lineTo(i * step, top[i]);
+        vctx.lineTo(W, top[n - 1] + depth);
+        vctx.lineTo(0, top[0] + depth);
+        vctx.closePath();
+        vctx.fillStyle = g;
+        vctx.fill();
+        if (gold > 0) {
+            vctx.beginPath();
+            vctx.moveTo(0, top[0]);
+            for (let i = 1; i < n; i++) vctx.lineTo(i * step, top[i]);
+            vctx.strokeStyle = `rgba(184, 138, 58, ${gold})`;
+            vctx.lineWidth = 1.1;
+            vctx.stroke();
+        }
+    }
+    function renderQinglv(t, nowMs) {
+        // 绢底
+        let g = vctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#efe4cb');
+        g.addColorStop(1, '#e3d3b0');
+        vctx.globalAlpha = 1;
+        vctx.fillStyle = g;
         vctx.fillRect(0, 0, W, H);
-        vctx.globalCompositeOperation = 'source-over';
-        drawSeaStrokes(t, QL[0], QL[2], 0.14);
+        // 远山：从轨迹里挑几条间隔开的旧山脊
+        const far = history.filter(h => nowMs - h.t < 12000 && h.fade < 0.9).sort((a, b) => a.base - b.base);
+        let lastBase = -Infinity, picked = 0;
+        for (const h of far) {
+            if (h.base - lastBase < H * 0.07 || picked >= 5) continue;
+            lastBase = h.base; picked++;
+            const a = clamp(1 - (nowMs - h.t) / 12000, 0, 1) * (1 - h.fade);
+            mountainLayer(h.top, h.step, QL_FAR, 0.35 * a, H * 0.16, 0.35 * a);
+        }
+        // 近山：当前的三条山脊，从远到近画
+        const order = shapes.map((s, i) => i).sort((a, b) => Math.min(...shapes[a].top) - Math.min(...shapes[b].top));
+        for (const i of order) {
+            const s = shapes[i];
+            const a = 1 - s.fade;
+            if (a <= 0.02) continue;
+            mountainLayer(s.top, s.step, QL[i % QL.length], 0.92 * a, H * 0.24, 0.9 * a);
+        }
+        drawSeaStrokes(t, [60, 120, 140], [176, 136, 66], 0.1);
     }
 
-    // 字符：琥珀色旧屏
-    const AMBER = [255, 196, 110], AMBER_DIM = [168, 112, 50];
+    // 字符：黑底电光蓝（与主页一致）。脊线亮青，山体用字符梯度填满，越往下越暗越稀。
+    const CYAN = [150, 230, 255], BLUE = [40, 110, 255], DEEP = [24, 52, 140];
     function renderAscii(t, nowMs) {
-        const cw = W < 360 ? 6 : 7, ch = cw * 1.65;
+        const cw = W < 360 ? 7 : 8, ch = cw * 1.6;
         const cols = Math.ceil(W / cw), rows = Math.ceil(H / ch);
-        const f = ridgeField(cols, rows, cw, ch, nowMs);
+        const f = ridgeField(cols, rows, cw, ch, nowMs, { depth: 0.12, gain: 0.95, hist: 0 });
         vctx.globalAlpha = 1;
-        vctx.fillStyle = '#0d0b08';
+        vctx.fillStyle = '#040508';
         vctx.fillRect(0, 0, W, H);
-        const mono = `400 ${Math.round(ch * 0.9)}px "IBM Plex Mono", ui-monospace, monospace`;
-        vctx.font = mono;
+        vctx.font = `500 ${Math.round(ch * 0.92)}px "IBM Plex Mono", ui-monospace, monospace`;
         vctx.textBaseline = 'top';
         const slot = Math.floor(t * 0.8);
         const last = RAMP.length - 1;
         const cjk = [];
         const seaRow = Math.floor(H * SEA_TOP / ch);
         for (let y = 0; y < rows; y++) {
+            const gy = y / rows;
             for (let x = 0; x < cols; x++) {
                 const k = y * cols + x;
                 const v = f.v[k];
-                if (v < 0.1) {
+                if (v < 0.08) {
                     if (y >= seaRow) {
                         const d = (y - seaRow) / Math.max(1, rows - seaRow);
                         const w = Math.sin(x * 0.42 - t * (0.9 + d) + y * 1.3) + Math.sin(x * 0.13 + t * 0.4 + y) * 0.6;
-                        if (w > 0.75 - d * 0.5) {
-                            vctx.fillStyle = mix(AMBER_DIM, AMBER, d * 0.5);
-                            vctx.globalAlpha = 0.45 + d * 0.4;
+                        if (w > 0.7 - d * 0.5) {
+                            vctx.fillStyle = mix(DEEP, BLUE, d);
+                            vctx.globalAlpha = 0.55 + d * 0.4;
                             vctx.fillText(w > 1.15 ? '~' : '-', x * cw, y * ch);
                         }
                     }
                     continue;
                 }
+                const ridge = f.lineStr[k] > 0.35 && f.lineStr[k] >= v * 0.75;
                 let c;
-                const ridge = f.lineStr[k] > 0.3 && f.lineStr[k] >= v * 0.7;
-                vctx.fillStyle = ridge ? mix(AMBER, [255, 236, 190], f.lineStr[k] * 0.5) : mix(AMBER_DIM, AMBER, Math.min(1, v * 1.2));
                 if (ridge) {
                     const sl = f.slope[k];
-                    c = Math.abs(sl) > 2.4 ? '|' : sl < -0.35 ? '/' : sl > 0.35 ? BACK : (f.lineStr[k] > 0.6 ? '_' : '-');
-                } else if (v > 0.22 && v < 0.6 && hash(x + slot * 3.1, y) > 0.986) {
+                    c = Math.abs(sl) > 2.4 ? '|' : sl < -0.35 ? '/' : sl > 0.35 ? BACK : '_';
+                    vctx.fillStyle = mix(CYAN, [235, 250, 255], f.lineStr[k] * 0.6);
+                    vctx.globalAlpha = 1;
+                } else if (v > 0.25 && v < 0.55 && hash(x + slot * 3.1, y) > 0.988) {
                     cjk.push(x, y, v);
                     continue;
                 } else {
                     c = RAMP.charAt(Math.max(1, Math.round(v * last)));
+                    // 山体：浓处偏亮蓝，淡处沉成深蓝；整幅上青下蓝
+                    vctx.fillStyle = mix(mix3(DEEP, BLUE, v), CYAN, Math.max(0, v - 0.55) * 0.9 * (1 - gy * 0.5));
+                    vctx.globalAlpha = 0.55 + v * 0.45;
                 }
-                vctx.globalAlpha = 0.6 + v * 0.4;
                 vctx.fillText(c, x * cw, y * ch);
             }
         }
-        vctx.font = `600 ${Math.round(ch * 0.86)}px "Noto Serif SC", serif`;
-        vctx.fillStyle = '#ffe2a8';
+        vctx.font = `600 ${Math.round(ch * 0.9)}px "Noto Serif SC", serif`;
+        vctx.fillStyle = '#ffffff';
         for (let i = 0; i < cjk.length; i += 3) {
-            vctx.globalAlpha = 0.6 + cjk[i + 2] * 0.4;
+            vctx.globalAlpha = 0.75;
             vctx.fillText(hash(cjk[i], cjk[i + 1] + slot) > 0.5 ? '山' : '海', cjk[i] * cw - cw * 0.2, cjk[i + 1] * ch);
         }
         vctx.globalAlpha = 1;
@@ -545,7 +582,7 @@
 
         if (style === 'ascii') renderAscii(now, nowMs);
         else if (style === 'dither') renderRiso(nowMs);
-        else if (style === 'qinglv') renderQinglv(now);
+        else if (style === 'qinglv') renderQinglv(now, nowMs);
         else if (style === 'night') renderNight(now);
         else renderInk();
 
@@ -570,7 +607,6 @@
     function setStyle(id) {
         if (!STYLES.some(s => s.id === id)) return;
         style = id;
-        pulses.forEach((p, i) => { p.inkColors = getInkColors(i, PARAMS.lineCount); });
         try { localStorage.setItem('shanhai-style', id); } catch (e) {}
         renderStyles();
         // 切换时画面淡入一下

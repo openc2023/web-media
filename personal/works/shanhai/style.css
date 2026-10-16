@@ -11,8 +11,8 @@
     --serif: "Noto Serif SC", serif;
     --gutter: clamp(16px, 3.5vw, 48px);
 }
-body[data-style="qinglv"] { --accent: #6f9e8c; }
-body[data-style="ascii"]  { --accent: #f0b35c; }
+body[data-style="qinglv"] { --accent: #5f9a86; }
+body[data-style="ascii"]  { --accent: #3fa4ff; }
 body[data-style="dither"] { --accent: #6d8fd0; }
 body[data-style="night"]  { --accent: #b9c7e2; }
 
@@ -101,15 +101,15 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .seal img { width: 100%; height: 100%; object-fit: contain; }
 
 /* 各材质下的画卷 */
-.stage[data-style="qinglv"] { background: #e2cfa8; }
-.stage[data-style="qinglv"] .title img, .stage[data-style="qinglv"] .poem img { filter: brightness(.95) sepia(.5) saturate(1.3) hue-rotate(-10deg); }
+.stage[data-style="qinglv"] { background: #e9dcc0; }
+.stage[data-style="qinglv"] .title img, .stage[data-style="qinglv"] .poem img { filter: brightness(.9) sepia(.6) saturate(1.4) hue-rotate(-12deg); }
 .stage[data-style="ascii"], .stage[data-style="night"] { background: #0b0d14; }
-.stage[data-style="ascii"] canvas { filter: drop-shadow(0 0 2px rgba(255, 176, 70, .55)); }
+.stage[data-style="ascii"] { background: #040508; }
+.stage[data-style="ascii"] canvas { filter: drop-shadow(0 0 3px rgba(80, 170, 255, .45)); }
 .stage[data-style="ascii"]::after {
     content: ""; position: absolute; inset: 0; pointer-events: none;
     background:
-        repeating-linear-gradient(0deg, rgba(0, 0, 0, .28) 0 1px, transparent 1px 3px),
-        radial-gradient(ellipse at 50% 50%, transparent 60%, rgba(0, 0, 0, .55) 100%);
+        radial-gradient(ellipse at 50% 50%, transparent 62%, rgba(0, 0, 0, .5) 100%);
 }
 /* 深色材质：题字反相成亮色，用滤色叠上去 */
 .stage[data-style="ascii"] .title img, .stage[data-style="ascii"] .poem img,
