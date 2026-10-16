@@ -1,8 +1,9 @@
-/* 山海 — 一套山脊模拟，四种渲染
-   模拟（沿用原作算法）每帧画进一张离屏水墨画布 inkCanvas；
-   水墨直接显示这张画布；字符 ASCII、点阵 DITHER 由山脊几何算浓度（脊线最浓、往下如雾淡出）；
-   青绿 AZURE 用同一套模拟换成石青、石绿，山脚收进与题字同色的赭金。
-   釜山实时天气：风速 → 山脊上升速度，湿度 → 墨迹残留时间。 */
+/* 山海 — 一套山脊模拟，五种材质
+   模拟（沿用原作算法）每帧画进一张离屏画布 inkCanvas。
+   水墨：原作，直接显示。青绿：同一模拟换石青石绿、勾金，叠在绢色上。
+   字符（琥珀旧屏）与孔版（双色 Riso）：由山脊几何算浓度，脊线最浓、往下如雾淡出。
+   夜山：把水墨画布反相，月下的山与海。
+   釜山实时天气（水墨以外）：风速 → 山脊上升速度，湿度 → 墨迹残留时间。 */
 (function () {
     'use strict';
 
@@ -35,10 +36,11 @@
     const mix = (a, b, t) => `rgb(${Math.round(a[0] + (b[0] - a[0]) * t)}, ${Math.round(a[1] + (b[1] - a[1]) * t)}, ${Math.round(a[2] + (b[2] - a[2]) * t)})`;
 
     const STYLES = [
-        { id: 'ink', zh: '水墨', en: 'Ink' },
-        { id: 'ascii', zh: '字符', en: 'ASCII' },
-        { id: 'dither', zh: '点阵', en: 'Dither' },
-        { id: 'qinglv', zh: '青绿', en: 'Azure' }
+        { id: 'ink', zh: '水墨', en: 'Ink', desc: '原作。灰墨在宣纸上层层晕开。' },
+        { id: 'qinglv', zh: '青绿', en: 'Azure', desc: '绢本金碧：石青、石绿设色，脊线勾金。' },
+        { id: 'ascii', zh: '字符', en: 'ASCII', desc: '琥珀色旧屏。山脊以 / \\ _ 写成，雾里偶尔浮出「山」「海」。' },
+        { id: 'dither', zh: '孔版', en: 'Riso', desc: '双色孔版印刷：靛蓝山脊、赭黄雾气，略带错版。' },
+        { id: 'night', zh: '夜山', en: 'Night', desc: '墨色反相。月下的山，与海上的微光。' }
     ];
 
     // ======================== 画布 ========================
@@ -82,9 +84,9 @@
         return (n1 * 0.5 + n2 * 0.3 + n3 * 0.2) * amp;
     }
 
-    // 青绿：远山石青、中景石绿、近山深青；勾线用深靛
-    const QL = [[104, 146, 166], [92, 138, 110], [44, 86, 92]];
-    const QL_LINE = [30, 58, 66];
+    // 青绿：远山石青、中景石绿、近山深青；脊线勾金（金碧山水）
+    const QL = [[86, 136, 162], [70, 130, 100], [34, 82, 92]];
+    const QL_LINE = [160, 118, 52];
     function getInkColors(lineIndex, total) {
         if (style === 'qinglv') {
             const b = QL[Math.min(QL.length - 1, lineIndex)];
@@ -189,7 +191,7 @@
         ctx.closePath();
         const of = 1 - Math.pow(topFadeFactor, 1.5);
         // 水墨保持原作浓度；青绿每帧只薄涂一层，颜料慢慢积起
-        ctx.globalAlpha = p.lineOpacity * peak.peakOpacity * of * (style === 'qinglv' ? 0.09 : 1);
+        ctx.globalAlpha = p.lineOpacity * peak.peakOpacity * of * (style === 'qinglv' ? 0.12 : 1);
         ctx.fillStyle = grad;
         ctx.fill();
         ctx.globalAlpha = 1;
@@ -332,14 +334,16 @@
         for (let k = 0; k < 9; k++) rows.push(top + Math.pow(k / 8, 1.55) * depth * 0.96);
         return rows;
     }
-    // 水墨、线描：细线水纹，越近（越靠下）越清楚
-    function drawSeaStrokes(t) {
-        const g = vctx.createLinearGradient(0, H * SEA_TOP - 20, 0, H);
-        g.addColorStop(0, `rgba(${MIST_RGB.join(',')}, 0)`);
-        g.addColorStop(1, `rgba(${MIST_RGB.join(',')}, 0.12)`);
-        vctx.globalAlpha = 1;
-        vctx.fillStyle = g;
-        vctx.fillRect(0, H * SEA_TOP - 20, W, H);
+    // 细线水纹，越近（越靠下）越清楚
+    function drawSeaStrokes(t, ca, cb, wash) {
+        if (wash) {
+            const g = vctx.createLinearGradient(0, H * SEA_TOP - 20, 0, H);
+            g.addColorStop(0, `rgba(${ca.join(',')}, 0)`);
+            g.addColorStop(1, `rgba(${ca.join(',')}, ${wash})`);
+            vctx.globalAlpha = 1;
+            vctx.fillStyle = g;
+            vctx.fillRect(0, H * SEA_TOP - 20, W, H);
+        }
         const rows = seaRows();
         vctx.lineWidth = 0.8;
         for (let k = 0; k < rows.length; k++) {
@@ -348,23 +352,35 @@
                 const y = rows[k] + seaLine(k, x, t);
                 if (x === 0) vctx.moveTo(x, y); else vctx.lineTo(x, y);
             }
-            vctx.strokeStyle = style === 'qinglv' ? mix(QL[0], QL_LINE, k / 9) : mix(MIST_RGB, INK_RGB, k / 10);
-            vctx.globalAlpha = 0.18 + k * 0.045;
+            vctx.strokeStyle = mix(ca, cb, k / 9);
+            vctx.globalAlpha = 0.2 + k * 0.05;
             vctx.stroke();
         }
         vctx.globalAlpha = 1;
     }
 
     function renderInk() { vctx.drawImage(inkCanvas, 0, 0, W, H); }
-    function renderQinglv(t) { vctx.drawImage(inkCanvas, 0, 0, W, H); drawSeaStrokes(t); }
 
+    // 青绿：模拟画布叠在绢色上（正片叠底），卷底石青水纹
+    function renderQinglv(t) {
+        vctx.drawImage(inkCanvas, 0, 0, W, H);
+        vctx.globalCompositeOperation = 'multiply';
+        vctx.fillStyle = '#e9d7b1';
+        vctx.fillRect(0, 0, W, H);
+        vctx.globalCompositeOperation = 'source-over';
+        drawSeaStrokes(t, QL[0], QL[2], 0.14);
+    }
+
+    // 字符：琥珀色旧屏
+    const AMBER = [255, 196, 110], AMBER_DIM = [168, 112, 50];
     function renderAscii(t, nowMs) {
         const cw = W < 360 ? 6 : 7, ch = cw * 1.65;
         const cols = Math.ceil(W / cw), rows = Math.ceil(H / ch);
         const f = ridgeField(cols, rows, cw, ch, nowMs);
-        paper();
+        vctx.globalAlpha = 1;
+        vctx.fillStyle = '#0d0b08';
+        vctx.fillRect(0, 0, W, H);
         const mono = `400 ${Math.round(ch * 0.9)}px "IBM Plex Mono", ui-monospace, monospace`;
-        const serif = `600 ${Math.round(ch * 0.86)}px "Noto Serif SC", serif`;
         vctx.font = mono;
         vctx.textBaseline = 'top';
         const slot = Math.floor(t * 0.8);
@@ -376,13 +392,12 @@
                 const k = y * cols + x;
                 const v = f.v[k];
                 if (v < 0.1) {
-                    // 海：按波纹相位放 ~ 与 -
                     if (y >= seaRow) {
                         const d = (y - seaRow) / Math.max(1, rows - seaRow);
                         const w = Math.sin(x * 0.42 - t * (0.9 + d) + y * 1.3) + Math.sin(x * 0.13 + t * 0.4 + y) * 0.6;
                         if (w > 0.75 - d * 0.5) {
-                            vctx.fillStyle = mix(MIST_RGB, INK_RGB, d * 0.55);
-                            vctx.globalAlpha = 0.35 + d * 0.45;
+                            vctx.fillStyle = mix(AMBER_DIM, AMBER, d * 0.5);
+                            vctx.globalAlpha = 0.45 + d * 0.4;
                             vctx.fillText(w > 1.15 ? '~' : '-', x * cw, y * ch);
                         }
                     }
@@ -390,9 +405,8 @@
                 }
                 let c;
                 const ridge = f.lineStr[k] > 0.3 && f.lineStr[k] >= v * 0.7;
-                vctx.fillStyle = ridge ? INK : mix(MIST_RGB, INK_RGB, Math.min(1, v * 1.1));
+                vctx.fillStyle = ridge ? mix(AMBER, [255, 236, 190], f.lineStr[k] * 0.5) : mix(AMBER_DIM, AMBER, Math.min(1, v * 1.2));
                 if (ridge) {
-                    // 脊线：按坡度挑字符，像老式字符山水
                     const sl = f.slope[k];
                     c = Math.abs(sl) > 2.4 ? '|' : sl < -0.35 ? '/' : sl > 0.35 ? BACK : (f.lineStr[k] > 0.6 ? '_' : '-');
                 } else if (v > 0.22 && v < 0.6 && hash(x + slot * 3.1, y) > 0.986) {
@@ -401,49 +415,104 @@
                 } else {
                     c = RAMP.charAt(Math.max(1, Math.round(v * last)));
                 }
-                vctx.globalAlpha = 0.3 + v * 0.7;
+                vctx.globalAlpha = 0.6 + v * 0.4;
                 vctx.fillText(c, x * cw, y * ch);
             }
         }
-        // 雾里偶尔浮出「山」「海」，与题字同为赭金
-        vctx.font = serif;
-        vctx.fillStyle = OCHRE;
+        vctx.font = `600 ${Math.round(ch * 0.86)}px "Noto Serif SC", serif`;
+        vctx.fillStyle = '#ffe2a8';
         for (let i = 0; i < cjk.length; i += 3) {
-            vctx.globalAlpha = 0.45 + cjk[i + 2] * 0.5;
+            vctx.globalAlpha = 0.6 + cjk[i + 2] * 0.4;
             vctx.fillText(hash(cjk[i], cjk[i + 1] + slot) > 0.5 ? '山' : '海', cjk[i] * cw - cw * 0.2, cjk[i + 1] * ch);
         }
         vctx.globalAlpha = 1;
     }
 
-    function renderDither(nowMs) {
+    // 孔版：靛蓝 + 赭黄两版，正片叠底，黄版略错位，个别网点漏印
+    function renderRiso(nowMs) {
         const cell = W < 360 ? 2.5 : 3;
         const cols = Math.ceil(W / cell), rows = Math.ceil(H / cell);
         const f = ridgeField(cols, rows, cell, cell, nowMs);
         const t = nowMs / 1000;
         const seaRow = Math.floor(H * SEA_TOP / cell);
-        paper();
-        const dark = new Path2D(), light = new Path2D();
+        vctx.globalAlpha = 1;
+        vctx.fillStyle = '#f2ece0';
+        vctx.fillRect(0, 0, W, H);
+        const blue = new Path2D(), yellow = new Path2D();
+        const s = cell - 0.6;
         for (let y = 0; y < rows; y++) {
             for (let x = 0; x < cols; x++) {
                 const k = y * cols + x;
-                const thr = BAYER[(x & 3) + ((y & 3) << 2)];
-                let v = f.v[k];
-                if (v * 1.1 > thr) (f.lineStr[k] > 0.25 ? dark : light).rect(x * cell, y * cell, cell - 0.7, cell - 0.7);
+                const v = f.v[k];
+                if (v * 1.1 <= BAYER[(x & 3) + ((y & 3) << 2)] || hash(x, y) > 0.96) continue;
+                if (f.lineStr[k] > 0.25) blue.rect(x * cell, y * cell, s, s);
+                else {
+                    yellow.rect(x * cell, y * cell, s, s);
+                    if (v > 0.5) blue.rect(x * cell, y * cell, s, s);   // 浓雾处两版叠印
+                }
             }
         }
-        // 海：沿水平波纹线打一排淡墨点，越近越密
         const sea = seaRows();
         for (let k = 0; k < sea.length; k++) {
             for (let x = 0; x < cols; x++) {
                 const y = Math.round((sea[k] + seaLine(k, x * cell, t)) / cell);
                 if (y < seaRow || y >= rows) continue;
-                if (0.3 + k * 0.07 > BAYER[(x & 3) + ((y & 3) << 2)]) light.rect(x * cell, y * cell, cell - 0.7, cell - 0.7);
+                if (0.3 + k * 0.07 > BAYER[(x & 3) + ((y & 3) << 2)]) (k > 4 ? blue : yellow).rect(x * cell, y * cell, s, s);
             }
         }
-        vctx.fillStyle = MIST;
-        vctx.fill(light);
-        vctx.fillStyle = INK;
-        vctx.fill(dark);
+        vctx.globalCompositeOperation = 'multiply';
+        vctx.save();
+        vctx.translate(1.2, 0.8);
+        vctx.fillStyle = '#e3a73a';
+        vctx.fill(yellow);
+        vctx.restore();
+        vctx.fillStyle = '#2d4f8f';
+        vctx.fill(blue);
+        vctx.globalCompositeOperation = 'source-over';
+    }
+
+    // 夜山：水墨画布反相，染成月光蓝，天色压成深靛，加月与星
+    function renderNight(t) {
+        vctx.globalAlpha = 1;
+        vctx.fillStyle = '#fff';
+        vctx.fillRect(0, 0, W, H);
+        vctx.globalCompositeOperation = 'difference';
+        vctx.drawImage(inkCanvas, 0, 0, W, H);
+        vctx.globalCompositeOperation = 'multiply';
+        let g = vctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#d2dcf0');
+        g.addColorStop(1, '#8496b8');
+        vctx.fillStyle = g;
+        vctx.fillRect(0, 0, W, H);
+        vctx.globalCompositeOperation = 'screen';
+        g = vctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#1d2742');
+        g.addColorStop(1, '#090c15');
+        vctx.fillStyle = g;
+        vctx.fillRect(0, 0, W, H);
+        // 星
+        vctx.fillStyle = '#dfe6f5';
+        for (let i = 0; i < 46; i++) {
+            vctx.globalAlpha = 0.25 + 0.35 * (0.5 + 0.5 * Math.sin(t * (0.8 + hash(i, 3)) + i));
+            const r = hash(i, 4) > 0.85 ? 1.4 : 0.9;
+            vctx.fillRect(hash(i, 1) * W, hash(i, 2) * H * 0.42, r, r);
+        }
+        // 月
+        const mx = W * 0.3, my = H * 0.13, mr = W * 0.055;
+        g = vctx.createRadialGradient(mx, my, mr * 0.8, mx, my, mr * 5);
+        g.addColorStop(0, 'rgba(225, 230, 245, 0.22)');
+        g.addColorStop(1, 'rgba(225, 230, 245, 0)');
+        vctx.globalAlpha = 1;
+        vctx.fillStyle = g;
+        vctx.fillRect(mx - mr * 5, my - mr * 5, mr * 10, mr * 10);
+        vctx.globalCompositeOperation = 'source-over';
+        vctx.fillStyle = '#f1ead6';
+        vctx.globalAlpha = 0.95;
+        vctx.beginPath();
+        vctx.arc(mx, my, mr, 0, Math.PI * 2);
+        vctx.fill();
+        vctx.globalAlpha = 1;
+        drawSeaStrokes(t, [70, 88, 120], [190, 205, 230], 0);
     }
 
     // ======================== 主循环 ========================
@@ -475,8 +544,9 @@
         }
 
         if (style === 'ascii') renderAscii(now, nowMs);
-        else if (style === 'dither') renderDither(nowMs);
+        else if (style === 'dither') renderRiso(nowMs);
         else if (style === 'qinglv') renderQinglv(now);
+        else if (style === 'night') renderNight(now);
         else renderInk();
 
         requestAnimationFrame(tick);
@@ -485,13 +555,17 @@
     // ======================== 界面 ========================
     const list = document.getElementById('styles');
     const caption = document.getElementById('caption');
+    const desc = document.getElementById('styleDesc');
     function renderStyles() {
         list.innerHTML = STYLES.map((s, i) =>
             `<li><button type="button" data-style="${s.id}" aria-pressed="${s.id === style}">` +
-            `<span class="k">0${i + 1}</span><span class="zh">${s.zh}</span><span class="en">${s.en}</span><span class="dot" aria-hidden="true"></span></button></li>`
+            `<span class="k">0${i + 1}</span><span class="zh">${s.zh}</span><span class="en">${s.en}</span></button></li>`
         ).join('');
         const cur = STYLES.find(s => s.id === style);
         caption.textContent = `${cur.zh} · ${cur.en.toUpperCase()}`;
+        desc.textContent = cur.desc;
+        document.body.dataset.style = style;
+        stage.dataset.style = style;
     }
     function setStyle(id) {
         if (!STYLES.some(s => s.id === id)) return;
@@ -499,6 +573,10 @@
         pulses.forEach((p, i) => { p.inkColors = getInkColors(i, PARAMS.lineCount); });
         try { localStorage.setItem('shanhai-style', id); } catch (e) {}
         renderStyles();
+        // 切换时画面淡入一下
+        stage.classList.remove('swap');
+        void stage.offsetWidth;
+        stage.classList.add('swap');
     }
     list.addEventListener('click', e => {
         const b = e.target.closest('[data-style]');
@@ -519,7 +597,7 @@
 
     document.addEventListener('keydown', e => {
         if (e.metaKey || e.ctrlKey || e.altKey) return;
-        if (/^[1-4]$/.test(e.key)) setStyle(STYLES[+e.key - 1].id);
+        if (/^[1-5]$/.test(e.key)) setStyle(STYLES[+e.key - 1].id);
         else if (e.key === 'm' || e.key === 'M') setStyle(STYLES[(STYLES.findIndex(s => s.id === style) + 1) % STYLES.length].id);
         else if (e.key === 's' || e.key === 'S') toggleSound();
     });

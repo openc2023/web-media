@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>山海 · Shanhai — TIAN HAN</title>
-    <meta name="description" content="山海：由釜山实时天气驱动的生成式山水，可在水墨、字符、点阵、青绿之间切换。">
+    <meta name="description" content="山海：生成式山水，可在水墨、青绿、字符、孔版、夜山五种材质之间切换。">
     <link rel="icon" type="image/png" href="7logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Noto+Serif+SC:wght@400;600;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body data-style="ink">
     <header class="bar">
         <a class="back" href="../../../">← TIAN HAN</a>
         <span class="crumb" aria-hidden="true">~/works/shanhai</span>
@@ -19,33 +19,37 @@
         <button type="button" class="sound" id="soundBtn" aria-pressed="false">♪ <span id="soundLabel">声音 关</span></button>
     </header>
 
-    <main class="layout">
-        <section class="text">
-            <p class="kicker">WORK · 生成式山水</p>
-            <h1>山海<small>Shanhai</small></h1>
-            <p class="lead">山脊从卷底升起，越往上越平缓，到卷顶归于一线，再从卷底重新长出。在字符、点阵、青绿里，起伏的速度取自釜山此刻的风速，墨迹停留的时间取自湿度；水墨保持原作。</p>
-            <p class="lead en">Ridges rise from the foot of the scroll and settle into a single line at the top. In the ASCII, dither and azure views, Busan's live wind sets how fast they climb and humidity how long the ink lingers; the ink view stays as originally made.</p>
-
-            <ol class="styles" id="styles" aria-label="渲染风格"></ol>
-
-            <dl class="weather" id="weather">
-                <div><dt>BUSAN</dt><dd>35.18N 129.08E</dd></div>
-                <div><dt>TEMP</dt><dd><span id="temp">--</span>°C</dd></div>
+    <main class="room">
+        <!-- 展签：像美术馆墙上的作品说明 -->
+        <aside class="placard" aria-label="作品说明">
+            <p class="pl-artist">田漢 <span>Tian Han</span></p>
+            <h1>山海 <span>Shanhai</span></h1>
+            <p class="pl-medium">生成式山水 · 浏览器实时运行<br>竖轴 2 : 3 · 釜山实时天气</p>
+            <p class="pl-text">山脊从卷底升起，越往上越平缓，到卷顶归于一线，再从海中重新长出。除水墨外，起伏的速度取自釜山此刻的风速，墨迹停留的时间取自湿度。</p>
+            <dl class="weather">
+                <div><dt>TEMP</dt><dd><span id="temp">--</span>°</dd></div>
                 <div><dt>HUMID</dt><dd><span id="humidity">--</span>%</dd></div>
-                <div><dt>WIND</dt><dd><span id="wind">--</span> m/s</dd></div>
+                <div><dt>WIND</dt><dd><span id="wind">--</span>m/s</dd></div>
             </dl>
-            <p class="hint">点击画面重新起山 · 数字键 1–4 / M 切换风格 · S 声音</p>
-        </section>
+        </aside>
 
-        <figure class="stage-wrap">
-            <div class="stage" id="stage">
+        <figure class="work">
+            <div class="stage" id="stage" data-style="ink">
                 <canvas id="c" aria-label="山海"></canvas>
                 <div class="title"><img src="山海.png" alt="山海"></div>
                 <div class="poem"><img src="诗.png" alt="诗句"></div>
                 <div class="seal"><img src="7logo.png" alt="7logo"></div>
             </div>
-            <figcaption id="caption">水墨 · INK</figcaption>
+            <figcaption><span id="caption">水墨 · INK</span><span>点击画面 · 重新起山</span></figcaption>
         </figure>
+
+        <!-- 材质切换 -->
+        <nav class="panel" aria-label="材质">
+            <p class="panel-k">MATERIAL</p>
+            <ol class="styles" id="styles"></ol>
+            <p class="panel-desc" id="styleDesc"></p>
+            <p class="keys"><kbd>1</kbd>–<kbd>5</kbd> 切换 · <kbd>M</kbd> 轮换 · <kbd>S</kbd> 声音</p>
+        </nav>
     </main>
 
     <audio id="bgm" src="shanhai.mp3" loop preload="none"></audio>
