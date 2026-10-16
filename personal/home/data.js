@@ -6,16 +6,18 @@ window.ASCII_DATA = {
         phone: "010-2576-9886",
         portfolio: "https://art717.notion.site/box",
         stats: [["09", "projects"], ["09", "papers"], ["02", "awards"], ["04", "books"]],
+        // type: thesis 学位论文 / journal 期刊论文 / conf 学术发表；track: 研究方向
+        paperTypes: ["thesis", "journal", "conf"],
         papers: [
-            { year: "2020.09", award: true },
-            { year: "2021.03" },
-            { year: "2021.08" },
-            { year: "2022.03" },
-            { year: "2022.04" },
-            { year: "2023.02" },
-            { year: "2023.10", award: true },
-            { year: "2024.04" },
-            { year: "2025.02" }
+            { year: "2020.09", type: "conf", track: "comic", award: true },
+            { year: "2021.03", type: "journal", track: "comic" },
+            { year: "2021.08", type: "thesis", track: "comic" },
+            { year: "2022.03", type: "journal", track: "urban" },
+            { year: "2022.04", type: "conf", track: "urban" },
+            { year: "2023.02", type: "conf", track: "nation" },
+            { year: "2023.10", type: "conf", track: "nation", award: true },
+            { year: "2024.04", type: "conf", track: "urban" },
+            { year: "2025.02", type: "thesis", track: "urban" }
         ],
         company: [
             { href: "neu/voice-three-control/", key: "voice" },
@@ -67,6 +69,8 @@ window.ASCII_DATA = {
             ["博士论文", "城市再生中的新媒体艺术应用研究"]
         ],
         awardLabel: "优秀发表奖",
+        paperTypeLabels: { thesis: "学位论文", journal: "期刊论文", conf: "学术发表" },
+        paperTrackLabels: { comic: "漫画动画比较", nation: "新媒体与民族叙事", urban: "城市再生与媒体艺术" },
         grep: "筛选：年份、标题、学会…",
         works: [
             { year: "2025", title: "中国长白山博物馆 · 华城中央图书馆", body: "媒体动画制作" },
@@ -143,6 +147,8 @@ window.ASCII_DATA = {
             ["PhD thesis", "Application of New Media Art in Urban Regeneration"]
         ],
         awardLabel: "Outstanding Presentation Award",
+        paperTypeLabels: { thesis: "Theses", journal: "Journal Articles", conf: "Conference Papers" },
+        paperTrackLabels: { comic: "Comics & animation", nation: "New media & national narrative", urban: "Urban regeneration & media art" },
         grep: "filter: year, title, venue…",
         works: [
             { year: "2025", title: "Changbaishan Museum · Hwaseong Central Library", body: "Media animation" },
@@ -219,6 +225,8 @@ window.ASCII_DATA = {
             ["박사 학위 논문", "도시재생에서의 뉴미디어아트 적용 연구"]
         ],
         awardLabel: "우수발표상",
+        paperTypeLabels: { thesis: "학위논문", journal: "학술지 논문", conf: "학술 발표" },
+        paperTrackLabels: { comic: "만화·애니메이션 비교", nation: "뉴미디어와 민족 서사", urban: "도시재생과 미디어아트" },
         grep: "필터: 연도, 제목, 학회…",
         works: [
             { year: "2025", title: "중국 장백산 박물관 · 화성중앙도서관", body: "미디어 애니메이션 제작" },

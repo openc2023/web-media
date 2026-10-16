@@ -103,21 +103,38 @@
     function renderPapers() {
         var d = DATA[lang];
         var shown = 0;
-        var html = S.papers.map(function (p, i) {
-            var row = d.papers[i];
-            var hay = (p.year + ' ' + row[0] + ' ' + row[1] + ' ' + (p.award ? '★ ' + d.awardLabel : '')).toLowerCase();
-            if (query && hay.indexOf(query) < 0) return '';
-            shown++;
-            return '<li' + (p.award ? ' class="award"' : '') + '><span class="c1">' + mark(p.year) + '</span>' +
-                '<span class="c2"><strong>' + mark(row[1]) + '</strong>' +
-                (p.award ? '<em>★ ' + mark(d.awardLabel) + '</em>' : '') + '</span>' +
-                '<span class="c3">' + mark(row[0]) + '</span></li>';
-        }).reverse().join('');
+        var html = S.paperTypes.map(function (type) {
+            var rows = [];
+            S.papers.forEach(function (p, i) {
+                if (p.type !== type) return;
+                var row = d.papers[i];
+                var trackLabel = d.paperTrackLabels[p.track];
+                var hay = (p.year + ' ' + row[0] + ' ' + row[1] + ' ' + d.paperTypeLabels[type] + ' ' + trackLabel + ' ' + (p.award ? '★ ' + d.awardLabel : '')).toLowerCase();
+                if (query && hay.indexOf(query) < 0) return;
+                rows.unshift('<li' + (p.award ? ' class="award"' : '') + '><span class="c1">' + mark(p.year) + '</span>' +
+                    '<span class="c2"><strong>' + mark(row[1]) + '</strong>' +
+                    '<span class="meta"><button type="button" class="tag" data-track="' + esc(trackLabel) + '"># ' + mark(trackLabel) + '</button>' +
+                    (p.award ? '<em>★ ' + mark(d.awardLabel) + '</em>' : '') + '</span></span>' +
+                    '<span class="c3">' + mark(row[0]) + '</span></li>');
+            });
+            if (!rows.length) return '';
+            shown += rows.length;
+            return '<li class="group"><span class="c1">' + pad(rows.length) + '</span><span class="c2">' + esc(d.paperTypeLabels[type]) + '</span></li>' + rows.join('');
+        }).join('');
         $('paperList').innerHTML = html || '<li class="empty"><span class="c1">0</span><span class="c2">grep: no match</span></li>';
         $('grepN').textContent = pad(shown) + '/' + pad(S.papers.length);
     }
     $('grepIn').addEventListener('input', function () {
         query = this.value.trim().toLowerCase();
+        renderPapers();
+    });
+    // 点研究方向标签 = 用这个方向筛选
+    $('paperList').addEventListener('click', function (e) {
+        var tag = e.target.closest('.tag');
+        if (!tag) return;
+        var input = $('grepIn');
+        input.value = input.value.trim() === tag.dataset.track ? '' : tag.dataset.track;
+        query = input.value.trim().toLowerCase();
         renderPapers();
     });
 
