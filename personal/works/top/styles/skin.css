@@ -32,6 +32,11 @@ body:not(.camera-open) { overflow-y: auto; }
 ::selection { background: rgba(63, 164, 255, .3); }
 :focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
 
+/* ── 背景字符场（与主页同一个 bgfield.js） ── */
+.bg-field { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none; opacity: 0; transition: opacity .4s linear; }
+body.camera-open .bg-field { display: none; }
+.room { position: relative; z-index: 1; }
+
 /* ── 顶栏：与主页一致 ── */
 .site-header.bar {
     width: auto;

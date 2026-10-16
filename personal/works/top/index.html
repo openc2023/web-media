@@ -29,6 +29,7 @@
          Camera-modal (z-index:40) covers it during loading; body.ar-running makes
          the modal transparent to reveal the camera feed. -->
     <canvas id="xr8-canvas" aria-hidden="true"></canvas>
+    <canvas id="bgField" class="bg-field" aria-hidden="true"></canvas>
 
     <header class="site-header bar">
         <a class="brand" href="../../../"><span class="seal" aria-hidden="true">漢</span><span>TIAN HAN</span></a>
@@ -149,6 +150,8 @@
             document.head.appendChild(s);
         })();
     </script>
+    <script src="../../home/bgfield.js"></script>
+    <script src="../../home/bg-works.js"></script>
     <script src="./scripts/popout.js?v=20261017"></script>
     <script type="module" src="./scripts/main.js?v=20260516-mobile36"></script>
 </body>
