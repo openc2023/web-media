@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inno Things</title>
+    <link rel="icon" type="image/svg+xml" href="../profile/assets/logos/favicon.svg">
     <meta name="description" content="Inno Things interactive experiments and AR project index.">
     <style>
         :root {
@@ -293,7 +294,7 @@
                 <a href="../profile/">个人资料</a>
                 <a data-link="top" href="Top/index.html">TOP AR</a>
                 <a data-link="compare" href="ar-compare/index.html">AR Compare</a>
-                <a data-link="design" href="vercel/preview.html">Design Preview</a>
+                <a data-link="design" href="../参考/vercel/preview.html">Design Preview</a>
             </nav>
         </header>
 
@@ -340,11 +341,11 @@
                 <a class="entry-card" data-link="compare" href="ar-compare/index.html">
                     <span>Experiment</span>
                     <strong>AR Compare</strong>
-                    <p>对比不同 WebAR 路线和实现方式的实验页，适合作为技术测试入口。</p>
+                    <p>WebAR 方案对比与测试记录。独立实验页尚未接入 SDK，可先查看测试计划。</p>
                     <div class="arrow">Open experiment</div>
                 </a>
 
-                <a class="entry-card" data-link="design" href="vercel/preview.html">
+                <a class="entry-card" data-link="design" href="../参考/vercel/preview.html">
                     <span>Reference</span>
                     <strong>Design Preview</strong>
                     <p>浏览界面设计与明暗主题预览，查看实验页面的视觉探索。</p>
@@ -372,7 +373,7 @@
             var targets = {
                 top: basePath + "Top/index.html",
                 compare: basePath + "ar-compare/index.html",
-                design: basePath + "vercel/preview.html"
+                design: basePath + "../参考/vercel/preview.html"
             };
 
             document.querySelectorAll("[data-link]").forEach(function (node) {

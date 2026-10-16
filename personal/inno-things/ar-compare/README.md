@@ -1,6 +1,8 @@
 # AR Tracking Comparison
 
-This folder is for testing alternative image-tracking engines without changing the live `Top` MindAR page.
+This folder is for testing alternative image-tracking engines without changing the live `Top` 8th Wall page.
+
+The independent 8th Wall and Zappar pages are planning and scoring pages; neither currently loads an AR SDK. The main TOP artwork already uses XR8.
 
 ## Structure
 
@@ -13,7 +15,7 @@ This folder is for testing alternative image-tracking engines without changing t
 
 - Image target: `../Top/assets/images/000-top.png`
 - Model: `../Top/assets/3d/gltf/box.glb`
-- MindAR reference page: `../Top/index.html`
+- TOP reference page: `../Top/index.html`
 
 ## What To Compare
 

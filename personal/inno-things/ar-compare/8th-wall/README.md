@@ -1,6 +1,6 @@
 # 8th Wall Image Target Test
 
-Purpose: compare 8th Wall image target tracking against the current MindAR implementation.
+Purpose: compare 8th Wall image target tracking against the current TOP implementation.
 
 ## Target Assets
 

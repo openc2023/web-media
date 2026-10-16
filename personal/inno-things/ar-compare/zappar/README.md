@@ -1,6 +1,6 @@
 # Zappar Image Tracking Test
 
-Purpose: compare Zappar image tracking against the current MindAR implementation.
+Purpose: compare Zappar image tracking against the current TOP implementation.
 
 ## Target Assets
 

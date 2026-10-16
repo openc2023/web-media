@@ -7,19 +7,29 @@ import path from 'path'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-const CLI_BASE = path.resolve(
-  String.raw`C:\Users\Administrator\AppData\Local\npm-cache\_npx\d9fd33f22c0f2465\node_modules\@8thwall\image-target-cli\src`
-)
+// Use a local install by default, or point to an existing CLI src directory.
+import fs from 'node:fs/promises'
+import {createRequire} from 'node:module'
 
-// On Windows, dynamic import needs file:// URLs
+const CLI_BASE = process.env.IMAGE_TARGET_CLI_SRC
+  ? path.resolve(process.env.IMAGE_TARGET_CLI_SRC)
+  : path.resolve(__dirname, '../../../node_modules/@8thwall/image-target-cli/src')
+
+for (const file of ['apply.js', 'crop.js']) {
+  try {
+    await fs.access(path.join(CLI_BASE, file))
+  } catch {
+    console.error(`Missing image target CLI source: ${path.join(CLI_BASE, file)}`)
+    console.error('Set IMAGE_TARGET_CLI_SRC to the installed @8thwall/image-target-cli/src directory. See ../README.md.')
+    process.exit(1)
+  }
+}
+
 const toFileUrl = (p) => pathToFileURL(p).href
-
-const {applyCrop}      = await import(toFileUrl(path.join(CLI_BASE, 'apply.js')))
+const {applyCrop} = await import(toFileUrl(path.join(CLI_BASE, 'apply.js')))
 const {getDefaultCrop} = await import(toFileUrl(path.join(CLI_BASE, 'crop.js')))
-
-// sharp lives at node_modules/sharp (3 levels up from src/)
-const sharpPath = path.join(CLI_BASE, '../../..', 'sharp', 'lib', 'index.js')
-const {default: sharp} = await import(toFileUrl(sharpPath))
+const cliRequire = createRequire(path.join(CLI_BASE, 'apply.js'))
+const sharp = cliRequire('sharp')
 
 const IMAGE_PATH  = path.join(__dirname, '..', 'assets', 'images', '000-top.png')
 const OUTPUT_DIR  = path.join(__dirname, '..', 'assets', 'targets', '000-top')

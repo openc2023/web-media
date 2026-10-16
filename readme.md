@@ -17,7 +17,7 @@ web-media/
 │   ├── inno-things/
 │   ├── shanhaiart/
 │   ├── shared/
-│   ├── landing/
+│   ├── archive/
 │   └── 参考/
 ├── neu/
 ├── index.html
@@ -32,6 +32,6 @@ web-media/
 python -m http.server 8080 --bind 127.0.0.1
 ```
 
-访问 <http://localhost:8080/> 或 <http://localhost:8080/personal/>。个人项目维护方式见 [personal/README.md](personal/README.md)。
+访问 <http://localhost:8080/> 或 <http://localhost:8080/personal/>。个人项目分类与维护方式见 [personal/README.md](personal/README.md)。
 
 个人项目原入口统一增加 `personal/` 前缀，例如 `home/` 改为 `personal/home/`。NEU 地址仍使用 `neu/`。

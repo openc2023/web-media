@@ -41,3 +41,8 @@
 - 颜色、字体、阴影优先走 shared
 - 每个作品页面只写自己的布局和交互样式
 - 如果后面出现重复组件，再继续补进 `components.css`
+
+
+## 历史开发工具
+
+`scripts/compile-mind-target.mjs` 是旧版 MindAR 的 `.mind` 目标编译工具，依赖仓库外 `.mindar-build2/node_modules/` 中的完整构建环境，无法在全新克隆中直接运行。当前 TOP 使用 XR8 JSON，更新当前识别图请用 [TOP 的生成工具](../inno-things/Top/README.md)。此脚本保留用于历史版本。

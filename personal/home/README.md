@@ -1,22 +1,16 @@
-# 个人主页与资料页
+# RPG 个人主页
 
-本目录包含两套独立页面使用的资源，维护时按实际入口区分。
+入口：[index.html](index.html)。支持中文、英文与韩文，包含开始界面、任务面板、声音和本地存档。
 
-| 页面 | 入口 | 内容与交互 | 样式 |
-| --- | --- | --- | --- |
-| RPG 个人主页 | `home/index.html` | `js/app.js`；背景、声音与头像分别在 `js/bg.js`、`js/audio.js`、`js/avatar.js` | `style.css` |
-| 个人资料页 | `profile/index.html` | `scripts/main.js`、`scripts/render/`、`data/locales/` | `styles/base/`、`styles/components/`、`styles/pages/` |
+| 文件 | 用途 |
+| --- | --- |
+| `index.html` | 页面结构、初始文案与导航 |
+| `style.css` | 页面布局、像素风格和移动端适配 |
+| `js/app.js` | 三语文案、任务与存档交互 |
+| `js/bg.js` | 动态背景 |
+| `js/audio.js` | 声音交互 |
+| `js/avatar.js` | 头像绘制 |
 
-## 修改文字与媒体
+个人资料页的独立数据和样式已归入 [profile/](../profile/README.md)，修改简历文字时确认对应的是哪套页面。
 
-- RPG 主页的中、英、韩文案在 `js/app.js`，初始静态文案在 `index.html`。
-- 个人资料页的中文与韩文分别在 `data/locales/zh.js` 和 `ko.js`；修改时同步字段结构。
-- 个人资料页的媒体映射在 `data/shared/media.js`，本地 SVG 占位图在 `assets/placeholders/`。替换时保留文件名，或同步更新映射。
-- `profile/index.html` 使用 `<base href="../">`，其资源和数据链接均相对于personal/ 目录，例如 `home/assets/...`。
-- `scripts/content.js`、`scripts/render.js` 与 `styles/home.css`、`styles/theme.css` 为现有兼容入口，保留原路径。
-
-## 导航与验证
-
-RPG 主页可进入个人资料、交互实验与山海；个人资料的导航可返回 RPG 主页。根目录 `index.html` 继续跳转到 RPG 主页。
-
-在personal/ 目录启动静态服务器，分别访问 `/home/` 和 `/profile/`。检查语言切换、页面导航、移动端排版；RPG 主页还应检查开始界面与存档交互。
+从仓库根目录启动静态服务器，访问 `/personal/home/`。修改后检查开始界面、语言切换、任务展开、存档与移动端导航。
