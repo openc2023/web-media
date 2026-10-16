@@ -4,7 +4,7 @@
 
 | 内容 | 入口 | 说明 |
 | --- | --- | --- |
-| 个人主页 · 中文 / English / 한국어 | [home/](home/index.html) | [home/README.md](home/README.md) |
+| 个人主页 · 中文 / English / 한국어 | [仓库根目录 index.html](../index.html) | [home/README.md](home/README.md) |
 | TOP ·《童趣里的暴力》图像识别 AR | [works/top/](works/top/index.html) | [运行与资源](works/top/README.md)、[创作说明](works/top/prd.md) |
 | 山海 · 水墨与声音的网页作品 | [works/shanhai/](works/shanhai/index.html) | [说明](works/shanhai/README.md) |
 | WebAR 方案对比（实验页，尚未接入 SDK） | [works/ar-compare/](works/ar-compare/index.html) | [说明](works/ar-compare/README.md) |
@@ -12,8 +12,8 @@
 
 ```text
 personal/
-├── index.html     跳转到 home/
-├── home/          个人主页：经历、论文、作品、出版、联系（唯一的简历内容来源）
+├── index.html     跳转到仓库根目录的主页
+├── home/          主页的样式、脚本与文案（唯一的简历内容来源）；页面本身是根目录 index.html
 ├── works/
 │   ├── top/         TOP AR 作品
 │   ├── shanhai/     山海

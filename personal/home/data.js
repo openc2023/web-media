@@ -18,10 +18,10 @@ window.ASCII_DATA = {
             { year: "2025.02" }
         ],
         links: [
-            { href: "../works/top/", key: "top" },
-            { href: "../works/shanhai/", key: "shanhai" },
-            { href: "../works/ar-compare/", key: "arcompare" },
-            { href: "../../neu/voice-three-control/", key: "voice" },
+            { href: "personal/works/top/", key: "top" },
+            { href: "personal/works/shanhai/", key: "shanhai" },
+            { href: "personal/works/ar-compare/", key: "arcompare" },
+            { href: "neu/voice-three-control/", key: "voice" },
             { href: "https://art717.notion.site/box", key: "notion", external: true }
         ]
     },

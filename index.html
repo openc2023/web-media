@@ -3,27 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>田漢 · Tian Han · 티앤한 — RPG RESUME</title>
-    <!-- 立即跳转到最新版本 -->
-    <meta http-equiv="refresh" content="0; url=personal/home/index.html">
-    <link rel="canonical" href="personal/home/index.html">
-    <style>
-        body {
-            background: #f2ece0;
-            display: flex; align-items: center; justify-content: center;
-            height: 100vh; margin: 0;
-            font-family: 'Press Start 2P', monospace;
-        }
-        p {
-            font-size: 12px;
-            color: #2e8080;
-            letter-spacing: 0.1em;
-        }
-    </style>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <title>田漢 · Tian Han</title>
+    <meta name="description" content="田漢 Tian Han — animation researcher, media artist, production director. Busan.">
+    <link rel="icon" type="image/svg+xml" href="personal/home/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Noto+Serif+SC:wght@400;600;900&family=Noto+Serif+KR:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="personal/home/style.css">
+    <script>
+        try { var t = localStorage.getItem('ascii-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+    </script>
 </head>
 <body>
-    <p>▶ LOADING...</p>
-    <script>window.location.replace('personal/home/index.html');</script>
+    <a class="skip" href="#about">skip</a>
+    <canvas id="bgField" class="bg-field" aria-hidden="true"></canvas>
+    <div class="boot" id="boot" aria-hidden="true"><pre id="bootLog"></pre></div>
+
+    <header class="bar">
+        <a class="bar-id" href="#top" aria-label="top"><span class="seal" aria-hidden="true">漢</span><span>TIAN HAN</span></a>
+        <span class="bar-path" aria-hidden="true">~/web-media</span>
+        <span class="bar-fill" aria-hidden="true"><span class="bar-prog" id="barProg"></span></span>
+        <span class="bar-pct" id="barPct" aria-hidden="true">000%</span>
+        <nav class="bar-lang" aria-label="Language">
+            <button type="button" data-lang="zh">中</button>
+            <button type="button" data-lang="en">EN</button>
+            <button type="button" data-lang="ko">한</button>
+        </nav>
+        <button type="button" class="bar-theme" id="themeBtn" aria-label="Toggle theme">◐</button>
+        <span class="bar-clock" id="clock" aria-label="Busan time">--:--</span>
+    </header>
+
+    <section class="hero" id="top">
+        <canvas id="heroCanvas" aria-label="ASCII 田漢"></canvas>
+        <div class="hero-veil" aria-hidden="true"></div>
+        <div class="readout" id="readout" aria-hidden="true"></div>
+        <div class="hero-meta">
+            <div class="modes" id="modes" role="radiogroup" aria-label="Render"></div>
+            <p class="hero-hint" data-t="hint"></p>
+        </div>
+        <div class="hero-text">
+            <p class="cmd"><span class="ps1">$</span> whoami</p>
+            <h1 class="name"><span data-t="name"></span><small data-t="alias"></small></h1>
+            <p class="roles" id="roles"></p>
+            <p class="lead" data-t="lead"></p>
+            <p class="base"><span class="ps1">&gt;</span> <span data-t="base"></span></p>
+            <dl class="stats" id="stats"></dl>
+            <blockquote class="quote"><span data-t="quote"></span></blockquote>
+        </div>
+    </section>
+
+    <main>
+        <nav class="index" id="index" aria-label="Sections"></nav>
+
+        <section class="pane" id="about" data-n="01">
+            <h2 class="pane-h"></h2>
+            <div class="about-body" id="aboutBody"></div>
+            <ul class="tags" id="skills"></ul>
+        </section>
+
+        <section class="pane" id="path" data-n="02">
+            <h2 class="pane-h"></h2>
+            <ol class="log" id="pathList"></ol>
+        </section>
+
+        <section class="pane" id="papers" data-n="03">
+            <h2 class="pane-h"></h2>
+            <label class="grep"><span class="ps1">$ grep</span><input id="grepIn" type="search" spellcheck="false" autocomplete="off"><span class="grep-n" id="grepN"></span></label>
+            <ol class="table" id="paperList"></ol>
+        </section>
+
+        <section class="pane" id="works" data-n="04">
+            <h2 class="pane-h"></h2>
+            <ol class="table" id="workList"></ol>
+        </section>
+
+        <section class="pane" id="books" data-n="05">
+            <h2 class="pane-h"></h2>
+            <ol class="table" id="bookList"></ol>
+        </section>
+
+        <section class="pane" id="elsewhere" data-n="06">
+            <h2 class="pane-h"></h2>
+            <ul class="links" id="linkList"></ul>
+        </section>
+
+        <section class="pane" id="contact" data-n="07">
+            <h2 class="pane-h"></h2>
+            <dl class="contact" id="contactList"></dl>
+        </section>
+    </main>
+
+    <footer class="term">
+        <div class="term-out" id="termOut" aria-live="polite"></div>
+        <form class="term-line" id="termForm" autocomplete="off">
+            <label for="termIn" class="ps1">tianhan@busan:~$</label>
+            <input id="termIn" type="text" spellcheck="false">
+        </form>
+        <p class="foot" data-t="footer"></p>
+    </footer>
+
+    <script src="personal/home/data.js"></script>
+    <script src="personal/home/fx.js"></script>
+    <script src="personal/home/hero.js"></script>
+    <script src="personal/home/bgfield.js"></script>
+    <script src="personal/home/main.js"></script>
 </body>
 </html>
