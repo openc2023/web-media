@@ -909,6 +909,17 @@ body::after {
     .damage-num.type-crit { font-size: 13px; }
 }
 
+.project-nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px 20px;
+    margin: 24px 0;
+    font: 13px/1.8 sans-serif;
+}
+.project-nav a { color: #2e8080; text-underline-offset: 4px; }
+.project-nav a:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+
 /* ── 小屏 ≤ 360px ── */
 @media (max-width: 360px) {
     .stats-row   { grid-template-columns: 1fr 1fr; }
