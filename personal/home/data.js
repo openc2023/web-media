@@ -2,7 +2,7 @@
    三种语言字段结构保持一致；三语共用的年份、链接与联系方式放在 shared。 */
 window.ASCII_DATA = {
     shared: {
-        email: "angel1993@naver.com",
+        email: "angell1993@naver.com",
         phone: "010-2576-9886",
         portfolio: "https://art717.notion.site/box",
         stats: [["09", "projects"], ["09", "papers"], ["02", "awards"], ["04", "books"]],
