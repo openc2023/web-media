@@ -17,11 +17,14 @@ window.ASCII_DATA = {
             { year: "2024.04" },
             { year: "2025.02" }
         ],
+        company: [
+            { href: "neu/voice-three-control/", key: "voice" },
+            { href: "neu/sound-ttakji/", key: "ttakji" }
+        ],
         links: [
             { href: "personal/works/top/", key: "top" },
             { href: "personal/works/shanhai/", key: "shanhai" },
             { href: "personal/works/ar-compare/", key: "arcompare" },
-            { href: "neu/voice-three-control/", key: "voice" },
             { href: "https://art717.notion.site/box", key: "notion", external: true }
         ]
     },
@@ -36,7 +39,7 @@ window.ASCII_DATA = {
         quote: "让不可见之物成为必然。",
         statLabels: { projects: "项目", papers: "论文", awards: "奖项", books: "出版" },
         hint: "移动 = 点亮　点击 = 涟漪　M = 切换渲染",
-        sections: { about: "关于", path: "路径", papers: "论文", works: "作品", books: "出版", elsewhere: "别处", contact: "联系" },
+        sections: { about: "关于", path: "路径", papers: "论文", works: "作品", books: "出版", elsewhere: "别处", company: "公司项目", contact: "联系" },
         about: [
             "1993 年生于中国，2015 年起在韩国釜山学习与工作，至今十年。",
             "2025 年 2 月于釜山大学取得动画方向博士学位，论文研究城市再生中的新媒体艺术应用。",
@@ -84,13 +87,17 @@ window.ASCII_DATA = {
             top: ["TOP", "《童趣里的暴力》图像识别 AR"],
             shanhai: ["山海", "水墨与声音的网页作品"],
             arcompare: ["WebAR 对比", "MindAR、8th Wall 与 Zappar 路线实验"],
-            voice: ["Voice Three Control", "声音驱动的三维交互实验 · NEU"],
             notion: ["作品集", "art717.notion.site/box"]
+        },
+        companyNote: "在 노이미디어웍스（NEU）参与开发的项目。",
+        companyItems: {
+            voice: ["Voice Three Control", "对着麦克风说话、哼唱或吹气，风车随声音转动的 Three.js 互动场景"],
+            ttakji: ["Sound Ttakji 声音翻纸牌", "用声音把纸牌（딱지）翻过来的互动游戏，Godot 制作的网页版"]
         },
         contact: { email: "邮箱", phone: "电话", base: "所在", baseValue: "釜山，韩国", org: "机构", orgValue: "SUPERROOKIZ · 东明大学" },
         prompt: {
             placeholder: "输入 help",
-            help: "可用命令：about path papers works books elsewhere contact · zh en ko · light dark · dither halftone ascii braille · clear",
+            help: "可用命令：about path papers works books elsewhere company contact · zh en ko · light dark · dither halftone ascii braille · clear",
             unknown: "找不到命令：",
             lang: "语言已切换",
             theme: "主题已切换"
@@ -108,7 +115,7 @@ window.ASCII_DATA = {
         quote: "Making the invisible feel inevitable.",
         statLabels: { projects: "projects", papers: "papers", awards: "awards", books: "books" },
         hint: "move = light　click = ripple　M = next render",
-        sections: { about: "About", path: "Path", papers: "Papers", works: "Works", books: "Books", elsewhere: "Elsewhere", contact: "Contact" },
+        sections: { about: "About", path: "Path", papers: "Papers", works: "Works", books: "Books", elsewhere: "Elsewhere", company: "Company Projects", contact: "Contact" },
         about: [
             "Born in China in 1993; studying and working in Busan, South Korea since 2015.",
             "PhD in Animation, Pusan National University (Feb 2025), with a thesis on new media art in urban regeneration.",
@@ -156,13 +163,17 @@ window.ASCII_DATA = {
             top: ["TOP", "Image-tracking AR, Violence in Childlike Play"],
             shanhai: ["Shanhai", "Ink and sound on the web"],
             arcompare: ["WebAR compare", "MindAR, 8th Wall and Zappar tests"],
-            voice: ["Voice Three Control", "Voice-driven 3D interaction · NEU"],
             notion: ["Portfolio", "art717.notion.site/box"]
+        },
+        companyNote: "Projects developed at 노이미디어웍스 (NEU).",
+        companyItems: {
+            voice: ["Voice Three Control", "Talk, hum or blow into the mic and a Three.js windmill scene answers"],
+            ttakji: ["Sound Ttakji", "Flip ttakji cards with your voice: a Godot interaction exported for the web"]
         },
         contact: { email: "Email", phone: "Phone", base: "Base", baseValue: "Busan, South Korea", org: "With", orgValue: "SUPERROOKIZ · Dongmyeong Univ." },
         prompt: {
             placeholder: "type help",
-            help: "commands: about path papers works books elsewhere contact · zh en ko · light dark · dither halftone ascii braille · clear",
+            help: "commands: about path papers works books elsewhere company contact · zh en ko · light dark · dither halftone ascii braille · clear",
             unknown: "command not found: ",
             lang: "language switched",
             theme: "theme switched"
@@ -180,7 +191,7 @@ window.ASCII_DATA = {
         quote: "보이지 않는 것을 필연으로 만든다.",
         statLabels: { projects: "프로젝트", papers: "논문", awards: "수상", books: "출판" },
         hint: "이동 = 점등　클릭 = 물결　M = 렌더 전환",
-        sections: { about: "소개", path: "경로", papers: "논문", works: "작업", books: "출판", elsewhere: "다른 곳", contact: "연락" },
+        sections: { about: "소개", path: "경로", papers: "논문", works: "작업", books: "출판", elsewhere: "다른 곳", company: "회사 프로젝트", contact: "연락" },
         about: [
             "1993년 중국 출생. 2015년부터 부산에서 공부하고 일하고 있습니다.",
             "2025년 2월 부산대학교 애니메이션 박사. 도시재생에서의 뉴미디어아트 적용을 연구했습니다.",
@@ -228,13 +239,17 @@ window.ASCII_DATA = {
             top: ["TOP", "《동심 속의 폭력》 이미지 인식 AR"],
             shanhai: ["산해", "수묵과 소리의 웹 작품"],
             arcompare: ["WebAR 비교", "MindAR, 8th Wall, Zappar 실험"],
-            voice: ["Voice Three Control", "목소리로 움직이는 3D 인터랙션 · NEU"],
             notion: ["포트폴리오", "art717.notion.site/box"]
+        },
+        companyNote: "노이미디어웍스(NEU)에서 개발에 참여한 프로젝트입니다.",
+        companyItems: {
+            voice: ["Voice Three Control", "마이크에 말하거나 흥얼거리면 풍차가 반응하는 Three.js 인터랙티브 장면"],
+            ttakji: ["Sound Ttakji 소리 딱지", "목소리로 딱지를 뒤집는 인터랙션, Godot으로 만든 웹 버전"]
         },
         contact: { email: "이메일", phone: "전화", base: "소재지", baseValue: "부산, 대한민국", org: "소속", orgValue: "슈퍼루키즈 · 동명대학교" },
         prompt: {
             placeholder: "help 입력",
-            help: "명령어: about path papers works books elsewhere contact · zh en ko · light dark · dither halftone ascii braille · clear",
+            help: "명령어: about path papers works books elsewhere company contact · zh en ko · light dark · dither halftone ascii braille · clear",
             unknown: "명령어를 찾을 수 없음: ",
             lang: "언어 변경됨",
             theme: "테마 변경됨"

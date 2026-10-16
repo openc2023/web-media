@@ -4,7 +4,7 @@
 
     var DATA = window.ASCII_DATA;
     var S = DATA.shared;
-    var ORDER = ['about', 'path', 'papers', 'works', 'books', 'elsewhere', 'contact'];
+    var ORDER = ['about', 'path', 'papers', 'works', 'books', 'elsewhere', 'company', 'contact'];
     var lang = 'zh';
     var root = document.documentElement;
 
@@ -20,6 +20,15 @@
         else if (/^ko/i.test(navigator.language)) lang = 'ko';
         else if (/^en/i.test(navigator.language)) lang = 'en';
     } catch (e) {}
+
+    function linkRows(list, labels) {
+        return list.map(function (l, i) {
+            var t = labels[l.key];
+            return '<li><a href="' + l.href + '"' + (l.external ? ' target="_blank" rel="noopener"' : '') + '>' +
+                '<span class="c1">' + String.fromCharCode(97 + i) + ')</span><strong>' + esc(t[0]) + '</strong>' +
+                '<span class="sub">' + esc(t[1]) + '</span><span class="arrow" aria-hidden="true">' + (l.external ? '↗' : '→') + '</span></a></li>';
+        }).join('');
+    }
 
     /* ── render ── */
     function render() {
@@ -67,12 +76,9 @@
         $('workList').innerHTML = rows(d.works);
         $('bookList').innerHTML = rows(d.books);
 
-        $('linkList').innerHTML = S.links.map(function (l, i) {
-            var t = d.links[l.key];
-            return '<li><a href="' + l.href + '"' + (l.external ? ' target="_blank" rel="noopener"' : '') + '>' +
-                '<span class="c1">' + String.fromCharCode(97 + i) + ')</span><strong>' + esc(t[0]) + '</strong>' +
-                '<span class="sub">' + esc(t[1]) + '</span><span class="arrow" aria-hidden="true">' + (l.external ? '↗' : '→') + '</span></a></li>';
-        }).join('');
+        $('linkList').innerHTML = linkRows(S.links, d.links);
+        $('companyNote').textContent = d.companyNote;
+        $('companyList').innerHTML = linkRows(S.company, d.companyItems);
 
         var c = d.contact;
         $('contactList').innerHTML = [
@@ -228,7 +234,7 @@
         }
         if (cmd === 'whoami') { jump('top'); hero.replay(); return print(raw, DATA[lang].name + ' · ' + DATA[lang].alias); }
         if (ORDER.indexOf(cmd) > -1) { jump(cmd); return print(raw); }
-        if (/^[1-7]$/.test(cmd)) { jump(ORDER[+cmd - 1]); return print(raw); }
+        if (/^[1-8]$/.test(cmd)) { jump(ORDER[+cmd - 1]); return print(raw); }
         print(raw, p.unknown + raw.trim());
     }
     $('termForm').addEventListener('submit', function (e) {
@@ -245,7 +251,7 @@
             if (e.key === 'Escape') input.blur();
             return;
         }
-        if (/^[1-7]$/.test(e.key)) { jump(ORDER[+e.key - 1]); e.preventDefault(); }
+        if (/^[1-8]$/.test(e.key)) { jump(ORDER[+e.key - 1]); e.preventDefault(); }
         else if (e.key === '/' || e.key === ':') { input.focus(); e.preventDefault(); }
         else if (e.key === 'm' || e.key === 'M') {
             var ms = hero.modes;
@@ -268,6 +274,7 @@
         });
     }
     hoverDecode($('linkList'), 'a', 'strong');
+    hoverDecode($('companyList'), 'a', 'strong');
     hoverDecode($('index'), 'a', '.lbl');
 
     /* ── 背景字符场 + 滚动 ── */
