@@ -102,7 +102,15 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     border: 1px solid #aca172; border-radius: 2px; opacity: .7;
     background: rgba(255, 255, 255, .2); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
 }
-.seal img { width: 100%; height: 100%; object-fit: contain; }
+/* 印章：STUDIO 7 新标做遮罩，颜色随材质换（来自 openc2023/content） */
+.seal { --seal-ink: #8e7f52; }
+.seal-mark {
+    position: absolute; inset: 12%;
+    background: var(--seal-ink);
+    -webkit-mask: url("https://img.7studio.org/logo/studio7.svg?v=c-split-20261016") center / contain no-repeat;
+    mask: url("https://img.7studio.org/logo/studio7.svg?v=c-split-20261016") center / contain no-repeat;
+    transition: background-color .6s;
+}
 
 /* 各材质下的画卷 */
 .stage[data-style="qinglv"] { background: #e9dcc0; }
@@ -111,7 +119,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     filter: grayscale(1) brightness(.55) sepia(1) hue-rotate(152deg) saturate(2.2) brightness(.62);
 }
 .stage[data-style="qinglv"] .seal { border-color: rgba(184, 138, 58, .7); background: rgba(255, 248, 230, .25); opacity: .85; }
-.stage[data-style="qinglv"] .seal img { filter: sepia(.4) saturate(1.3); }
+.stage[data-style="qinglv"] .seal { --seal-ink: #b0843a; }
 
 .stage[data-style="ascii"], .stage[data-style="night"] { background: #0b0d14; }
 .stage[data-style="ascii"] { background: #040508; }
@@ -121,20 +129,21 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     background: radial-gradient(ellipse at 50% 50%, transparent 62%, rgba(0, 0, 0, .5) 100%);
 }
 /* 深色材质：题字反相成亮色，再染成该材质的颜色，用滤色叠上去 */
-.stage[data-style="ascii"] .title img, .stage[data-style="ascii"] .poem img, .stage[data-style="ascii"] .seal img {
+.stage[data-style="ascii"] .title img, .stage[data-style="ascii"] .poem img {
     mix-blend-mode: screen;
     filter: grayscale(1) invert(1) sepia(1) hue-rotate(160deg) saturate(3.2) brightness(1.15) drop-shadow(0 0 4px rgba(80, 170, 255, .5));
 }
-.stage[data-style="night"] .title img, .stage[data-style="night"] .poem img, .stage[data-style="night"] .seal img {
+.stage[data-style="night"] .title img, .stage[data-style="night"] .poem img {
     mix-blend-mode: screen;
     filter: grayscale(1) invert(1) sepia(.5) hue-rotate(178deg) saturate(1.3) brightness(1.2);
 }
-.stage[data-style="ascii"] .seal { border-color: rgba(90, 175, 255, .45); background: rgba(40, 110, 255, .06); }
-.stage[data-style="night"] .seal { border-color: rgba(200, 212, 235, .3); background: rgba(255, 255, 255, .04); }
+.stage[data-style="ascii"] .seal { --seal-ink: #62e3ff; border-color: rgba(90, 175, 255, .45); background: rgba(40, 110, 255, .06); }
+.stage[data-style="ascii"] .seal-mark { filter: drop-shadow(0 0 4px rgba(80, 170, 255, .6)); }
+.stage[data-style="night"] .seal { --seal-ink: #c9d4ea; border-color: rgba(200, 212, 235, .3); background: rgba(255, 255, 255, .04); }
 
 .stage[data-style="dither"] { background: #f2ece0; }
 .stage[data-style="dither"] .title img, .stage[data-style="dither"] .poem img { filter: grayscale(1) sepia(1) hue-rotate(185deg) saturate(2.4) brightness(.85); }
-.stage[data-style="dither"] .seal { border-color: rgba(45, 79, 143, .5); }
+.stage[data-style="dither"] .seal { --seal-ink: #2d4f8f; border-color: rgba(45, 79, 143, .5); }
 
 figcaption {
     display: flex; justify-content: space-between; gap: 16px;
