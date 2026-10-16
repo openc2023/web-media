@@ -24,7 +24,7 @@ shanhaiart/
 
 ## 本地运行
 
-从仓库根目录运行：
+从 personal/ 目录运行：
 
 ```sh
 python -m http.server 8080 --bind 127.0.0.1

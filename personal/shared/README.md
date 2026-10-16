@@ -1,6 +1,6 @@
 # Shared Theme
 
-`web-media/shared/styles/theme-mongo-cream.css` 是当前公共主题入口。
+`web-media/personal/shared/styles/theme-mongo-cream.css` 是当前公共主题入口。
 
 适合复用的内容:
 - 米白主底 + 深绿重点色 token

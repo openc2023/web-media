@@ -155,7 +155,7 @@ export const koContent = {
         items: [
             { href: "inno-things/", title: "Inno Things", body: "혁신 미디어 방향의 실험 페이지" },
             { href: "shanhaiart/", title: "Shanhai Art", body: "아트 웹 실험 페이지" },
-            { href: "neu/voice-three-control/", title: "Voice Three Control", body: "인터랙티브 디지털 미디어 실험" }
+            { href: "../neu/voice-three-control/", title: "Voice Three Control", body: "인터랙티브 디지털 미디어 실험" }
         ]
     },
     contact: {

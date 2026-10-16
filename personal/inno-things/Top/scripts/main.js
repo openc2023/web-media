@@ -1,5 +1,5 @@
-import * as THREE from "../../../neu/voice-three-control/vendor/three/build/three.module.js";
-import { GLTFLoader } from "../../../neu/voice-three-control/vendor/three/examples/jsm/loaders/GLTFLoader.js";
+import * as THREE from "../../../../neu/voice-three-control/vendor/three/build/three.module.js";
+import { GLTFLoader } from "../../../../neu/voice-three-control/vendor/three/examples/jsm/loaders/GLTFLoader.js";
 import { createI18n } from "../../i18n/index.js";
 
 // XR8.Threejs.pipelineModule() needs THREE on window

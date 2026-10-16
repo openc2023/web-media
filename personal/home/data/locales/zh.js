@@ -155,7 +155,7 @@ export const zhContent = {
         items: [
             { href: "inno-things/", title: "Inno Things", body: "创新媒体方向入口" },
             { href: "shanhaiart/", title: "Shanhai Art", body: "艺术网页实验入口" },
-            { href: "neu/voice-three-control/", title: "Voice Three Control", body: "交互式数字媒体实验" }
+            { href: "../neu/voice-three-control/", title: "Voice Three Control", body: "交互式数字媒体实验" }
         ]
     },
     contact: {

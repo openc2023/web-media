@@ -3,13 +3,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
-import { CompilerBase } from "../../../.mindar-build2/node_modules/mind-ar/src/image-target/compiler-base.js";
-import { buildTrackingImageList } from "../../../.mindar-build2/node_modules/mind-ar/src/image-target/image-list.js";
-import { extractTrackingFeatures } from "../../../.mindar-build2/node_modules/mind-ar/src/image-target/tracker/extract-utils.js";
-import "../../../.mindar-build2/node_modules/mind-ar/src/image-target/detector/kernels/cpu/index.js";
+import { CompilerBase } from "../../../../.mindar-build2/node_modules/mind-ar/src/image-target/compiler-base.js";
+import { buildTrackingImageList } from "../../../../.mindar-build2/node_modules/mind-ar/src/image-target/image-list.js";
+import { extractTrackingFeatures } from "../../../../.mindar-build2/node_modules/mind-ar/src/image-target/tracker/extract-utils.js";
+import "../../../../.mindar-build2/node_modules/mind-ar/src/image-target/detector/kernels/cpu/index.js";
 
 const require = createRequire(import.meta.url);
-const { PNG } = require("../../../.mindar-build2/node_modules/pngjs");
+const { PNG } = require("../../../../.mindar-build2/node_modules/pngjs");
 
 class NodeCompiler extends CompilerBase {
     createProcessCanvas(img) {
@@ -65,7 +65,7 @@ const main = async () => {
     }
 
     const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-    const workspaceRoot = path.resolve(scriptDir, "../../..");
+    const workspaceRoot = path.resolve(scriptDir, "../../../..");
     const inputPath = path.resolve(workspaceRoot, inputArg);
     const outputPath = path.resolve(workspaceRoot, outputArg);
 
