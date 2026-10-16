@@ -7,4 +7,4 @@
 | MongoDB | [说明](mongodb/README.md) | [预览](mongodb/preview.html) | [预览](mongodb/preview-dark.html) |
 | Vercel | [说明](vercel/README.md) | [预览](vercel/preview.html) | [预览](vercel/preview-dark.html) |
 
-Vercel 样例由原 `inno-things/vercel/` 归入此处。个人项目实际使用的公共样式另见 [shared/](../shared/README.md)。
+这些样例不被任何页面引用。

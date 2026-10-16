@@ -1,0 +1,31 @@
+# AR Tracking Comparison
+
+This folder is for testing alternative image-tracking engines without changing the live `Top` 8th Wall page.
+
+The independent 8th Wall and Zappar pages are planning and scoring pages; neither currently loads an AR SDK. The main TOP artwork already uses XR8.
+
+## Structure
+
+- `8th-wall/`
+  Test 8th Wall image target tracking.
+- `zappar/`
+  Test Zappar image tracking.
+
+## Shared Test Target
+
+- Image target: `../top/assets/images/000-top.png`
+- Model: `../top/assets/3d/gltf/box.glb`
+- TOP reference page: `../top/index.html`
+
+## What To Compare
+
+1. First recognition speed
+2. Tracking stability while the phone moves slowly
+3. Model/video alignment on the artwork
+4. Recovery speed after target is lost
+5. Camera rendering quality on iOS Safari and Android Chrome
+6. Deployment difficulty on GitHub Pages
+
+## Test Notes
+
+Use the same phone, same lighting, same printed/displayed artwork, and same camera distance for each engine.
