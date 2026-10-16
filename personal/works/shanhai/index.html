@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Noto+Serif+SC:wght@400;600;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=20261017c">
 </head>
 <body data-style="ink">
     <canvas id="bgField" class="bg-field" aria-hidden="true"></canvas>
@@ -27,8 +27,9 @@
         <aside class="placard" aria-label="作品说明">
             <p class="pl-artist">田漢 <span>Tian Han</span></p>
             <h1>山海 <span>Shanhai</span></h1>
-            <p class="pl-medium">生成式山水 · 浏览器实时运行<br>竖轴 2 : 3 · 釜山实时天气</p>
+            <p class="pl-medium">生成式山水 · 浏览器实时运行<br>竖轴 2 : 3 · 釜山实时天气<br><span class="en">Generative landscape · live in the browser · 2 : 3 hanging scroll · Busan weather</span></p>
             <p class="pl-text">山脊从卷底升起，越往上越平缓，到卷顶归于一线，再从海中重新长出。除水墨外，起伏的速度取自釜山此刻的风速，墨迹停留的时间取自湿度。</p>
+            <p class="pl-text en">Ridges rise from the foot of the scroll, flatten as they climb, settle into a single line at the top, then grow again out of the sea. In every view but Ink, Busan's live wind sets how fast they rise and its humidity how long the ink lingers.</p>
             <dl class="weather">
                 <div><dt>TEMP</dt><dd><span id="temp">--</span>°</dd></div>
                 <div><dt>HUMID</dt><dd><span id="humidity">--</span>%</dd></div>
@@ -51,6 +52,7 @@
             <p class="panel-k">MATERIAL</p>
             <ol class="styles" id="styles"></ol>
             <p class="panel-desc" id="styleDesc"></p>
+            <p class="panel-desc en" id="styleDescEn"></p>
             <p class="keys"><kbd>1</kbd>–<kbd>5</kbd> 切换 · <kbd>M</kbd> 轮换 · <kbd>S</kbd> 声音</p>
         </nav>
     </main>
@@ -58,6 +60,6 @@
     <audio id="bgm" src="shanhai.mp3" loop preload="none"></audio>
     <script src="../../home/bgfield.js"></script>
     <script src="../../home/bg-works.js"></script>
-    <script src="shanhai.js"></script>
+    <script src="shanhai.js?v=20261017c"></script>
 </body>
 </html>

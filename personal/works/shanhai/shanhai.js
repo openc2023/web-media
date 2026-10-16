@@ -37,11 +37,11 @@
     const mix = (a, b, t) => `rgb(${Math.round(a[0] + (b[0] - a[0]) * t)}, ${Math.round(a[1] + (b[1] - a[1]) * t)}, ${Math.round(a[2] + (b[2] - a[2]) * t)})`;
 
     const STYLES = [
-        { id: 'ink', zh: '水墨', en: 'Ink', desc: '原作。灰墨在宣纸上层层晕开。' },
-        { id: 'qinglv', zh: '青绿', en: 'Azure', desc: '绢本青绿：峰顶石青，往下石绿，山脚赭金化入留白，脊线勾金。' },
-        { id: 'ascii', zh: '字符', en: 'ASCII', desc: '黑底电光蓝，与主页同一套字符语言：脊线以 / \\ _ 写成，山体由字符填满。' },
-        { id: 'dither', zh: '孔版', en: 'Riso', desc: '双色孔版印刷：靛蓝山脊、赭黄雾气，略带错版。' },
-        { id: 'night', zh: '夜山', en: 'Night', desc: '墨色反相。月下的山，与海上的微光。' }
+        { id: 'ink', zh: '水墨', en: 'Ink', desc: '原作。灰墨在宣纸上层层晕开。', descEn: "The original: grey ink pooling on xuan paper." },
+        { id: 'qinglv', zh: '青绿', en: 'Azure', desc: '绢本青绿：峰顶石青，往下石绿，山脚赭金化入留白，脊线勾金。', descEn: "Blue-and-green on silk: azurite peaks, malachite slopes, ochre feet fading into blank space, ridges outlined in gold." },
+        { id: 'ascii', zh: '字符', en: 'ASCII', desc: '黑底电光蓝，与主页同一套字符语言：脊线以 / \\ _ 写成，山体由字符填满。', descEn: "Electric blue on black, in the homepage's character language: ridges drawn in / \\ _, mountains filled with characters." },
+        { id: 'dither', zh: '孔版', en: 'Riso', desc: '双色孔版印刷：靛蓝山脊、赭黄雾气，略带错版。', descEn: "Two-colour risograph: indigo ridges, ochre mist, slightly off-register." },
+        { id: 'night', zh: '夜山', en: 'Night', desc: '墨色反相。月下的山，与海上的微光。', descEn: "Ink inverted: mountains under the moon, a faint glimmer on the sea." }
     ];
 
     // ======================== 画布 ========================
@@ -599,6 +599,7 @@
     const list = document.getElementById('styles');
     const caption = document.getElementById('caption');
     const desc = document.getElementById('styleDesc');
+    const descEn = document.getElementById('styleDescEn');
     function renderStyles() {
         list.innerHTML = STYLES.map((s, i) =>
             `<li><button type="button" data-style="${s.id}" aria-pressed="${s.id === style}">` +
@@ -607,6 +608,7 @@
         const cur = STYLES.find(s => s.id === style);
         caption.textContent = `${cur.zh} · ${cur.en.toUpperCase()}`;
         desc.textContent = cur.desc;
+        descEn.textContent = cur.descEn;
         document.body.dataset.style = style;
         stage.dataset.style = style;
     }

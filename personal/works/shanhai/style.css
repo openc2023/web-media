@@ -73,6 +73,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .placard h1 span { font: 400 12px/1 var(--mono); letter-spacing: .24em; text-transform: uppercase; color: var(--ink-2); margin-left: 8px; }
 .pl-medium { margin: 12px 0 0; font-size: 11px; line-height: 1.8; color: var(--ink-dim); letter-spacing: .04em; }
 .pl-text { margin: 16px 0 0; font-size: 12px; line-height: 1.9; color: var(--ink-2); }
+.pl-text.en { margin-top: 8px; font-size: 11px; line-height: 1.8; color: var(--ink-dim); }
+.pl-medium .en { color: var(--ink-dim); opacity: .85; }
 .weather { display: flex; gap: 22px; margin: 18px 0 0; }
 .weather dt { font-size: 9px; letter-spacing: .18em; color: var(--ink-dim); }
 .weather dd { margin: 2px 0 0; font-variant-numeric: tabular-nums; color: var(--ink); }
@@ -173,6 +175,7 @@ figcaption {
 .styles button[aria-pressed="true"] { color: var(--accent); padding-left: 4px; }
 .styles button[aria-pressed="true"]::before { transform: scale(1); }
 .styles button[aria-pressed="true"] .zh { color: var(--ink); }
+.panel-desc.en { min-height: 0; margin-top: 6px; font-size: 11px; color: var(--ink-dim); }
 .panel-desc { min-height: 3.6em; margin: 16px 0 0; font-size: 12px; line-height: 1.8; color: var(--ink-2); }
 .keys { margin: 14px 0 0; font-size: 10px; letter-spacing: .08em; color: var(--ink-dim); }
 kbd { font: inherit; padding: 1px 5px; border: 1px solid var(--line); border-radius: 2px; color: var(--ink-2); }
