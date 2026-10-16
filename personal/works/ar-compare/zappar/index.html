@@ -4,12 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zappar Tracking Test | TIAN HAN</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Serif+SC:wght@600;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../styles/compare.css">
 </head>
 <body>
+    <canvas id="bgField" class="bg-field" aria-hidden="true"></canvas>
     <div class="page">
         <header class="topbar">
-            <a class="brand" href="../../../../">TIAN HAN</a>
+            <a class="brand" href="../../../../"><span class="mark" aria-hidden="true">漢</span><span>TIAN HAN</span></a>
+            <span class="crumb" aria-hidden="true">~/works/ar-compare/zappar</span>
+            <span class="fill" aria-hidden="true"></span>
             <a class="nav-link" href="../">Back To Compare</a>
         </header>
 
@@ -88,5 +94,7 @@
             </section>
         </main>
     </div>
+    <script src="../../../home/bgfield.js"></script>
+    <script src="../../../home/bg-works.js"></script>
 </body>
 </html>
