@@ -1,12 +1,14 @@
-/* 山海 — 深色展台 + 宣纸画卷 */
+/* 山海 — 暖黑展台 + 宣纸画卷 */
 
 :root {
-    --bg: #0e0d0b;
-    --ink: #ebe5d8;
-    --ink-2: #a39b8c;
-    --ink-dim: #6c6558;
-    --line: #2a2722;
-    --seal: #c8402a;
+    /* 与画卷同一套颜色：暖黑展台、宣纸、赭金（题字色）、石青 */
+    --bg: #12100d;
+    --ink: #ece4d4;
+    --ink-2: #a89d8a;
+    --ink-dim: #6f6656;
+    --line: #2c2823;
+    --seal: #b8915c;
+    --azure: #5f8ea3;
     --paper: #f5f2e9;
     --mono: "IBM Plex Mono", "Noto Serif SC", ui-monospace, monospace;
     --serif: "Noto Serif SC", serif;
@@ -76,6 +78,7 @@ h1 small { display: block; margin-top: 14px; font: 400 12px/1 var(--mono); lette
 .styles .dot { width: 8px; height: 8px; border: 1px solid var(--ink-dim); }
 .styles button[aria-pressed="true"] { color: var(--ink); }
 .styles button[aria-pressed="true"] .dot { background: var(--seal); border-color: var(--seal); }
+.styles button[data-style="qinglv"][aria-pressed="true"] .dot { background: var(--azure); border-color: var(--azure); }
 .styles button[aria-pressed="true"] .k { color: var(--seal); }
 
 .weather { display: grid; grid-template-columns: repeat(4, auto); justify-content: start; gap: 0 28px; margin: 28px 0 0; }
@@ -93,14 +96,18 @@ h1 small { display: block; margin-top: 14px; font: 400 12px/1 var(--mono); lette
     background: var(--paper);
     overflow: hidden;
     cursor: pointer;
-    box-shadow: 0 0 0 1px rgba(217, 199, 166, .35), 0 40px 90px -20px rgba(0, 0, 0, .7);
+    box-shadow: 0 0 0 1px rgba(184, 145, 92, .35), 0 40px 90px -20px rgba(0, 0, 0, .75), 0 0 120px -40px rgba(184, 145, 92, .18);
 }
 .stage canvas { display: block; width: 100%; height: 100%; }
 .stage img { display: block; width: 100%; height: auto; mix-blend-mode: multiply; filter: brightness(1.05) sepia(.25) hue-rotate(-15deg); pointer-events: none; }
 .title { position: absolute; top: 6.25%; right: 6.25%; width: 10%; }
 .poem { position: absolute; top: 25%; left: 5%; width: 30%; opacity: .85; }
-.seal { position: absolute; bottom: 6%; right: 5%; width: 13%; opacity: .75; }
-.seal img { mix-blend-mode: multiply; filter: none; }
+.seal {
+    position: absolute; bottom: 7.5%; right: 5%; width: 15%; max-width: 60px; aspect-ratio: 1;
+    border: 1px solid #aca172; border-radius: 2px; opacity: .7;
+    background: rgba(255, 255, 255, .2); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+}
+.seal img { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: normal; filter: none; }
 figcaption {
     margin-top: 14px; font-size: 11px; letter-spacing: .18em; color: var(--ink-dim);
     display: flex; justify-content: space-between;

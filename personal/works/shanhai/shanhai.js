@@ -1,7 +1,7 @@
 /* 山海 — 一套山脊模拟，四种渲染
    模拟（沿用原作算法）每帧画进一张离屏水墨画布 inkCanvas；
    水墨直接显示这张画布；字符 ASCII、点阵 DITHER 由山脊几何算浓度（脊线最浓、往下如雾淡出）；
-   线描 LINE 把山脊上升的轨迹叠成层层等高线。
+   青绿 AZURE 用同一套模拟换成石青、石绿，山脚收进与题字同色的赭金。
    釜山实时天气：风速 → 山脊上升速度，湿度 → 墨迹残留时间。 */
 (function () {
     'use strict';
@@ -24,15 +24,21 @@
         lineCount: 3,
         inkStyle: 'classic'
     };
-    const PAPER = '#f5f2e9';
+    // 配色：宣纸、暖墨、淡墨（雾与远山）、赭金（与题字同色）
+    const PAPER = '#f5f2e9';          // 原作纸色
     const PAPER_RGB = '245, 242, 233';
-    const INK = '#2a2723';
+    const INK = '#2b2620';
+    const INK_RGB = [43, 38, 32];
+    const MIST_RGB = [150, 138, 120];
+    const MIST = 'rgb(150, 138, 120)';
+    const OCHRE = '#a8814f';
+    const mix = (a, b, t) => `rgb(${Math.round(a[0] + (b[0] - a[0]) * t)}, ${Math.round(a[1] + (b[1] - a[1]) * t)}, ${Math.round(a[2] + (b[2] - a[2]) * t)})`;
 
     const STYLES = [
         { id: 'ink', zh: '水墨', en: 'Ink' },
         { id: 'ascii', zh: '字符', en: 'ASCII' },
         { id: 'dither', zh: '点阵', en: 'Dither' },
-        { id: 'line', zh: '线描', en: 'Line' }
+        { id: 'qinglv', zh: '青绿', en: 'Azure' }
     ];
 
     // ======================== 画布 ========================
@@ -76,13 +82,24 @@
         return (n1 * 0.5 + n2 * 0.3 + n3 * 0.2) * amp;
     }
 
+    // 青绿：远山石青、中景石绿、近山深青；勾线用深靛
+    const QL = [[104, 146, 166], [92, 138, 110], [44, 86, 92]];
+    const QL_LINE = [30, 58, 66];
     function getInkColors(lineIndex, total) {
+        if (style === 'qinglv') {
+            const b = QL[Math.min(QL.length - 1, lineIndex)];
+            const opac = 0.45 + Math.pow(lineIndex / total, 0.8) * 0.55;
+            const c = a => `rgba(${b[0]}, ${b[1]}, ${b[2]}, ${a})`;
+            return [c(0), c(0.4 * opac), c(0.7 * opac), c(0.9 * opac)];
+        }
         const base = [{ r: 60 }, { r: 80 }, { r: 100 }, { r: 120 }];
         const depth = 0.3 + Math.pow(lineIndex / total, 1.2) * 0.7;
         const opac = 0.3 + Math.pow(lineIndex / total, 0.8) * 0.7;
-        const c = (i, a) => { const v = base[i].r * depth; return `rgba(${v}, ${v}, ${v}, ${a})`; };
+        const c = (i, a) => { const v = base[i].r * depth; return `rgba(${v}, ${v}, ${v}, ${a})`; };   // 原作灰墨
         return [c(0, 0), c(1, 0.4 * opac), c(2, 0.7 * opac), c(3, 0.9 * opac)];
     }
+
+    function lineRGB() { return style === 'qinglv' ? QL_LINE : [80, 80, 80]; }   // 水墨：原作勾线色
 
     // ======================== 山脊（原作） ========================
     function makePeak() {
@@ -153,8 +170,14 @@
         const grad = ctx.createLinearGradient(0, minY, 0, minY + peak.gradientHeight);
         grad.addColorStop(0, base);
         grad.addColorStop(0.3, withA(0.5));
-        grad.addColorStop(0.7, withA(0.2));
-        grad.addColorStop(1, withA(0));
+        if (style === 'qinglv') {
+            // 金碧：山脚晕一层赭金
+            grad.addColorStop(0.62, 'rgba(168, 129, 79, 0.22)');
+            grad.addColorStop(1, 'rgba(168, 129, 79, 0)');
+        } else {
+            grad.addColorStop(0.7, withA(0.2));
+            grad.addColorStop(1, withA(0));
+        }
 
         ctx.beginPath();
         ctx.moveTo(0, pts[0].y);
@@ -165,7 +188,8 @@
         }
         ctx.closePath();
         const of = 1 - Math.pow(topFadeFactor, 1.5);
-        ctx.globalAlpha = p.lineOpacity * peak.peakOpacity * of;
+        // 水墨保持原作浓度；青绿每帧只薄涂一层，颜料慢慢积起
+        ctx.globalAlpha = p.lineOpacity * peak.peakOpacity * of * (style === 'qinglv' ? 0.09 : 1);
         ctx.fillStyle = grad;
         ctx.fill();
         ctx.globalAlpha = 1;
@@ -173,7 +197,7 @@
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
         for (let i = 1; i < N; i++) ctx.lineTo(pts[i].x, pts[i].y);
-        const oc = `rgba(80, 80, 80, ${0.8 * p.lineOpacity * peak.peakOpacity * of})`;
+        const oc = `rgba(${lineRGB().join(', ')}, ${0.8 * p.lineOpacity * peak.peakOpacity * of})`;
         ctx.shadowColor = oc; ctx.shadowBlur = 8; ctx.strokeStyle = oc;
         ctx.lineWidth = PARAMS.lineWidth * 1.2 * (1 - Math.pow(topFadeFactor, 2));
         ctx.stroke();
@@ -208,7 +232,7 @@
         ctx.beginPath();
         ctx.moveTo(0, top[0]);
         for (let i = 1; i < N; i++) ctx.lineTo(i * step, top[i]);
-        const oc = `rgba(80, 80, 80, ${0.8 * p.lineOpacity * (1 - Math.pow(topFade, 2))})`;
+        const oc = `rgba(${lineRGB().join(', ')}, ${0.85 * p.lineOpacity * (1 - Math.pow(topFade, 2))})`;
         ctx.shadowColor = oc; ctx.shadowBlur = 10; ctx.strokeStyle = oc;
         ctx.lineWidth = PARAMS.lineWidth * 1.6 * (1 - Math.pow(topFade, 2));
         ctx.stroke();
@@ -233,8 +257,9 @@
 
     // ======================== 天气 ========================
     const weather = { wind: null, humidity: null };
-    function speedMul() { return weather.wind == null ? 1 : 0.75 + clamp(weather.wind / 10, 0, 1) * 0.75; }
-    function fadeAlpha() { return weather.humidity == null ? PARAMS.fadeAlpha : 0.028 - clamp(weather.humidity / 100, 0, 1) * 0.012; }
+    // 水墨保持原作参数；其他风格才由天气驱动
+    function speedMul() { return style === 'ink' || weather.wind == null ? 1 : 0.75 + clamp(weather.wind / 10, 0, 1) * 0.75; }
+    function fadeAlpha() { return style === 'ink' || weather.humidity == null ? PARAMS.fadeAlpha : 0.028 - clamp(weather.humidity / 100, 0, 1) * 0.012; }
     async function fetchBusanWeather() {
         try {
             const url = 'https://api.open-meteo.com/v1/forecast?latitude=35.1796&longitude=129.0756&current=temperature_2m,relative_humidity_2m,wind_speed_10m&wind_speed_unit=ms&timezone=Asia/Seoul';
@@ -253,7 +278,7 @@
     const RAMP = ' .·:-~=+*%#';
     const BACK = String.fromCharCode(92);   // 反斜杠
     const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map(v => (v + 0.5) / 16);
-    const history = [];   // 线描：山脊每上升一段留一条轮廓
+    const history = [];   // 山脊每上升一段留一条轮廓，字符 / 点阵里化作淡淡的余痕
 
     // 由山脊几何算每格浓度：脊线本身最浓，往下像雾一样淡出；轨迹里较新的山脊留下淡淡的线。
     // 同时记录每格最强脊线的斜率，字符模式用它挑 / \ _ 。
@@ -295,7 +320,43 @@
 
     function paper() { vctx.globalAlpha = 1; vctx.fillStyle = PAPER; vctx.fillRect(0, 0, W, H); }
 
+    const SEA_TOP = 0.84;   // 海面占卷底约 16%
+    function seaLine(k, x, t) {
+        const amp = 1.2 + k * 0.9;
+        return Math.sin(x * (0.018 - k * 0.0012) + t * (0.5 + k * 0.07) + k * 1.7) * amp
+             + Math.sin(x * 0.047 + t * 0.9 + k) * amp * 0.35;
+    }
+    function seaRows() {
+        const rows = [];
+        const top = H * SEA_TOP, depth = H - top;
+        for (let k = 0; k < 9; k++) rows.push(top + Math.pow(k / 8, 1.55) * depth * 0.96);
+        return rows;
+    }
+    // 水墨、线描：细线水纹，越近（越靠下）越清楚
+    function drawSeaStrokes(t) {
+        const g = vctx.createLinearGradient(0, H * SEA_TOP - 20, 0, H);
+        g.addColorStop(0, `rgba(${MIST_RGB.join(',')}, 0)`);
+        g.addColorStop(1, `rgba(${MIST_RGB.join(',')}, 0.12)`);
+        vctx.globalAlpha = 1;
+        vctx.fillStyle = g;
+        vctx.fillRect(0, H * SEA_TOP - 20, W, H);
+        const rows = seaRows();
+        vctx.lineWidth = 0.8;
+        for (let k = 0; k < rows.length; k++) {
+            vctx.beginPath();
+            for (let x = 0; x <= W; x += 4) {
+                const y = rows[k] + seaLine(k, x, t);
+                if (x === 0) vctx.moveTo(x, y); else vctx.lineTo(x, y);
+            }
+            vctx.strokeStyle = style === 'qinglv' ? mix(QL[0], QL_LINE, k / 9) : mix(MIST_RGB, INK_RGB, k / 10);
+            vctx.globalAlpha = 0.18 + k * 0.045;
+            vctx.stroke();
+        }
+        vctx.globalAlpha = 1;
+    }
+
     function renderInk() { vctx.drawImage(inkCanvas, 0, 0, W, H); }
+    function renderQinglv(t) { vctx.drawImage(inkCanvas, 0, 0, W, H); drawSeaStrokes(t); }
 
     function renderAscii(t, nowMs) {
         const cw = W < 360 ? 6 : 7, ch = cw * 1.65;
@@ -306,21 +367,35 @@
         const serif = `600 ${Math.round(ch * 0.86)}px "Noto Serif SC", serif`;
         vctx.font = mono;
         vctx.textBaseline = 'top';
-        vctx.fillStyle = INK;
         const slot = Math.floor(t * 0.8);
         const last = RAMP.length - 1;
         const cjk = [];
+        const seaRow = Math.floor(H * SEA_TOP / ch);
         for (let y = 0; y < rows; y++) {
             for (let x = 0; x < cols; x++) {
                 const k = y * cols + x;
                 const v = f.v[k];
-                if (v < 0.1) continue;
+                if (v < 0.1) {
+                    // 海：按波纹相位放 ~ 与 -
+                    if (y >= seaRow) {
+                        const d = (y - seaRow) / Math.max(1, rows - seaRow);
+                        const w = Math.sin(x * 0.42 - t * (0.9 + d) + y * 1.3) + Math.sin(x * 0.13 + t * 0.4 + y) * 0.6;
+                        if (w > 0.75 - d * 0.5) {
+                            vctx.fillStyle = mix(MIST_RGB, INK_RGB, d * 0.55);
+                            vctx.globalAlpha = 0.35 + d * 0.45;
+                            vctx.fillText(w > 1.15 ? '~' : '-', x * cw, y * ch);
+                        }
+                    }
+                    continue;
+                }
                 let c;
-                if (f.lineStr[k] > 0.3 && f.lineStr[k] >= v * 0.7) {
+                const ridge = f.lineStr[k] > 0.3 && f.lineStr[k] >= v * 0.7;
+                vctx.fillStyle = ridge ? INK : mix(MIST_RGB, INK_RGB, Math.min(1, v * 1.1));
+                if (ridge) {
                     // 脊线：按坡度挑字符，像老式字符山水
                     const sl = f.slope[k];
                     c = Math.abs(sl) > 2.4 ? '|' : sl < -0.35 ? '/' : sl > 0.35 ? BACK : (f.lineStr[k] > 0.6 ? '_' : '-');
-                } else if (v > 0.22 && v < 0.6 && hash(x + slot * 3.1, y) > 0.975) {
+                } else if (v > 0.22 && v < 0.6 && hash(x + slot * 3.1, y) > 0.986) {
                     cjk.push(x, y, v);
                     continue;
                 } else {
@@ -330,8 +405,9 @@
                 vctx.fillText(c, x * cw, y * ch);
             }
         }
-        // 雾里偶尔浮出「山」「海」
+        // 雾里偶尔浮出「山」「海」，与题字同为赭金
         vctx.font = serif;
+        vctx.fillStyle = OCHRE;
         for (let i = 0; i < cjk.length; i += 3) {
             vctx.globalAlpha = 0.45 + cjk[i + 2] * 0.5;
             vctx.fillText(hash(cjk[i], cjk[i + 1] + slot) > 0.5 ? '山' : '海', cjk[i] * cw - cw * 0.2, cjk[i + 1] * ch);
@@ -342,43 +418,32 @@
     function renderDither(nowMs) {
         const cell = W < 360 ? 2.5 : 3;
         const cols = Math.ceil(W / cell), rows = Math.ceil(H / cell);
-        const v = ridgeField(cols, rows, cell, cell, nowMs).v;
+        const f = ridgeField(cols, rows, cell, cell, nowMs);
+        const t = nowMs / 1000;
+        const seaRow = Math.floor(H * SEA_TOP / cell);
         paper();
-        vctx.fillStyle = INK;
-        vctx.beginPath();
+        const dark = new Path2D(), light = new Path2D();
         for (let y = 0; y < rows; y++) {
             for (let x = 0; x < cols; x++) {
-                if (v[y * cols + x] * 1.1 > BAYER[(x & 3) + ((y & 3) << 2)]) vctx.rect(x * cell, y * cell, cell - 0.7, cell - 0.7);
+                const k = y * cols + x;
+                const thr = BAYER[(x & 3) + ((y & 3) << 2)];
+                let v = f.v[k];
+                if (v * 1.1 > thr) (f.lineStr[k] > 0.25 ? dark : light).rect(x * cell, y * cell, cell - 0.7, cell - 0.7);
             }
         }
-        vctx.fill();
-    }
-
-    function renderLine(now) {
-        paper();
-        vctx.lineJoin = 'round';
-        const sorted = history.slice().sort((a, b) => a.base - b.base);
-        for (const h of sorted) {
-            const age = (now - h.t) / 1000;
-            const a = clamp(1 - age / 16, 0, 1) * (1 - h.fade);
-            if (a <= 0.01) continue;
-            const n = h.top.length;
-            vctx.beginPath();
-            vctx.moveTo(0, h.top[0]);
-            for (let i = 1; i < n; i++) vctx.lineTo(i * h.step, h.top[i]);
-            // 用纸色填掉线下方，前面的山挡住后面的
-            vctx.lineTo(W, h.top[n - 1] + 80);
-            vctx.lineTo(0, h.top[0] + 80);
-            vctx.closePath();
-            vctx.fillStyle = PAPER;
-            vctx.fill();
-            vctx.beginPath();
-            vctx.moveTo(0, h.top[0]);
-            for (let i = 1; i < n; i++) vctx.lineTo(i * h.step, h.top[i]);
-            vctx.strokeStyle = `rgba(42, 39, 35, ${a * (0.35 + h.opacity * 0.6)})`;
-            vctx.lineWidth = 0.9;
-            vctx.stroke();
+        // 海：沿水平波纹线打一排淡墨点，越近越密
+        const sea = seaRows();
+        for (let k = 0; k < sea.length; k++) {
+            for (let x = 0; x < cols; x++) {
+                const y = Math.round((sea[k] + seaLine(k, x * cell, t)) / cell);
+                if (y < seaRow || y >= rows) continue;
+                if (0.3 + k * 0.07 > BAYER[(x & 3) + ((y & 3) << 2)]) light.rect(x * cell, y * cell, cell - 0.7, cell - 0.7);
+            }
         }
+        vctx.fillStyle = MIST;
+        vctx.fill(light);
+        vctx.fillStyle = INK;
+        vctx.fill(dark);
     }
 
     // ======================== 主循环 ========================
@@ -404,14 +469,14 @@
                 const n = shape.top.length, k = 2, top = new Float32Array(Math.ceil(n / k));
                 for (let j = 0; j < top.length; j++) top[j] = shape.top[Math.min(n - 1, j * k)];
                 history.push({ top, step: shape.step * k, base: p.y, t: nowMs, fade: shape.fade, opacity: shape.opacity });
-                if (history.length > 140) history.shift();
+                if (history.length > 70) history.shift();
             }
             if (p.y < -30) pulses[i] = newPulse(i);
         }
 
         if (style === 'ascii') renderAscii(now, nowMs);
         else if (style === 'dither') renderDither(nowMs);
-        else if (style === 'line') renderLine(nowMs);
+        else if (style === 'qinglv') renderQinglv(now);
         else renderInk();
 
         requestAnimationFrame(tick);
@@ -431,6 +496,7 @@
     function setStyle(id) {
         if (!STYLES.some(s => s.id === id)) return;
         style = id;
+        pulses.forEach((p, i) => { p.inkColors = getInkColors(i, PARAMS.lineCount); });
         try { localStorage.setItem('shanhai-style', id); } catch (e) {}
         renderStyles();
     }
