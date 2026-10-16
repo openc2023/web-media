@@ -18,6 +18,11 @@ function mount() {
         return;
     }
     root.innerHTML = renderPage(locales[currentLocale], currentLocale);
+    // The profile page's base URL points to the repository root for assets.
+    // Keep section links on the current page instead of following that base.
+    root.querySelectorAll('a[href^="#"]').forEach((link) => {
+        link.setAttribute("href", window.location.pathname + window.location.search + link.getAttribute("href"));
+    });
 }
 
 if (root) {

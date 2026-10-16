@@ -23,6 +23,7 @@ export const zhContent = {
         moduleFriendlyBody: "项目数据、图像路径和按钮链接都可以在 locale 数据里继续增加。"
     },
     nav: [
+        { href: "home/", label: "个人主页" },
         { href: "#about", label: "简介" },
         { href: "#timeline", label: "经历" },
         { href: "#papers", label: "论文" },

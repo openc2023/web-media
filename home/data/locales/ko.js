@@ -23,6 +23,7 @@ export const koContent = {
         moduleFriendlyBody: "프로젝트 데이터, 이미지 경로, 버튼 링크를 locale 데이터에서 계속 확장할 수 있습니다."
     },
     nav: [
+        { href: "home/", label: "홈" },
         { href: "#about", label: "소개" },
         { href: "#timeline", label: "이력" },
         { href: "#papers", label: "논문" },
