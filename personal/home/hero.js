@@ -218,7 +218,8 @@
                     var d, v, m = mask[i];
                     if (pmask && pmask[i] > 0) {
                         var sw = Math.max(0, 1 - Math.abs(gy - sweepY) * 7);
-                        m = Math.max(m, pmask[i] * (breath + sw * 0.35));
+                        // 在字形的暗边里让开，不和「田漢」抢
+                        m = Math.max(m, pmask[i] * (breath + sw * 0.35) * (1 - halo[i]));
                     }
                     if (!fieldOn) {
                         // 人像：只有照片本身，自上而下显影，明暗随噪声轻轻呼吸
