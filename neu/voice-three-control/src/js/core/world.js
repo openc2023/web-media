@@ -6,7 +6,7 @@ import { UnrealBloomPass } from "../addons/postprocessing/UnrealBloomPass.js";
 import { ShaderPass } from "../addons/postprocessing/ShaderPass.js";
 import { OutputPass } from "../addons/postprocessing/OutputPass.js";
 import { CONFIG } from "../config.js";
-import { createAsciiSky } from "../objects/asciiSky.js";
+import { createFluidSky } from "../objects/fluidSky.js";
 
 // 调色与暗角：四周轻微压暗，整体饱和度微调；只影响画面边缘，不改模型本身的颜色
 const GradeShader = {
@@ -37,8 +37,6 @@ const GradeShader = {
 
 export function createWorld() {
   const scene = new THREE.Scene();
-  const sky = createAsciiSky();
-  scene.background = sky.texture;
   scene.fog = new THREE.Fog(CONFIG.scene.fog.color, CONFIG.scene.fog.near, CONFIG.scene.fog.far);
 
   const camera = new THREE.PerspectiveCamera(
@@ -54,6 +52,10 @@ export function createWorld() {
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   document.body.appendChild(renderer.domElement);
+
+  // 背景：GPU 流体（不支持时自动退回静态渐变）
+  const sky = createFluidSky(renderer);
+  scene.background = sky.texture;
 
   // 后期：泛光让萤火虫和发光蘑菇有柔和的光晕；失败时退回直接渲染
   let composer = null;
@@ -200,7 +202,12 @@ export function createWorld() {
   }
 
   return {
-    updateSky: (dt, t, state) => sky.update(dt, t, state),
+    // 墨流从镜头对准的中心（风车附近）吹出：把它投影到屏幕坐标
+    updateSky: (dt, t, state) => {
+      const p = controls.target.clone().project(camera);
+      sky.update(dt, state, { x: (p.x + 1) / 2, y: (p.y + 1) / 2 });
+      scene.background = sky.texture;
+    },
     camera,
     controls,
     frameObject,

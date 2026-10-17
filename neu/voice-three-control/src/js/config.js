@@ -22,23 +22,32 @@ export const CONFIG = {
 
   // ── 画面质感 ──────────────────────────────
   look: {
-    /** 背景渐变：顶部 / 中段 / 底部（NEU 界面的近黑炭灰） */
+    /** 背景底色：顶部 / 中段 / 底部（NEU 界面的近黑炭灰），流体不可用时也用它 */
     sky: ["#0b0f10", "#060809", "#030404"],
     /** 泛光：只有足够亮的地方（萤火虫、发光蘑菇）才会发光 */
     bloom: { strength: 0.55, radius: 0.55, threshold: 0.78 },
     /** 暗角强度、饱和度（1 = 原样） */
     vignette: 0.42,
     saturation: 1.06,
-    /** 字符夜空：NEU 品牌渐变的不规则液体纹理，平时很淡、流得慢，随音量加快翻涌 */
-    ascii: {
+    /** 流体背景：NEU 品牌色墨流。出声时从风车附近吹出，安静时慢慢散开淡去 */
+    fluid: {
       colors: ["#39d0b6", "#ff7a59"],
-      baseAlpha: 0.08,
-      maxAlpha: 0.46,
-      /** 颜色向灰度收拢的比例，越大越克制 */
-      muted: 0.3,
-      /** 「NEU」字样出现的几率（每个位置每轮），声音大时会自动增加 */
-      wordChance: 0.012,
-      gain: 2.2,
+      mint: "#8cf0c8",
+      simResolution: 128,      // 速度场分辨率（短边）
+      dyeResolution: 720,      // 墨色分辨率（短边），手机减半
+      pressureIterations: 20,
+      pressureDecay: 0.8,
+      curl: 12,                // 涡度：越大越多卷曲的漩涡
+      velocityDissipation: 0.3,
+      dyeDissipation: 0.7,     // 墨色淡去的速度：越大散得越快
+      intensity: 0.85,         // 墨色整体亮度
+      gain: 2.2,               // 音量放大
+      emitRate: 6,             // 出声时每秒吹出的墨团数（再乘音量）
+      force: 1400,             // 吹出的力度
+      dyeStrength: 0.07,       // 每团墨的浓度
+      radius: 0.006,           // 每团墨的大小
+      emitRadius: 0.34,        // 吹出位置离中心的距离（相对画面高度）
+      pointerForce: 3200,      // 光标划过的搅动力度
     },
   },
 
