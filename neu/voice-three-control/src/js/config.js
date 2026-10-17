@@ -15,9 +15,22 @@ export const CONFIG = {
   // ── 场景外观 ──────────────────────────────
   scene: {
     background: 0x000000,
-    fog: { color: 0x000000, near: 55, far: 220 },
+    fog: { color: 0x05060f, near: 55, far: 220 },
     /** 模型缩放目标尺寸（Three.js 单位） */
     targetSize: 14,
+  },
+
+  // ── 画面质感 ──────────────────────────────
+  look: {
+    /** 背景渐变：顶部 / 中段 / 底部 */
+    sky: ["#11143a", "#07081a", "#020205"],
+    /** 泛光：只有足够亮的地方（萤火虫、发光蘑菇）才会发光 */
+    bloom: { strength: 0.55, radius: 0.55, threshold: 0.78 },
+    /** 暗角强度、饱和度（1 = 原样） */
+    vignette: 0.42,
+    saturation: 1.06,
+    /** 不操作时镜头环绕速度（OrbitControls autoRotateSpeed） */
+    idleRotateSpeed: 0.35,
   },
 
   // ── 灯光 ─────────────────────────────────

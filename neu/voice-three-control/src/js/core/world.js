@@ -1,10 +1,59 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { EffectComposer } from "../addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "../addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "../addons/postprocessing/UnrealBloomPass.js";
+import { ShaderPass } from "../addons/postprocessing/ShaderPass.js";
+import { OutputPass } from "../addons/postprocessing/OutputPass.js";
 import { CONFIG } from "../config.js";
+
+// 背景：深靛蓝到近黑的竖向渐变，场景中心后方一圈很淡的紫光
+function createSkyTexture() {
+  const c = document.createElement("canvas");
+  c.width = 16;
+  c.height = 512;
+  const g = c.getContext("2d");
+  const grad = g.createLinearGradient(0, 0, 0, c.height);
+  grad.addColorStop(0, CONFIG.look.sky[0]);
+  grad.addColorStop(0.55, CONFIG.look.sky[1]);
+  grad.addColorStop(1, CONFIG.look.sky[2]);
+  g.fillStyle = grad;
+  g.fillRect(0, 0, c.width, c.height);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+// 调色与暗角：四周轻微压暗，整体饱和度微调；只影响画面边缘，不改模型本身的颜色
+const GradeShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    vignette: { value: CONFIG.look.vignette },
+    saturation: { value: CONFIG.look.saturation },
+  },
+  vertexShader: /* glsl */ `
+    varying vec2 vUv;
+    void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+  `,
+  fragmentShader: /* glsl */ `
+    uniform sampler2D tDiffuse;
+    uniform float vignette;
+    uniform float saturation;
+    varying vec2 vUv;
+    void main() {
+      vec4 c = texture2D(tDiffuse, vUv);
+      float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
+      c.rgb = mix(vec3(l), c.rgb, saturation);
+      vec2 d = vUv - 0.5;
+      c.rgb *= 1.0 - vignette * smoothstep(0.25, 0.85, dot(d, d) * 2.2);
+      gl_FragColor = c;
+    }
+  `,
+};
 
 export function createWorld() {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(CONFIG.scene.background);
+  scene.background = createSkyTexture();
   scene.fog = new THREE.Fog(CONFIG.scene.fog.color, CONFIG.scene.fog.near, CONFIG.scene.fog.far);
 
   const camera = new THREE.PerspectiveCamera(
@@ -21,13 +70,44 @@ export function createWorld() {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   document.body.appendChild(renderer.domElement);
 
+  // 后期：泛光让萤火虫和发光蘑菇有柔和的光晕；失败时退回直接渲染
+  let composer = null;
+  let bloomPass = null;
+  try {
+    composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      CONFIG.look.bloom.strength,
+      CONFIG.look.bloom.radius,
+      CONFIG.look.bloom.threshold
+    );
+    composer.addPass(bloomPass);
+    composer.addPass(new ShaderPass(GradeShader));
+    composer.addPass(new OutputPass());
+  } catch (error) {
+    console.warn("[world] postprocessing disabled", error);
+    composer = null;
+  }
+
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.enablePan = false;
   controls.minDistance = 5;
   controls.maxDistance = 12;
   controls.maxPolarAngle = Math.PI * 0.49;
-  controls.autoRotate = false;
+  // 不操作时镜头缓慢环绕；拖动时停下，松手几秒后继续
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = CONFIG.look.idleRotateSpeed;
+  let idleTimer = 0;
+  controls.addEventListener("start", () => {
+    controls.autoRotate = false;
+    window.clearTimeout(idleTimer);
+  });
+  controls.addEventListener("end", () => {
+    window.clearTimeout(idleTimer);
+    idleTimer = window.setTimeout(() => { controls.autoRotate = true; }, 5000);
+  });
 
   function isMobileViewport() {
     return window.innerWidth <= 720;
@@ -82,7 +162,11 @@ export function createWorld() {
     );
   });
 
+  let framedObject = null;
+  let framedPadding = 0.86;
   function frameObject(object, padding = 0.86) {
+    framedObject = object;
+    framedPadding = padding;
     const box = new THREE.Box3().setFromObject(object);
     if (box.isEmpty()) {
       return;
@@ -95,8 +179,9 @@ export function createWorld() {
       maxSize / (2 * Math.tan((Math.PI * camera.fov) / 360));
     const fitWidthDistance = fitHeightDistance / camera.aspect;
     const isMobile = window.innerWidth <= 720;
+    // 竖屏也要把整座岛放进画面：按宽度取景的距离也计入一部分
     const framingDistance = isMobile
-      ? fitHeightDistance
+      ? Math.max(fitHeightDistance, fitWidthDistance * 0.62)
       : Math.max(fitHeightDistance, fitWidthDistance);
     const framingPadding = isMobile ? 0.86 : padding;
     const distance = framingPadding * framingDistance;
@@ -124,12 +209,19 @@ export function createWorld() {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    applyInteractionMode();
+    if (composer) {
+      composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      composer.setSize(window.innerWidth, window.innerHeight);
+    }
+    // 横竖屏切换后重新取景
+    if (framedObject) frameObject(framedObject, framedPadding);
+    else applyInteractionMode();
   }
 
   function render() {
     controls.update();
-    renderer.render(scene, camera);
+    if (composer) composer.render();
+    else renderer.render(scene, camera);
   }
 
   return {
