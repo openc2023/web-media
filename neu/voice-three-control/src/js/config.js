@@ -29,8 +29,6 @@ export const CONFIG = {
     /** 暗角强度、饱和度（1 = 原样） */
     vignette: 0.42,
     saturation: 1.06,
-    /** 不操作时镜头环绕速度（OrbitControls autoRotateSpeed） */
-    idleRotateSpeed: 0.35,
   },
 
   // ── 灯光 ─────────────────────────────────

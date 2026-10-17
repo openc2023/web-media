@@ -96,18 +96,7 @@ export function createWorld() {
   controls.minDistance = 5;
   controls.maxDistance = 12;
   controls.maxPolarAngle = Math.PI * 0.49;
-  // 不操作时镜头缓慢环绕；拖动时停下，松手几秒后继续
-  controls.autoRotate = true;
-  controls.autoRotateSpeed = CONFIG.look.idleRotateSpeed;
-  let idleTimer = 0;
-  controls.addEventListener("start", () => {
-    controls.autoRotate = false;
-    window.clearTimeout(idleTimer);
-  });
-  controls.addEventListener("end", () => {
-    window.clearTimeout(idleTimer);
-    idleTimer = window.setTimeout(() => { controls.autoRotate = true; }, 5000);
-  });
+  controls.autoRotate = false;
 
   function isMobileViewport() {
     return window.innerWidth <= 720;
