@@ -186,7 +186,7 @@
         carve: 0,
         imageLayout: function (w, h) {
             if (w < 900) return { x: 0.7, y: 0.53, size: Math.min(h * 0.42, w * 0.95) };
-            return { x: 0.2, y: 0.56, size: Math.min(h * 0.92, w * 0.55) };
+            return { x: 0.2, y: 0.44, size: Math.min(h * 0.92, w * 0.55) };
         },
         mode: savedMode || 'dither',
         pointerTarget: $('top'),
