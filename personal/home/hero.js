@@ -28,6 +28,8 @@
     function mount(canvas, opts) {
         var ctx = canvas.getContext('2d');
         var glyph = opts.glyph || '田漢';
+        var image = opts.image || null;     // 传入图片时渲染人像，而不是字形 + 角落渐变
+        var portrait = !!image;
         var mode = MODES.indexOf(opts.mode) > -1 ? opts.mode : 'dither';
         var getColors = opts.getColors;
         var layout = opts.layout;           // 返回 { x, y, size }：字形中心与字号（0–1 相对画布）
@@ -48,6 +50,8 @@
             else if (mode === 'braille') { pw = small ? 3 : 3.5; ph = pw; }
             else if (mode === 'halftone') { pw = ph = small ? 7 : 9; }
             else { pw = ph = small ? 5 : 7; }
+            // 人像画布小，格子按比例缩细，五官才认得出来
+            if (opts.cell) { pw *= opts.cell; ph *= opts.cell; fs *= opts.cell; }
             cols = Math.ceil(W / pw);
             rows = Math.ceil(H / ph);
             ink = new Float32Array(cols * rows);
@@ -59,6 +63,7 @@
             mask = new Float32Array(cols * rows);
             halo = new Float32Array(cols * rows);
             if (!W || !H) return;
+            if (portrait) return buildImageMask();
             var L = layout(W, H);
             var S = 0.25;                   // 降采样渲染，够用且快
             var w = Math.max(1, Math.round(W * S)), h = Math.max(1, Math.round(H * S));
@@ -87,6 +92,24 @@
                     mask[y * cols + x] = a[k] / 255;
                     halo[y * cols + x] = b[k] / 255;
                 }
+            }
+        }
+
+        // 人像：照片（灰度 + 透明背景）按 contain 放进画布；亮处密、暗处留一层淡点勾出轮廓
+        function buildImageMask() {
+            if (!image.complete || !image.naturalWidth) return;
+            var w = cols, h = rows;
+            var off = document.createElement('canvas');
+            off.width = w; off.height = h;
+            var o = off.getContext('2d', { willReadFrequently: true });
+            // 格子不是正方形时，按真实像素比例换算，人像不变形
+            var boxW = W, boxH = H, ir = image.naturalWidth / image.naturalHeight;
+            var dw = boxW / boxH > ir ? boxH * ir : boxW, dh = dw / ir;
+            o.drawImage(image, (boxW - dw) / 2 / pw, (boxH - dh) / 2 / ph, dw / pw, dh / ph);
+            var px = o.getImageData(0, 0, w, h).data;
+            for (var i = 0; i < mask.length; i++) {
+                var a = px[i * 4 + 3] / 255, lum = px[i * 4] / 255;
+                mask[i] = a * (0.14 + 0.96 * Math.pow(lum, 1.05));
             }
         }
 
@@ -168,15 +191,20 @@
                     var gx = (x + 0.5) * pw / W;
                     var i = y * cols + x;
 
-                    var d = Math.hypot((1 - gx), gy * aspect * 1.15);
-                    var g = Math.pow(smooth(1 - d / 1.12), 1.35);
                     var n = noise(gx * 9 + t * 0.12, gy * 9 * aspect - t * 0.09);
                     var n2 = noise(gx * 31 - t * 0.5, gy * 31 * aspect);
-                    var v = g * 1.02 + (n - 0.5) * 0.42 * (0.35 + g) + (n2 - 0.5) * 0.12;
-                    if (hash(x * 1.3, y * 0.7) > 0.992) v += 0.35 * (0.5 + 0.5 * Math.sin(t * 2 + x));   // 零星闪点
-
-                    var hl = halo[i], m = mask[i];
-                    v = v * (1 - hl * 0.92) + m * (0.78 + 0.22 * n);
+                    var d, v, m = mask[i];
+                    if (portrait) {
+                        // 人像：只有照片本身，自上而下显影，明暗随噪声轻轻呼吸
+                        d = gy * 1.1;
+                        v = m * (1.05 + 0.24 * (n - 0.5)) + (m > 0.02 ? (n2 - 0.5) * 0.08 : 0);
+                    } else {
+                        d = Math.hypot((1 - gx), gy * aspect * 1.15);
+                        var g = Math.pow(smooth(1 - d / 1.12), 1.35);
+                        v = g * 1.02 + (n - 0.5) * 0.42 * (0.35 + g) + (n2 - 0.5) * 0.12;
+                        if (hash(x * 1.3, y * 0.7) > 0.992) v += 0.35 * (0.5 + 0.5 * Math.sin(t * 2 + x));   // 零星闪点
+                        v = v * (1 - halo[i] * 0.92) + m * (0.78 + 0.22 * n);
+                    }
 
                     for (var k = 0; k < ripples.length; k++) {
                         var rp = ripples[k];

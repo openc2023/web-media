@@ -190,6 +190,29 @@
     });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { hero.refresh(); });
 
+    /* ── 关于栏的人像：同一套引擎，渲染方式跟着头图走；滚到这里时自上而下显影 ── */
+    var portrait = null;
+    var PORTRAIT_COLORS = { g1: '#b4f4ff', g2: '#4f8dff', hot: '#ffffff' };
+    var portraitImg = new Image();
+    portraitImg.onload = function () {
+        portrait = window.AsciiHero.mount($('portraitCanvas'), {
+            image: portraitImg,
+            mode: hero.getMode(),
+            cell: 0.55,
+            // 人像画布始终是黑底，固定用亮色调，浅色主题下也看得清
+            getColors: function () { return PORTRAIT_COLORS; },
+            layout: function () { return { x: 0.5, y: 0.5, size: 1 }; }
+        });
+        $('portraitMode').textContent = hero.getMode();
+        if ('IntersectionObserver' in window) {
+            var seen = new IntersectionObserver(function (es) {
+                if (es[0].isIntersecting) { portrait.replay(); seen.disconnect(); }
+            }, { threshold: 0.3 });
+            seen.observe($('portraitCanvas'));
+        }
+    };
+    portraitImg.src = 'personal/home/portrait.png?v=1';
+
     function renderModes() {
         var cur = hero.getMode();
         $('modes').innerHTML = hero.modes.map(function (m) {
@@ -198,6 +221,7 @@
     }
     function setMode(m) {
         hero.setMode(m);
+        if (portrait) { portrait.setMode(hero.getMode()); $('portraitMode').textContent = hero.getMode(); }
         try { localStorage.setItem('ascii-mode', hero.getMode()); } catch (e) {}
         renderModes();
     }

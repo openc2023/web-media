@@ -233,6 +233,20 @@ main { position: relative; z-index: 1; max-width: 1280px; margin: 0 auto; paddin
 .pane-h .rule::before { content: "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐"; }
 
 /* about */
+.about-grid { display: grid; grid-template-columns: minmax(200px, 300px) minmax(0, 1fr); gap: clamp(28px, 4vw, 56px); align-items: start; }
+.portrait { margin: 0; }
+.portrait canvas {
+    display: block; width: 100%; aspect-ratio: 360 / 465;
+    background: #040508; cursor: crosshair; touch-action: pan-y;
+    box-shadow: 0 0 0 1px var(--line);
+}
+:root[data-theme="light"] .portrait canvas { background: #0a0f1a; }
+.portrait figcaption { display: flex; justify-content: space-between; margin-top: 10px; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-dim); }
+.portrait figcaption span:first-child { color: var(--accent); }
+@media (max-width: 760px) {
+    .about-grid { grid-template-columns: 1fr; }
+    .portrait { width: min(72%, 300px); }
+}
 .about-body { columns: 2 320px; column-gap: 56px; max-width: 1040px; }
 .about-body p { margin: 0 0 18px; break-inside: avoid; display: grid; grid-template-columns: 4ch 1fr; color: var(--ink); }
 .ln { color: var(--ink-dim); font-size: 12px; padding-top: 2px; }
