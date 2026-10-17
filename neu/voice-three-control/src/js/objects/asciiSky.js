@@ -4,9 +4,12 @@ import { CONFIG } from "../config.js";
 /**
  * 字符夜空：画在一张 2D 画布上，作为场景背景贴图。
  * 颜色用 NEU 品牌渐变（青绿 → 珊瑚橙），图案是不规则流动的液体纹理；平时很淡、流得慢，出声时流得更快、翻涌更强、更亮。
+ * 液体较浓处零星浮现「NEU」字样。
  */
 const RAMP = " .·:-~=+*";
 const NOTES = ["♪", "♫"];
+const WORD = "NEU";
+const GLITCH = "NEU#%/<>=+*";
 
 function hexToRgb(hex) {
   const n = parseInt(hex.slice(1), 16);
@@ -85,6 +88,8 @@ export function createAsciiSky() {
 
     const buckets = Array.from({ length: BUCKETS }, () => []);
     const last = RAMP.length - 1;
+    const vgrid = new Float32Array(cols * rows);
+    const kgrid = new Uint8Array(cols * rows);
     const aspect = cw / ch;
     // 不规则液体：两层扭曲的噪声场，像墨在水里慢慢流淌；音量越大流得越快、翻涌越强
     const swirl = 1.2 + level * 2.6;
@@ -101,8 +106,31 @@ export function createAsciiSky() {
         // 颜色也随液体混合：第二层噪声决定偏青绿还是偏橙
         const warm = Math.max(0, (qy - 0.55) * 2.2) * (0.35 + v * 0.65) + level * 0.35;
         const k = Math.min(BUCKETS - 1, Math.max(0, Math.floor(warm * BUCKETS)));
-        buckets[k].push(x, y, v);
+        vgrid[y * cols + x] = v;
+        kgrid[y * cols + x] = k;
       }
+    }
+
+    // 液体较浓的地方零星浮现「NEU」：先乱码，再收成 NEU，然后淡出；声音大时出现得更频繁
+    const words = [];
+    const skip = new Uint8Array(cols * rows);
+    const chance = ascii.wordChance + level * 0.008;
+    for (let y = 0; y < rows; y++) {
+      for (let wc = 0; wc + 2 < cols; wc += 3) {
+        const i0 = y * cols + wc;
+        if (vgrid[i0 + 1] < 0.3) continue;
+        const seed = hash(wc * 0.31, y * 0.57);
+        const life = t / 4.5 + seed * 9;
+        const gen = Math.floor(life);
+        if (hash(wc * 1.7 + gen * 5.3, y * 2.9) > chance) continue;
+        const ph = life - gen;
+        words.push(wc, y, ph, kgrid[i0 + 1]);
+        skip[i0] = skip[i0 + 1] = skip[i0 + 2] = 1;
+      }
+    }
+    for (let i = 0; i < vgrid.length; i++) {
+      if (vgrid[i] === 0 || skip[i]) continue;
+      buckets[kgrid[i]].push(i % cols, Math.floor(i / cols), vgrid[i]);
     }
     for (let b = 0; b < BUCKETS; b++) {
       const list = buckets[b];
@@ -113,6 +141,16 @@ export function createAsciiSky() {
         ctx.globalAlpha = Math.min(ascii.maxAlpha, ascii.baseAlpha + v * (ascii.maxAlpha - ascii.baseAlpha));
         const loud = level > 0.35 && v > 0.6 && hash(x + Math.floor(t * 2), y) > 0.993;
         ctx.fillText(loud ? NOTES[(x + y) & 1] : RAMP.charAt(Math.max(1, Math.round(v * last))), x * cw, y * ch);
+      }
+    }
+    for (let i = 0; i < words.length; i += 4) {
+      const wx = words[i], wy = words[i + 1], ph = words[i + 2];
+      ctx.fillStyle = bucketColor[Math.min(BUCKETS - 1, words[i + 3] + 1)];
+      ctx.globalAlpha = Math.min(0.85, Math.sin(ph * Math.PI) * (ascii.maxAlpha + 0.18));
+      for (let w = 0; w < 3; w++) {
+        const settled = ph > 0.18 + w * 0.06;
+        const c = settled ? WORD.charAt(w) : GLITCH.charAt(Math.floor(hash(wx + w, wy + Math.floor(t * 12)) * GLITCH.length));
+        ctx.fillText(c, (wx + w) * cw, wy * ch);
       }
     }
     ctx.globalAlpha = 1;

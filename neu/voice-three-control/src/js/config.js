@@ -36,6 +36,8 @@ export const CONFIG = {
       maxAlpha: 0.46,
       /** 颜色向灰度收拢的比例，越大越克制 */
       muted: 0.3,
+      /** 「NEU」字样出现的几率（每个位置每轮），声音大时会自动增加 */
+      wordChance: 0.012,
       gain: 2.2,
     },
   },
