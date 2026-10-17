@@ -182,7 +182,7 @@
     var hero = window.AsciiHero.mount($('heroCanvas'), {
         glyph: '田漢',
         image: portraitImg,
-        imageGain: 0.7,
+        imageGain: 0.45,
         carve: 0,
         imageLayout: function (w, h) {
             if (w < 900) return { x: 0.7, y: 0.53, size: Math.min(h * 0.42, w * 0.95) };
