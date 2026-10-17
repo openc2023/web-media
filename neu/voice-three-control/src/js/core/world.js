@@ -6,23 +6,7 @@ import { UnrealBloomPass } from "../addons/postprocessing/UnrealBloomPass.js";
 import { ShaderPass } from "../addons/postprocessing/ShaderPass.js";
 import { OutputPass } from "../addons/postprocessing/OutputPass.js";
 import { CONFIG } from "../config.js";
-
-// 背景：深靛蓝到近黑的竖向渐变，场景中心后方一圈很淡的紫光
-function createSkyTexture() {
-  const c = document.createElement("canvas");
-  c.width = 16;
-  c.height = 512;
-  const g = c.getContext("2d");
-  const grad = g.createLinearGradient(0, 0, 0, c.height);
-  grad.addColorStop(0, CONFIG.look.sky[0]);
-  grad.addColorStop(0.55, CONFIG.look.sky[1]);
-  grad.addColorStop(1, CONFIG.look.sky[2]);
-  g.fillStyle = grad;
-  g.fillRect(0, 0, c.width, c.height);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
+import { createAsciiSky } from "../objects/asciiSky.js";
 
 // 调色与暗角：四周轻微压暗，整体饱和度微调；只影响画面边缘，不改模型本身的颜色
 const GradeShader = {
@@ -53,7 +37,8 @@ const GradeShader = {
 
 export function createWorld() {
   const scene = new THREE.Scene();
-  scene.background = createSkyTexture();
+  const sky = createAsciiSky();
+  scene.background = sky.texture;
   scene.fog = new THREE.Fog(CONFIG.scene.fog.color, CONFIG.scene.fog.near, CONFIG.scene.fog.far);
 
   const camera = new THREE.PerspectiveCamera(
@@ -202,6 +187,7 @@ export function createWorld() {
       composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       composer.setSize(window.innerWidth, window.innerHeight);
     }
+    sky.resize();
     // 横竖屏切换后重新取景
     if (framedObject) frameObject(framedObject, framedPadding);
     else applyInteractionMode();
@@ -214,6 +200,7 @@ export function createWorld() {
   }
 
   return {
+    updateSky: (dt, t, state) => sky.update(dt, t, state),
     camera,
     controls,
     frameObject,

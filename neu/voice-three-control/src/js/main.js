@@ -102,6 +102,7 @@ function animate() {
   fireflies.update(dt, elapsedTime, frameState);
 
   ui.update(frameState);
+  world.updateSky(dt, elapsedTime, frameState);
   world.render();
 }
 
