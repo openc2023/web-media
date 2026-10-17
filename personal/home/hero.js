@@ -28,8 +28,11 @@
     function mount(canvas, opts) {
         var ctx = canvas.getContext('2d');
         var glyph = opts.glyph || '田漢';
-        var image = opts.image || null;     // 传入图片时渲染人像，而不是字形 + 角落渐变
-        var portrait = !!image;
+        var image = opts.image || null;     // 透明底人像：和字形一起出现在场里（imageLayout 定位），或单独使用（field: 'none'）
+        var imageLayout = opts.imageLayout || null;
+        var fieldOn = opts.field !== 'none'; // field: 'none' 时只画图片本身，不要角落渐变场
+        var gain = opts.imageGain || 1;      // 人像在场里的浓淡
+        var carve = opts.carve == null ? 1 : opts.carve;      // 人像四周暗边的深浅（0–1，0 为不留暗边）
         var mode = MODES.indexOf(opts.mode) > -1 ? opts.mode : 'dither';
         var getColors = opts.getColors;
         var layout = opts.layout;           // 返回 { x, y, size }：字形中心与字号（0–1 相对画布）
@@ -37,7 +40,7 @@
         var W = 0, H = 0, dpr = 1;
         var pw = 7, ph = 7, fs = 12;        // 格子尺寸
         var cols = 0, rows = 0;
-        var mask, halo, ink;
+        var mask, halo, ink, pmask = null;   // pmask：人像单独一层，可以“呼吸”
         var pointer = { x: -1, y: -1, px: -1, py: -1, inside: false };
         var ripples = [];
         var start = performance.now();
@@ -62,8 +65,9 @@
         function buildMask() {
             mask = new Float32Array(cols * rows);
             halo = new Float32Array(cols * rows);
+            pmask = image && fieldOn ? new Float32Array(cols * rows) : null;
             if (!W || !H) return;
-            if (portrait) return buildImageMask();
+            if (image && !fieldOn) return buildImageMask();
             var L = layout(W, H);
             var S = 0.25;                   // 降采样渲染，够用且快
             var w = Math.max(1, Math.round(W * S)), h = Math.max(1, Math.round(H * S));
@@ -93,24 +97,39 @@
                     halo[y * cols + x] = b[k] / 255;
                 }
             }
+            if (image) buildImageMask();
         }
 
-        // 人像：照片（灰度 + 透明背景）按 contain 放进画布；亮处密、暗处留一层淡点勾出轮廓
+        // 人像：透明底灰度照片。放进场里时按 layout 定位（size = 人像高度），四周同样留暗边；
+        // 单独使用（field: 'none'）时按 contain 铺满画布。亮处密、暗处留一层淡点勾出轮廓。
         function buildImageMask() {
             if (!image.complete || !image.naturalWidth) return;
             var w = cols, h = rows;
             var off = document.createElement('canvas');
             off.width = w; off.height = h;
             var o = off.getContext('2d', { willReadFrequently: true });
-            // 格子不是正方形时，按真实像素比例换算，人像不变形
-            var boxW = W, boxH = H, ir = image.naturalWidth / image.naturalHeight;
-            var dw = boxW / boxH > ir ? boxH * ir : boxW, dh = dw / ir;
-            o.drawImage(image, (boxW - dw) / 2 / pw, (boxH - dh) / 2 / ph, dw / pw, dh / ph);
-            var px = o.getImageData(0, 0, w, h).data;
-            for (var i = 0; i < mask.length; i++) {
-                var a = px[i * 4 + 3] / 255, lum = px[i * 4] / 255;
-                mask[i] = a * (0.14 + 0.96 * Math.pow(lum, 1.05));
+            var ir = image.naturalWidth / image.naturalHeight, dw, dh, cx, cy;
+            if (fieldOn) {
+                var L = (imageLayout || layout)(W, H);
+                dh = L.size; dw = dh * ir; cx = L.x * W; cy = L.y * H;
+            } else {
+                dw = W / H > ir ? H * ir : W; dh = dw / ir; cx = W / 2; cy = H / 2;
             }
+            // 格子不是正方形时按真实像素比例换算，人像不变形
+            var x0 = (cx - dw / 2) / pw, y0 = (cy - dh / 2) / ph, ww = dw / pw, hh = dh / ph;
+            o.drawImage(image, x0, y0, ww, hh);
+            var px = o.getImageData(0, 0, w, h).data;
+            var dst = fieldOn ? pmask : mask;
+            for (var i = 0; i < dst.length; i++) {
+                var a = px[i * 4 + 3] / 255, lum = px[i * 4] / 255;
+                dst[i] = a * (0.14 + 0.96 * Math.pow(lum, 1.05)) * gain;
+            }
+            if (!fieldOn || carve <= 0) return;
+            o.clearRect(0, 0, w, h);
+            o.filter = 'blur(' + Math.max(1.5, ww * 0.04) + 'px)';
+            o.drawImage(image, x0, y0, ww, hh);
+            var hb = o.getImageData(0, 0, w, h).data;
+            for (var j = 0; j < halo.length; j++) halo[j] = Math.max(halo[j], Math.min(1, hb[j * 4 + 3] / 255 * 1.5) * carve);
         }
 
         function resize() {
@@ -179,6 +198,9 @@
             grad.addColorStop(1, C.g2);
 
             var front = t * 0.85 - 0.1;     // 开场：从右上角向外铺开
+            // 人像若隐若现：整体缓慢明暗起伏，另有一道很淡的光自上而下扫过
+            var breath = 0.55 + 0.45 * Math.sin(t * 0.55 - 1.2);
+            var sweepY = ((t * 0.08) % 1.4) - 0.2;
             var lvA = [], lvB = [], lvC = [], hot = [];
             var lines = mode === 'ascii' ? [] : null;
             var last = RAMP.length - 1;
@@ -194,7 +216,11 @@
                     var n = noise(gx * 9 + t * 0.12, gy * 9 * aspect - t * 0.09);
                     var n2 = noise(gx * 31 - t * 0.5, gy * 31 * aspect);
                     var d, v, m = mask[i];
-                    if (portrait) {
+                    if (pmask && pmask[i] > 0) {
+                        var sw = Math.max(0, 1 - Math.abs(gy - sweepY) * 7);
+                        m = Math.max(m, pmask[i] * (breath + sw * 0.35));
+                    }
+                    if (!fieldOn) {
                         // 人像：只有照片本身，自上而下显影，明暗随噪声轻轻呼吸
                         d = gy * 1.1;
                         v = m * (1.05 + 0.24 * (n - 0.5)) + (m > 0.02 ? (n2 - 0.5) * 0.08 : 0);

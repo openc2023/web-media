@@ -177,8 +177,17 @@
     new MutationObserver(readColors).observe(root, { attributes: true, attributeFilter: ['data-theme'] });
     matchMedia('(prefers-color-scheme: light)').addEventListener('change', readColors);
 
+    // 人像：透明底灰度照片，在左侧名字后面若隐若现（缓慢明暗起伏），颜色跟随主题
+    var portraitImg = new Image();
     var hero = window.AsciiHero.mount($('heroCanvas'), {
         glyph: '田漢',
+        image: portraitImg,
+        imageGain: 0.7,
+        carve: 0,
+        imageLayout: function (w, h) {
+            if (w < 900) return { x: 0.7, y: 0.53, size: Math.min(h * 0.42, w * 0.95) };
+            return { x: 0.2, y: 0.56, size: Math.min(h * 0.92, w * 0.55) };
+        },
         mode: savedMode || 'dither',
         pointerTarget: $('top'),
         getColors: function () { return colors; },
@@ -189,29 +198,9 @@
         }
     });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { hero.refresh(); });
-
-    /* ── 关于栏的人像：同一套引擎，渲染方式跟着头图走；滚到这里时自上而下显影 ── */
-    var portrait = null;
-    var PORTRAIT_COLORS = { g1: '#b4f4ff', g2: '#4f8dff', hot: '#ffffff' };
-    var portraitImg = new Image();
-    portraitImg.onload = function () {
-        portrait = window.AsciiHero.mount($('portraitCanvas'), {
-            image: portraitImg,
-            mode: hero.getMode(),
-            cell: 0.55,
-            // 人像画布始终是黑底，固定用亮色调，浅色主题下也看得清
-            getColors: function () { return PORTRAIT_COLORS; },
-            layout: function () { return { x: 0.5, y: 0.5, size: 1 }; }
-        });
-        $('portraitMode').textContent = hero.getMode();
-        if ('IntersectionObserver' in window) {
-            var seen = new IntersectionObserver(function (es) {
-                if (es[0].isIntersecting) { portrait.replay(); seen.disconnect(); }
-            }, { threshold: 0.3 });
-            seen.observe($('portraitCanvas'));
-        }
-    };
+    portraitImg.onload = function () { hero.refresh(); };
     portraitImg.src = 'personal/home/portrait.png?v=1';
+
 
     function renderModes() {
         var cur = hero.getMode();
@@ -221,7 +210,6 @@
     }
     function setMode(m) {
         hero.setMode(m);
-        if (portrait) { portrait.setMode(hero.getMode()); $('portraitMode').textContent = hero.getMode(); }
         try { localStorage.setItem('ascii-mode', hero.getMode()); } catch (e) {}
         renderModes();
     }
