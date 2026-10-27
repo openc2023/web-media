@@ -124,7 +124,7 @@
                     // 图片标志用柔和的模糊边缘；文字负形用清晰轮廓（笔画内部的空格才分得清）
                     halo[y * cols + x] = glyphGain === 0 && !useImg ? a[k] / 255
                         // 图形标志：形内按清晰轮廓挖空，外沿只留一点柔边，细缝不会被糊掉
-                        : useImg ? Math.max(a[k] / 255, b[k] / 255 * 0.3) : b[k] / 255;
+                        : useImg ? Math.max(a[k] / 255 * 0.9, b[k] / 255 * 0.45) : b[k] / 255;
                 }
             }
             if (image) buildImageMask();

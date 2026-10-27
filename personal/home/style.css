@@ -137,8 +137,8 @@ main { position: relative; z-index: 1; max-width: 1280px; margin: 0 auto; paddin
 #heroCanvas {
     position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: pan-y;
     /* 与 07S desk 一样：点阵从左往右渐入，文字一侧保持干净（留一点给左侧若隐若现的人像） */
-    -webkit-mask-image: linear-gradient(to right, rgba(0, 0, 0, .7) 0%, rgba(0, 0, 0, .7) 30%, #000 62%);
-    mask-image: linear-gradient(to right, rgba(0, 0, 0, .7) 0%, rgba(0, 0, 0, .7) 30%, #000 62%);
+    -webkit-mask-image: linear-gradient(to right, rgba(0, 0, 0, .65) 0%, rgba(0, 0, 0, .65) 30%, rgba(0, 0, 0, .82) 62%);
+    mask-image: linear-gradient(to right, rgba(0, 0, 0, .65) 0%, rgba(0, 0, 0, .65) 30%, rgba(0, 0, 0, .82) 62%);
 }
 @media (max-width: 900px) {
     /* 窄屏：点阵收在右上角，整体更淡 */

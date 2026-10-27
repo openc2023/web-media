@@ -185,7 +185,7 @@
         glyph: '田漢',
         glyphImage: markImg,
         glyphGain: 0,
-        glyphCarve: 1,
+        glyphCarve: 0.62,   // 只挖掉一半多一点：看得出是标志，但不跳出来
         // 亮区收成一团、正好托住标志，四周留黑
         fieldFocus: function (w, h) { return w < 900 ? { x: 0.7, y: 0.18, rx: 0.7, ry: 0.3 } : { x: 0.8, y: 0.38, rx: 0.42, ry: 0.85 }; },
         image: portraitImg,
