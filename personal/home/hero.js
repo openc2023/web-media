@@ -101,7 +101,7 @@
             }
             var a = o.getImageData(0, 0, w, h).data;
             if (useImg) for (var ai = 0; ai < a.length; ai += 4) a[ai] = a[ai + 3];   // 形状放进红色通道，下面统一读取
-            o.filter = 'blur(' + Math.max(2, size * 0.07) + 'px)';
+            o.filter = 'blur(' + Math.max(2, size * (useImg ? 0.045 : 0.07)) + 'px)';
             o.fillStyle = '#000'; o.fillRect(0, 0, w, h);
             o.fillStyle = '#fff';
             o.lineWidth = size * 0.07; o.strokeStyle = '#fff';
@@ -121,10 +121,9 @@
                     var k = (sy * w + sx) * 4;
                     mask[y * cols + x] = a[k] / 255 * glyphGain;
                     // 负形模式按字形本身的清晰轮廓挖空，笔画和内部的空格才分得清；正形模式用外扩的暗边
-                    // 图片标志用柔和的模糊边缘；文字负形用清晰轮廓（笔画内部的空格才分得清）
+                    // 图形标志：形内挖到底，轮廓用模糊边羽化，边缘散进点阵里
                     halo[y * cols + x] = glyphGain === 0 && !useImg ? a[k] / 255
-                        // 图形标志：形内按清晰轮廓挖空，外沿只留一点柔边，细缝不会被糊掉
-                        : useImg ? Math.max(a[k] / 255 * 0.9, b[k] / 255 * 0.45) : b[k] / 255;
+                        : useImg ? Math.min(1, b[k] / 255 * 1.5) : b[k] / 255;
                 }
             }
             if (image) buildImageMask();
