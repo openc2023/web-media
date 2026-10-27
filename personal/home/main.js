@@ -181,6 +181,9 @@
     var portraitImg = new Image();
     var hero = window.AsciiHero.mount($('heroCanvas'), {
         glyph: '田漢',
+        // 与 07S desk 同样的处理：字不发光，只在一片密集点阵里挖出字形
+        glyphGain: 0,
+        glyphBacking: 0.9,
         image: portraitImg,
         imageGain: 0.45,
         carve: 0,

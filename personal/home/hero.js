@@ -30,6 +30,11 @@
         var glyph = opts.glyph || '田漢';
         var image = opts.image || null;     // 透明底人像：和字形一起出现在场里（imageLayout 定位），或单独使用（field: 'none'）
         var imageLayout = opts.imageLayout || null;
+        // 字形的亮度：1 = 由亮点组成；0 = 只用轮廓把场挖空，字读起来是点阵里的负形
+        var glyphGain = opts.glyphGain == null ? 1 : opts.glyphGain;
+        // 字形周围补一片密集的点阵做底，挖空的字才清楚（0 = 不补）
+        var glyphBacking = opts.glyphBacking || 0;
+        var back = { x: 0, y: 0, r: 1 };
         var fieldOn = opts.field !== 'none'; // field: 'none' 时只画图片本身，不要角落渐变场
         var gain = opts.imageGain || 1;      // 人像在场里的浓淡
         var carve = opts.carve == null ? 1 : opts.carve;      // 人像四周暗边的深浅（0–1，0 为不留暗边）
@@ -69,6 +74,7 @@
             if (!W || !H) return;
             if (image && !fieldOn) return buildImageMask();
             var L = layout(W, H);
+            back.x = L.x * W; back.y = L.y * H; back.r = L.size * 1.55;
             var S = 0.25;                   // 降采样渲染，够用且快
             var w = Math.max(1, Math.round(W * S)), h = Math.max(1, Math.round(H * S));
             var off = document.createElement('canvas');
@@ -93,8 +99,9 @@
                 for (var x = 0; x < cols; x++) {
                     var sx = Math.min(w - 1, Math.floor((x + 0.5) * pw * S));
                     var k = (sy * w + sx) * 4;
-                    mask[y * cols + x] = a[k] / 255;
-                    halo[y * cols + x] = b[k] / 255;
+                    mask[y * cols + x] = a[k] / 255 * glyphGain;
+                    // 负形模式按字形本身的清晰轮廓挖空，笔画和内部的空格才分得清；正形模式用外扩的暗边
+                    halo[y * cols + x] = glyphGain === 0 ? a[k] / 255 : b[k] / 255;
                 }
             }
             if (image) buildImageMask();
@@ -230,6 +237,10 @@
                         var g = Math.pow(smooth(1 - d / 1.12), 1.35);
                         v = g * 1.02 + (n - 0.5) * 0.42 * (0.35 + g) + (n2 - 0.5) * 0.12;
                         if (hash(x * 1.3, y * 0.7) > 0.992) v += 0.35 * (0.5 + 0.5 * Math.sin(t * 2 + x));   // 零星闪点
+                        if (glyphBacking) {
+                            var bd = Math.hypot((x + 0.5) * pw - back.x, ((y + 0.5) * ph - back.y) * 1.25) / back.r;
+                            v += glyphBacking * Math.pow(smooth(1 - bd), 0.7);
+                        }
                         v = v * (1 - halo[i] * 0.92) + m * (0.78 + 0.22 * n);
                     }
 
