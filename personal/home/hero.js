@@ -36,6 +36,8 @@
         var glyphImage = opts.glyphImage || null;
         // 字形周围补一片密集的点阵做底，挖空的字才清楚（0 = 不补）
         var glyphBacking = opts.glyphBacking || 0;
+        // 挖空的深浅：1 = 挖尽；小一些则字形里留少量暗点，若隐若现
+        var glyphCarve = opts.glyphCarve == null ? 0.92 : opts.glyphCarve;
         var back = { x: 0, y: 0, r: 1 };
         var fieldOn = opts.field !== 'none'; // field: 'none' 时只画图片本身，不要角落渐变场
         var gain = opts.imageGain || 1;      // 人像在场里的浓淡
@@ -119,7 +121,8 @@
                     var k = (sy * w + sx) * 4;
                     mask[y * cols + x] = a[k] / 255 * glyphGain;
                     // 负形模式按字形本身的清晰轮廓挖空，笔画和内部的空格才分得清；正形模式用外扩的暗边
-                    halo[y * cols + x] = glyphGain === 0 ? a[k] / 255 : b[k] / 255;
+                    // 图片标志用柔和的模糊边缘；文字负形用清晰轮廓（笔画内部的空格才分得清）
+                    halo[y * cols + x] = glyphGain === 0 && !useImg ? a[k] / 255 : b[k] / 255;
                 }
             }
             if (image) buildImageMask();
@@ -259,7 +262,7 @@
                             var bd = Math.hypot((x + 0.5) * pw - back.x, ((y + 0.5) * ph - back.y) * 1.25) / back.r;
                             v += glyphBacking * Math.pow(smooth(1 - bd), 0.7);
                         }
-                        v = v * (1 - halo[i] * 0.92) + m * (0.78 + 0.22 * n);
+                        v = v * (1 - halo[i] * glyphCarve) + m * (0.78 + 0.22 * n);
                     }
 
                     for (var k = 0; k < ripples.length; k++) {

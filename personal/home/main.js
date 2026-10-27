@@ -185,7 +185,8 @@
         glyph: '田漢',
         glyphImage: markImg,
         glyphGain: 0,
-        glyphBacking: 0.9,
+        glyphBacking: 0.4,
+        glyphCarve: 0.86,
         image: portraitImg,
         imageGain: 0.45,
         carve: 0,
@@ -198,8 +199,9 @@
         getColors: function () { return colors; },
         // 字形位置：宽屏放右侧，窄屏放上方
         layout: function (w, h) {
-            if (w < 900) return { x: 0.5, y: 0.25, size: Math.min(w * 0.56, h * 0.28) };
-            return { x: 0.72, y: 0.44, size: Math.min(h * 0.56, w * 0.3) };
+            // 放在右上点阵最密最亮的地方，负形才读得出来
+            if (w < 900) return { x: 0.66, y: 0.2, size: Math.min(w * 0.5, h * 0.25) };
+            return { x: 0.76, y: 0.36, size: Math.min(h * 0.5, w * 0.27) };
         }
     });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { hero.refresh(); });
