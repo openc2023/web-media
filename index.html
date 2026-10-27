@@ -13,7 +13,9 @@
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Noto+Serif+SC:wght@400;600;900&family=Noto+Serif+KR:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="personal/home/style.css?v=20261027k">
     <script>
-        try { var t = localStorage.getItem('ascii-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+        // 默认浅色；访客自己切过的主题优先
+        var t = null; try { t = localStorage.getItem('ascii-theme'); } catch (e) {}
+        document.documentElement.dataset.theme = t || 'light';
     </script>
 </head>
 <body>
