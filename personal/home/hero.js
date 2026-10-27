@@ -32,6 +32,8 @@
         var imageLayout = opts.imageLayout || null;
         // 字形的亮度：1 = 由亮点组成；0 = 只用轮廓把场挖空，字读起来是点阵里的负形
         var glyphGain = opts.glyphGain == null ? 1 : opts.glyphGain;
+        // 用一张透明底图片（例如 STUDIO 7 标志）代替文字字形；layout 的 size 即图片高度
+        var glyphImage = opts.glyphImage || null;
         // 字形周围补一片密集的点阵做底，挖空的字才清楚（0 = 不补）
         var glyphBacking = opts.glyphBacking || 0;
         var back = { x: 0, y: 0, r: 1 };
@@ -82,18 +84,34 @@
             var o = off.getContext('2d', { willReadFrequently: true });
             var size = L.size * S;
             o.fillStyle = '#000'; o.fillRect(0, 0, w, h);
-            o.textAlign = 'center'; o.textBaseline = 'middle';
-            o.font = '900 ' + size + 'px "Noto Serif SC", "Noto Serif TC", serif';
-            o.fillStyle = '#fff';
-            o.fillText(glyph, L.x * w, L.y * h + size * 0.04);
+            var useImg = glyphImage && glyphImage.complete && glyphImage.naturalWidth;
+            var gw = 0, gh = 0;
+            if (useImg) {
+                // 图片字形：透明底上画图，按透明度取形状
+                gh = size; gw = gh * glyphImage.naturalWidth / glyphImage.naturalHeight;
+                o.clearRect(0, 0, w, h);
+                o.drawImage(glyphImage, L.x * w - gw / 2, L.y * h - gh / 2, gw, gh);
+            } else {
+                o.textAlign = 'center'; o.textBaseline = 'middle';
+                o.font = '900 ' + size + 'px "Noto Serif SC", "Noto Serif TC", serif';
+                o.fillStyle = '#fff';
+                o.fillText(glyph, L.x * w, L.y * h + size * 0.04);
+            }
             var a = o.getImageData(0, 0, w, h).data;
+            if (useImg) for (var ai = 0; ai < a.length; ai += 4) a[ai] = a[ai + 3];   // 形状放进红色通道，下面统一读取
             o.filter = 'blur(' + Math.max(2, size * 0.07) + 'px)';
             o.fillStyle = '#000'; o.fillRect(0, 0, w, h);
             o.fillStyle = '#fff';
             o.lineWidth = size * 0.07; o.strokeStyle = '#fff';
-            o.strokeText(glyph, L.x * w, L.y * h + size * 0.04);
-            o.fillText(glyph, L.x * w, L.y * h + size * 0.04);
+            if (useImg) {
+                o.clearRect(0, 0, w, h);
+                o.drawImage(glyphImage, L.x * w - gw / 2, L.y * h - gh / 2, gw, gh);
+            } else {
+                o.strokeText(glyph, L.x * w, L.y * h + size * 0.04);
+                o.fillText(glyph, L.x * w, L.y * h + size * 0.04);
+            }
             var b = o.getImageData(0, 0, w, h).data;
+            if (useImg) for (var bi = 0; bi < b.length; bi += 4) b[bi] = b[bi + 3];
             for (var y = 0; y < rows; y++) {
                 var sy = Math.min(h - 1, Math.floor((y + 0.5) * ph * S));
                 for (var x = 0; x < cols; x++) {

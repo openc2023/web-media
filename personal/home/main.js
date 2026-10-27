@@ -179,9 +179,11 @@
 
     // 人像：透明底灰度照片，在左侧名字后面若隐若现（缓慢明暗起伏），颜色跟随主题
     var portraitImg = new Image();
+    // 右侧：STUDIO 7 标志，与 07S desk 同样的处理——标志不发光，只在一片密集点阵里挖出负形
+    var markImg = new Image();
     var hero = window.AsciiHero.mount($('heroCanvas'), {
         glyph: '田漢',
-        // 与 07S desk 同样的处理：字不发光，只在一片密集点阵里挖出字形
+        glyphImage: markImg,
         glyphGain: 0,
         glyphBacking: 0.9,
         image: portraitImg,
@@ -196,12 +198,14 @@
         getColors: function () { return colors; },
         // 字形位置：宽屏放右侧，窄屏放上方
         layout: function (w, h) {
-            if (w < 900) return { x: 0.5, y: 0.25, size: Math.min(w * 0.4, h * 0.2) };
-            return { x: 0.7, y: 0.44, size: Math.min(h * 0.46, w * 0.22) };
+            if (w < 900) return { x: 0.5, y: 0.25, size: Math.min(w * 0.56, h * 0.28) };
+            return { x: 0.72, y: 0.44, size: Math.min(h * 0.56, w * 0.3) };
         }
     });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { hero.refresh(); });
     portraitImg.onload = function () { hero.refresh(); };
+    markImg.onload = function () { hero.refresh(); };
+    markImg.src = 'personal/home/icons/studio7-mark.png?v=1';
     portraitImg.src = 'personal/home/portrait.png?v=1';
 
 
