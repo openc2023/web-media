@@ -187,7 +187,7 @@
         glyphGain: 0,
         glyphCarve: 1,
         // 亮区收成一团、正好托住标志，四周留黑
-        fieldFocus: function (w, h) { return w < 900 ? { x: 0.7, y: 0.18, rx: 0.62, ry: 0.26 } : { x: 0.84, y: 0.34, rx: 0.4, ry: 0.72 }; },
+        fieldFocus: function (w, h) { return w < 900 ? { x: 0.7, y: 0.18, rx: 0.7, ry: 0.3 } : { x: 0.8, y: 0.38, rx: 0.42, ry: 0.85 }; },
         image: portraitImg,
         imageGain: 0.38,
         carve: 0,
@@ -201,8 +201,8 @@
         // 字形位置：宽屏放右侧，窄屏放上方
         layout: function (w, h) {
             // 与 07S desk 相同的位置关系：宽屏在右侧中部，窄屏在右上角
-            if (w < 900) return { x: 0.7, y: 0.18, size: Math.min(h * 0.2, w * 0.46) };
-            return { x: 0.8, y: 0.36, size: Math.min(h * 0.5, w * 0.25) };
+            if (w < 900) return { x: 0.7, y: 0.18, size: Math.min(h * 0.18, w * 0.42) };
+            return { x: 0.8, y: 0.38, size: Math.min(h * 0.46, w * 0.23) };
         }
     });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { hero.refresh(); });

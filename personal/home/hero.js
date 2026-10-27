@@ -122,7 +122,9 @@
                     mask[y * cols + x] = a[k] / 255 * glyphGain;
                     // 负形模式按字形本身的清晰轮廓挖空，笔画和内部的空格才分得清；正形模式用外扩的暗边
                     // 图片标志用柔和的模糊边缘；文字负形用清晰轮廓（笔画内部的空格才分得清）
-                    halo[y * cols + x] = glyphGain === 0 && !useImg ? a[k] / 255 : b[k] / 255;
+                    halo[y * cols + x] = glyphGain === 0 && !useImg ? a[k] / 255
+                        // 图形标志：形内按清晰轮廓挖空，外沿只留一点柔边，细缝不会被糊掉
+                        : useImg ? Math.max(a[k] / 255, b[k] / 255 * 0.3) : b[k] / 255;
                 }
             }
             if (image) buildImageMask();
@@ -257,7 +259,7 @@
                         v = m * (1.05 + 0.24 * (n - 0.5)) + (m > 0.02 ? (n2 - 0.5) * 0.08 : 0);
                     } else {
                         d = ff ? Math.hypot((gx - ff.x) / ff.rx, (gy - ff.y) / ff.ry) * 1.12 : Math.hypot((1 - gx), gy * aspect * 1.15);
-                        var g = Math.pow(smooth(1 - d / 1.12), 1.35);
+                        var g = Math.pow(smooth(1 - d / 1.12), ff ? 0.7 : 1.35);   // 收成一团时顶部更平，标志整块落在亮区里
                         v = g * 1.02 + (n - 0.5) * 0.42 * (0.35 + g) + (n2 - 0.5) * 0.12;
                         if (hash(x * 1.3, y * 0.7) > 0.992) v += 0.35 * (0.5 + 0.5 * Math.sin(t * 2 + x));   // 零星闪点
                         if (glyphBacking) {
