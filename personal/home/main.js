@@ -185,10 +185,11 @@
         glyph: '田漢',
         glyphImage: markImg,
         glyphGain: 0,
-        glyphBacking: 0.4,
-        glyphCarve: 0.86,
+        glyphCarve: 1,
+        // 亮区收成一团、正好托住标志，四周留黑
+        fieldFocus: function (w, h) { return w < 900 ? { x: 0.7, y: 0.18, rx: 0.62, ry: 0.26 } : { x: 0.84, y: 0.34, rx: 0.4, ry: 0.72 }; },
         image: portraitImg,
-        imageGain: 0.45,
+        imageGain: 0.38,
         carve: 0,
         imageLayout: function (w, h) {
             if (w < 900) return { x: 0.7, y: 0.53, size: Math.min(h * 0.42, w * 0.95) };
@@ -199,9 +200,9 @@
         getColors: function () { return colors; },
         // 字形位置：宽屏放右侧，窄屏放上方
         layout: function (w, h) {
-            // 放在右上点阵最密最亮的地方，负形才读得出来
-            if (w < 900) return { x: 0.66, y: 0.2, size: Math.min(w * 0.5, h * 0.25) };
-            return { x: 0.76, y: 0.36, size: Math.min(h * 0.5, w * 0.27) };
+            // 与 07S desk 相同的位置关系：宽屏在右侧中部，窄屏在右上角
+            if (w < 900) return { x: 0.7, y: 0.18, size: Math.min(h * 0.2, w * 0.46) };
+            return { x: 0.8, y: 0.36, size: Math.min(h * 0.5, w * 0.25) };
         }
     });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { hero.refresh(); });

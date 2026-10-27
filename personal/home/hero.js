@@ -233,6 +233,8 @@
             var lines = mode === 'ascii' ? [] : null;
             var last = RAMP.length - 1;
             var aspect = H / W;
+            // 点阵亮区：默认从右上角铺开；传 fieldFocus {x, y, rx, ry} 则收成一团椭圆，四周留黑
+            var ff = typeof opts.fieldFocus === 'function' ? opts.fieldFocus(W, H) : opts.fieldFocus;
 
             for (var y = 0; y < rows; y++) {
                 var gy = (y + 0.5) * ph / H;
@@ -254,7 +256,7 @@
                         d = gy * 1.1;
                         v = m * (1.05 + 0.24 * (n - 0.5)) + (m > 0.02 ? (n2 - 0.5) * 0.08 : 0);
                     } else {
-                        d = Math.hypot((1 - gx), gy * aspect * 1.15);
+                        d = ff ? Math.hypot((gx - ff.x) / ff.rx, (gy - ff.y) / ff.ry) * 1.12 : Math.hypot((1 - gx), gy * aspect * 1.15);
                         var g = Math.pow(smooth(1 - d / 1.12), 1.35);
                         v = g * 1.02 + (n - 0.5) * 0.42 * (0.35 + g) + (n2 - 0.5) * 0.12;
                         if (hash(x * 1.3, y * 0.7) > 0.992) v += 0.35 * (0.5 + 0.5 * Math.sin(t * 2 + x));   // 零星闪点
