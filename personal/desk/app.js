@@ -129,7 +129,7 @@
     var W = 0, H = 0, dpr = 1, cols = 0, rows = 0, pw = 7, ph = 7, fs = 12, mask, halo, ink;
     var pointer = { x: -1, y: -1, px: -1, py: -1, inside: false };
     var ripples = [];
-    var portraitMask = null, portraitMotion = matchMedia("(prefers-reduced-motion: reduce)");
+    var portraitMask = null, portraitMotion = { matches: false };   // 人像呼吸始终开启，与线上一致
     var start = performance.now(), visible = true, fade = 0;
     function grid() {
       var small = W < 640;
@@ -597,7 +597,8 @@
   }
   (function boot() {
     var el = $("boot"), status = $("spStatus"), bar = $("spBar"), count = $("spCount"), log = $("spLog"), title = $("spTitle");
-    var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // 开场动画完整播放（约 4 秒），不因系统“减少动画”设置而缩短
+    var reduced = false;
     var done = false, raf = 0, start = performance.now(), lastPhase = -1;
     root.classList.add("booting");
     var phases = [

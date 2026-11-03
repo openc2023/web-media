@@ -318,7 +318,6 @@
   @media (min-width: 601px) and (max-width: 1240px) { .hero-meta { position: relative; right: auto; bottom: auto; margin-top: 28px; text-align: left; } }
   @media (max-height: 650px) and (min-width: 601px) { .boot-stage { min-height: 220px; } .boot-scope { width: 210px; height: 210px; } .boot-code { margin-top: 8px; } }
   @media (max-height: 700px) and (max-width: 600px) { .boot-scope { width: 130px; height: 130px; } .boot-stage { gap: 12px; } .sp-logo { width: 60px; height: 60px; } .boot-code { margin-top: 14px; } }
-  @media (prefers-reduced-motion: reduce) { .boot *, .boot::after { animation: none !important; transition: none !important; } .sp-logo path { stroke-dashoffset: 0; } .boot::after { transform: scaleX(1); } }
 
 
   /* responsive */
