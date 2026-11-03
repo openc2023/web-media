@@ -231,6 +231,13 @@ window.DESK_LANGUAGES = {
       },
       {
         "label": [
+          "精灵表对齐工具",
+          "序列帧、精灵表、GIF、视频逐帧对齐，导出精灵表"
+        ],
+        "href": "personal/tools/sprite-align/"
+      },
+      {
+        "label": [
           "作品集",
           "art717.notion.site/box"
         ],
@@ -534,6 +541,13 @@ window.DESK_LANGUAGES = {
       },
       {
         "label": [
+          "Sprite Align",
+          "Align sequences, sprite sheets, GIFs and video frame by frame"
+        ],
+        "href": "personal/tools/sprite-align/"
+      },
+      {
+        "label": [
           "Portfolio",
           "art717.notion.site/box"
         ],
@@ -834,6 +848,13 @@ window.DESK_LANGUAGES = {
           "MindAR, 8th Wall, Zappar 실험"
         ],
         "href": "personal/works/ar-compare/"
+      },
+      {
+        "label": [
+          "스프라이트 정렬 도구",
+          "시퀀스·스프라이트 시트·GIF·영상을 프레임별로 정렬"
+        ],
+        "href": "personal/tools/sprite-align/"
       },
       {
         "label": [
