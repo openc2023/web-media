@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0c0c0d">
-<title>精灵表对齐工具</title>
+<title>Sprite Align</title>
 <style>
 /* Theme: neutral graphite (dark) / warm paper (light); one accent, used only for selection and focus. */
 /* Code-editor workbench: syntax colours (purple headings, orange numbers, cyan labels, green actions).
@@ -282,6 +282,18 @@ kbd{color:var(--purple);background:var(--code-bg)}
 #toast{background:var(--panel);color:var(--text);border:1px solid var(--accent);border-radius:3px}
 .seg button{padding:0 8px;min-width:0;flex:1 1 auto}
 #importDlg,#exportDlg{width:640px}
+#exportDlg .dlg-body{max-height:calc(100dvh - 160px);overflow-y:auto}
+#exportDlg .opts>.chk{min-height:28px;white-space:normal;text-wrap:pretty}
+#exportDlg .summary{font-size:11px}
+#exportDlg .summary p{margin:0 0 6px}#exportDlg .summary p:last-child{margin:0}
+#exportDlg .summary .eng{color:var(--purple);font-weight:600}
+.pivot{display:flex;align-items:center;gap:10px}
+.pivot .pair{flex:1}
+.pgrid{display:grid;grid-template-columns:repeat(3,16px);gap:3px;padding:4px;border:1px solid var(--line2);border-radius:4px;background:var(--input);flex-shrink:0}
+.pgrid button{width:16px;height:16px;padding:0;border:1px solid var(--line2);border-radius:50%;background:transparent;cursor:pointer}
+.pgrid button:hover{border-color:var(--accent)}
+.pgrid button.on{background:var(--accent);border-color:var(--accent)}
+@media(pointer:coarse){.pgrid{grid-template-columns:repeat(3,26px)}.pgrid button{width:26px;height:26px}}
 .dlg-body{grid-template-columns:240px minmax(0,1fr)}
 #guides .g{gap:4px}
 #guides .g b{min-width:0;white-space:nowrap}
@@ -384,7 +396,7 @@ button,label,input,select{touch-action:manipulation}
   .preview{height:170px}
   .dlg-foot{flex-wrap:wrap;border-radius:0;padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
   .dlg-foot .hint{display:none}
-  .dlg-foot .btn{height:42px;flex:1}
+  .dlg-foot .btn{height:42px;flex:1 1 auto}
   .dlg-foot .grow{display:none}
   #toast{bottom:auto;top:calc(58px + env(safe-area-inset-top));max-width:calc(100vw - 32px);text-align:center}
 }
@@ -397,7 +409,7 @@ button,label,input,select{touch-action:manipulation}
 <header id="top">
   <div class="brand">
     <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><rect x="1" y="1" width="7" height="7" rx="1.5" fill="currentColor"/><rect x="10" y="1" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.4" opacity=".55"/><rect x="1" y="10" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.4" opacity=".55"/><rect x="10" y="10" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.4" opacity=".55"/></svg>
-    SPRITE / ALIGN<small>v1.6</small>
+    SPRITE / ALIGN<small>v1.7</small>
   </div>
   <span class="path">~/tools/sprite-align</span>
   <button class="btn primary" id="btnImport" title="也可以把文件拖进来，或 Ctrl+V 粘贴">
@@ -511,7 +523,7 @@ button,label,input,select{touch-action:manipulation}
       <div class="sub">跟基准帧一样</div>
       <div class="grid3"><button class="btn" data-align="baseCenter">中心</button><button class="btn" data-align="baseBottom">底边</button><button class="btn" data-align="baseTop">顶边</button><button class="btn" data-align="baseHeight">高度</button><button class="btn" data-align="baseWidth">宽度</button><button class="btn" data-align="copyScale" title="缩放比例同当前帧">同缩放</button></div>
       <div class="sub">其他</div>
-      <div class="grid3"><button class="btn danger" data-align="reset">复位</button></div>
+      <div class="grid3"><button class="btn" data-align="pivot" title="内容的同一相对位置对到导出轴点上（轴点在“导出”里设，比如底部中间＝脚底对齐）">对齐轴点</button><button class="btn danger" data-align="reset">复位</button></div>
       <div class="hint" style="margin-top:10px">都按不透明的内容算，透明留白不算。</div>
     </div>
   </div>
@@ -600,7 +612,17 @@ button,label,input,select{touch-action:manipulation}
   <div class="dlg-body">
     <div class="preview"><canvas id="exPrev"></canvas></div>
     <div class="opts">
-      <div class="field"><label>列数</label><label class="num"><input type="number" id="exCols" min="1" max="64" value="3"><b>列</b></label></div>
+      <div class="seg" id="exLayout"><button data-layout="grid">网格</button><button data-layout="row">横条</button><button data-layout="col">竖条</button></div>
+      <div class="field" id="exColsRow"><label>列数</label><label class="num"><input type="number" id="exCols" min="1" max="64" value="3"><b>列</b></label></div>
+      <div class="field"><label>边距</label><div class="pair">
+        <label class="num" title="整张图四周留白"><i>外</i><input type="number" id="exMargin" min="0" max="256" value="0"><b>px</b></label>
+        <label class="num" title="格子之间的空隙"><i>间</i><input type="number" id="exPad" min="0" max="256" value="0"><b>px</b></label></div></div>
+      <div class="field"><label>轴点</label><div class="pivot">
+        <div class="pgrid" id="pivotGrid"></div>
+        <div class="pair"><label class="num"><i>X</i><input type="number" id="exPx" min="0" max="1" step="0.05" value="0.5"></label><label class="num"><i>Y</i><input type="number" id="exPy" min="0" max="1" step="0.05" value="0.5"></label></div>
+      </div></div>
+      <label class="chk"><input type="checkbox" id="exJson">附带 JSON 帧数据（TexturePacker 格式）</label>
+      <label class="chk"><input type="checkbox" id="exTres">附带 Godot SpriteFrames（.tres）</label>
       <div class="summary" id="exBlender"></div>
     </div>
   </div>
@@ -657,6 +679,22 @@ const I18N={
   '抽帧':['Sample','샘플링'],'每':['Every','매'],'帧取 1 帧':['frames, keep 1','프레임마다 1장'],'每秒':['Per sec','초당'],'时间段':['Range','구간'],
   '从':['From','시작'],'到':['To','끝'],'结尾':['end','끝까지'],'自动裁掉透明边':['Auto-trim transparent edges','투명 여백 자동 자르기'],
   '一次最多 {0} 帧（GIF / 视频）':['Up to {0} frames at a time (GIF / video)','한 번에 최대 {0}프레임 (GIF / 영상)'],
+  '网格':['Grid','격자'],'横条':['Row','가로 줄'],'竖条':['Column','세로 줄'],'边距':['Spacing','여백'],'外':['Out','바깥'],'间':['Gap','간격'],
+  '整张图四周留白':['Empty border around the whole sheet','시트 전체 바깥 여백'],'格子之间的空隙':['Gap between cells','셀 사이 간격'],'轴点':['Pivot','피벗'],
+  '附带 JSON 帧数据（TexturePacker 格式）':['Include JSON frame data (TexturePacker format)','JSON 프레임 데이터 포함 (TexturePacker 형식)'],
+  '附带 Godot SpriteFrames（.tres）':['Include Godot SpriteFrames (.tres)','Godot SpriteFrames 포함 (.tres)'],
+  'Blender 插件要求外边距和间距都是 0，否则切格子会错位。':['The Blender add-on needs margin and gap at 0, otherwise the cells are cut wrong.','Blender 애드온은 바깥 여백과 간격이 0이어야 합니다. 아니면 셀이 어긋나게 잘립니다.'],
+  'Sprite Editor → Slice → Grid By Cell Size：Pixel Size {0}×{1}，Offset {2}, {2}，Padding {3}, {3}，Pivot 选 Custom ({4}, {5})。':
+    ['Sprite Editor → Slice → Grid By Cell Size: Pixel Size {0}×{1}, Offset {2}, {2}, Padding {3}, {3}, Pivot Custom ({4}, {5}).',
+     'Sprite Editor → Slice → Grid By Cell Size: Pixel Size {0}×{1}, Offset {2}, {2}, Padding {3}, {3}, Pivot은 Custom ({4}, {5}).'],
+  'AnimatedSprite2D 直接载入 .tres；Sprite2D 填 Hframes {0}、Vframes {1}{2}。轴点 = Offset ({3}, {4})。':
+    ['AnimatedSprite2D: load the .tres directly. Sprite2D: Hframes {0}, Vframes {1}{2}. Pivot = Offset ({3}, {4}).',
+     'AnimatedSprite2D는 .tres를 바로 불러오고, Sprite2D는 Hframes {0}, Vframes {1}{2}. 피벗 = Offset ({3}, {4}).'],
+  '（需要边距和间距为 0）':[' (needs margin and gap 0)',' (여백·간격 0 필요)'],
+  '勾了帧数据时，精灵表会和 JSON / .tres 打包成一个 zip。':['With frame data checked, the sheet is zipped together with the JSON / .tres.','프레임 데이터를 체크하면 시트와 JSON / .tres를 하나의 zip으로 묶습니다.'],
+  '.tres 和图片要放在 Godot 项目根目录，或打开时按提示重新指定图片。':['Put the .tres and the image in the Godot project root, or re-pick the image when Godot asks.','.tres와 이미지를 Godot 프로젝트 루트에 두거나, 열 때 안내에 따라 이미지를 다시 지정하세요.'],
+  '对齐轴点':['To pivot','피벗 맞춤'],
+  '内容的同一相对位置对到导出轴点上（轴点在“导出”里设，比如底部中间＝脚底对齐）':['Puts the same relative point of the content on the export pivot (set the pivot in Export; bottom-center = feet)','내용의 같은 상대 위치를 내보내기 피벗에 맞춥니다 (피벗은 “내보내기”에서 설정, 아래 가운데 = 발 맞춤)'],
   '更多':['More','더보기'],'左移 1px':['Left 1px','왼쪽 1px'],'上移 1px':['Up 1px','위 1px'],'下移 1px':['Down 1px','아래 1px'],'右移 1px':['Right 1px','오른쪽 1px'],
   '缩小 1%':['Shrink 1%','1% 축소'],'放大 1%':['Grow 1%','1% 확대'],'拖动或点按：展开 / 收起':['Drag or tap: expand / collapse','드래그하거나 탭: 펼치기 / 접기'],
   '列数':['Columns','열 수'],'列':['cols','열'],'每帧单独 PNG（zip）':['Each frame as PNG (zip)','프레임별 PNG (zip)'],'导出精灵表 PNG':['Export sprite sheet PNG','스프라이트 시트 PNG 내보내기'],
@@ -735,7 +773,8 @@ function setLang(l){
 const S={
   cellW:256,cellH:256,frames:[],images:{},guides:[],sel:-1,base:0,mode:'align',
   showCenter:true,safe:0,snap:true,onBase:true,onPrev:false,onAlpha:.35,pixel:false,
-  lockGuides:false,hideGuides:false,refId:null,refAlpha:.4,refTop:false,selGuide:-1
+  lockGuides:false,hideGuides:false,refId:null,refAlpha:.4,refTop:false,selGuide:-1,
+  ex:{layout:'grid',cols:3,margin:0,pad:0,px:.5,py:.5,json:false,tres:false}
 };
 let uid=1;
 const $=id=>document.getElementById(id);
@@ -861,13 +900,23 @@ async function importSheet(file){
   if(first){S.cellW=Math.round(I.w/cols);S.cellH=Math.round(I.h/rows)}
   added.forEach(f=>{fitScale(f);if($('autoTrim').checked)trimCrop(f)});
   S.frames.push(...added);if(S.sel<0)S.sel=0;
-  $('exCols').value=cols;
+  S.ex.cols=cols;
   commit();syncAll();fitView();toast(T('精灵表已切成 {0} 帧（{1}×{2}）',added.length,cols,rows));
 }
 
 // GIF / video: every picked frame becomes an image, then a frame like an imported single image.
 // Phones have far less memory: fewer frames per GIF / video.
 const MAX_MOTION_FRAMES=matchMedia('(pointer: coarse)').matches?120:300;
+// Video frames as PNG waste space in the project file: WebP at high quality (keeps alpha).
+// Where the browser can't encode WebP (Safari returns PNG instead), JPEG for opaque frames;
+// frames with alpha (WebM / HEVC with transparency) stay PNG, since JPEG would turn them black.
+function opaqueURL(canvas){
+  const w=canvas.toDataURL('image/webp',.92);
+  if(w.startsWith('data:image/webp'))return w;
+  const d=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+  for(let i=3;i<d.length;i+=4)if(d[i]<255)return w;
+  return canvas.toDataURL('image/jpeg',.92);
+}
 async function importMotion(file){
   const gif=file.type==='image/gif'||/\.gif$/i.test(file.name);
   let shots;
@@ -877,7 +926,8 @@ async function importMotion(file){
   const first=!S.frames.length,added=[],stem=file.name.replace(/\.[^.]+$/,'');
   for(let i=0;i<shots.length;i++){
     status(T('正在生成帧 {0} / {1}',i+1,shots.length));
-    const I=await addImage(stem+'_'+String(i).padStart(3,'0')+'.png',shots[i].canvas.toDataURL('image/png'));
+    const url=gif?shots[i].canvas.toDataURL('image/png'):opaqueURL(shots[i].canvas);
+    const I=await addImage(stem+'_'+String(i).padStart(3,'0')+'.'+url.slice(11,url.indexOf(';')).replace('jpeg','jpg'),url);
     added.push(newFrame(I.id,{x:0,y:0,w:I.w,h:I.h}));
   }
   if($('autoTrim').checked)added.forEach(trimCrop);
@@ -1008,6 +1058,8 @@ function align(kind){
         if(R.w>0&&R.h>0){const k=kind==='fitBoxW'?box.w/R.w:kind==='fitBoxH'?box.h/R.h:Math.min(box.w/R.w,box.h/R.h);scaleAboutContent(f,k,k)}
         const N=contentRect(f);f.tx+=S.cellW/2-N.cx;f.ty+=S.cellH/2-N.cy;break;
       }
+      // The same relative point of the content (e.g. bottom-centre = feet) lands on the export pivot.
+      case 'pivot':f.tx+=S.ex.px*S.cellW-(R.x0+S.ex.px*R.w);f.ty+=S.ex.py*S.cellH-(R.y0+S.ex.py*R.h);break;
       case 'reset':f.crop={...f.home};f.tx=f.ty=0;fitScale(f);break;
     }
   }
@@ -1081,6 +1133,12 @@ function drawAlign(){
       }
     });
     ctx.restore();
+  }
+  // Export pivot: where the engine will anchor each frame.
+  if(!S.hideGuides){
+    const x=Math.round(sx_(S.ex.px*W))+.5,y=Math.round(sy_(S.ex.py*H))+.5;
+    ctx.save();ctx.strokeStyle=css('--accent');ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);
+    ctx.moveTo(x-10,y);ctx.lineTo(x-6,y);ctx.moveTo(x+6,y);ctx.lineTo(x+10,y);ctx.moveTo(x,y-10);ctx.lineTo(x,y-6);ctx.moveTo(x,y+6);ctx.lineTo(x,y+10);ctx.stroke();ctx.restore();
   }
   if(cur()&&!playing){
     const f=cur(),R=contentRect(f),F=frameRect(f),acc=css('--accent');
@@ -1245,6 +1303,7 @@ function snapFrame(f){
   const tol=6/V().z,R=contentRect(f),xs=[],ys=[];
   if(S.showCenter){xs.push(S.cellW/2);ys.push(S.cellH/2)}
   if(S.safe>0){xs.push(S.safe,S.cellW-S.safe);ys.push(S.safe,S.cellH-S.safe)}
+  xs.push(S.ex.px*S.cellW);ys.push(S.ex.py*S.cellH);
   for(const g of S.guides){
     if(g.type==='v')xs.push(g.x);else if(g.type==='h')ys.push(g.y);
     else{const b=gbox(g);xs.push(b.x,b.x+b.w);ys.push(b.y,b.y+b.h)}
@@ -1323,18 +1382,47 @@ function syncGuideInputs(){
   const rows=$('guides').children;
   S.guides.forEach((g,i)=>{const r=rows[i];if(!r)return;r.querySelectorAll('input[type=number]').forEach(inp=>{if(document.activeElement!==inp)inp.value=g[inp.dataset.k]})});
 }
+// Export layout: grid / one row / one column, outer margin, gap between cells, and the pivot (0–1, from top-left).
+function exLayout(){
+  const n=S.frames.length,E=S.ex,cols=E.layout==='row'?Math.max(1,n):E.layout==='col'?1:Math.max(1,E.cols|0),rows=Math.max(1,Math.ceil(n/cols));
+  const W=S.cellW,H=S.cellH,m=E.margin,p=E.pad;
+  const rects=S.frames.map((_,i)=>({x:m+(i%cols)*(W+p),y:m+Math.floor(i/cols)*(H+p)}));
+  return{cols,rows,rects,w:2*m+cols*W+(cols-1)*p,h:2*m+rows*H+(rows-1)*p};
+}
+const fmt=v=>+(+v).toFixed(3);
 function syncExport(){
-  const n=S.frames.length,cols=Math.max(1,+$('exCols').value|0),rows=Math.max(1,Math.ceil(n/cols));
-  $('exInfo').textContent=n?T('{0} 帧 → {1}×{2} · {3}×{4} px',n,cols,rows,cols*S.cellW,rows*S.cellH):'';
-  $('exBlender').innerHTML=n?T('Blender 插件“添加图片”时填 横 <b>{0}</b>、竖 <b>{1}</b>，末尾空格自动不编号。<br>每帧单独 PNG：在 Blender 里用 1×1 多选导入。',cols,rows):'';
+  const n=S.frames.length,E=S.ex,L=exLayout(),W=S.cellW,H=S.cellH;
+  for(const [id,k] of [['exCols','cols'],['exMargin','margin'],['exPad','pad'],['exPx','px'],['exPy','py']])setVal(id,E[k]);
+  $('exJson').checked=E.json;$('exTres').checked=E.tres;
+  document.querySelectorAll('#exLayout [data-layout]').forEach(b=>b.classList.toggle('on',b.dataset.layout===E.layout));
+  $('exColsRow').style.display=E.layout==='grid'?'':'none';
+  document.querySelectorAll('#pivotGrid button').forEach(b=>{const [x,y]=b.dataset.p.split(',').map(Number);b.classList.toggle('on',Math.abs(x-E.px)<1e-6&&Math.abs(y-E.py)<1e-6)});
+  $('exInfo').textContent=n?T('{0} 帧 → {1}×{2} · {3}×{4} px',n,L.cols,L.rows,L.w,L.h):'';
+  if(n){
+    const gap=E.margin||E.pad,B=s=>'<b>'+s+'</b>',P=s=>'<p>'+s+'</p>';
+    $('exBlender').innerHTML=
+      P('<span class="eng">Blender</span> '+(gap?T('Blender 插件要求外边距和间距都是 0，否则切格子会错位。'):T('Blender 插件“添加图片”时填 横 <b>{0}</b>、竖 <b>{1}</b>，末尾空格自动不编号。<br>每帧单独 PNG：在 Blender 里用 1×1 多选导入。',L.cols,L.rows)))+
+      P('<span class="eng">Unity</span> '+T('Sprite Editor → Slice → Grid By Cell Size：Pixel Size {0}×{1}，Offset {2}, {2}，Padding {3}, {3}，Pivot 选 Custom ({4}, {5})。',B(W),B(H),B(E.margin),B(E.pad),B(fmt(E.px)),B(fmt(1-E.py))))+
+      P('<span class="eng">Godot</span> '+T('AnimatedSprite2D 直接载入 .tres；Sprite2D 填 Hframes {0}、Vframes {1}{2}。轴点 = Offset ({3}, {4})。',B(L.cols),B(L.rows),gap?T('（需要边距和间距为 0）'):'',B(fmt((.5-E.px)*W)),B(fmt((.5-E.py)*H))))+
+      (E.json||E.tres?P(T('勾了帧数据时，精灵表会和 JSON / .tres 打包成一个 zip。')+(E.tres?' '+T('.tres 和图片要放在 Godot 项目根目录，或打开时按提示重新指定图片。'):'')):'');
+  }else $('exBlender').innerHTML='';
   if(!n||!$('exportDlg').open)return;
-  const {canvas}=buildSheet(cols),c=$('exPrev'),d=window.devicePixelRatio||1,k=Math.min(258/canvas.width,218/canvas.height)*d;
+  const {canvas}=buildSheet(),c=$('exPrev'),d=window.devicePixelRatio||1,k=Math.min(238/canvas.width,218/canvas.height)*d;
   c.width=Math.max(1,Math.round(canvas.width*k));c.height=Math.max(1,Math.round(canvas.height*k));c.style.width=c.width/d+'px';
   const g=c.getContext('2d');checkerThumb(g,c.width,c.height);g.imageSmoothingQuality='high';g.drawImage(canvas,0,0,c.width,c.height);
-  g.strokeStyle=css('--accent');g.globalAlpha=.6;g.beginPath();
-  for(let i=1;i<cols;i++){const x=Math.round(i*c.width/cols)+.5;g.moveTo(x,0);g.lineTo(x,c.height)}
-  for(let i=1;i<rows;i++){const y=Math.round(i*c.height/rows)+.5;g.moveTo(0,y);g.lineTo(c.width,y)}
-  g.stroke();
+  // cell outlines + pivot dots
+  g.strokeStyle=css('--accent');g.fillStyle=css('--accent');g.lineWidth=1;
+  for(const r of L.rects){g.globalAlpha=.55;g.strokeRect(Math.round(r.x*k)+.5,Math.round(r.y*k)+.5,Math.round(W*k)-1,Math.round(H*k)-1);
+    g.globalAlpha=1;g.beginPath();g.arc((r.x+E.px*W)*k,(r.y+E.py*H)*k,Math.max(1.5,2*d),0,7);g.fill()}
+}
+{
+  const pg=$('pivotGrid');
+  for(const y of [0,.5,1])for(const x of [0,.5,1]){const b=document.createElement('button');b.dataset.p=x+','+y;b.title=x+', '+y;b.onclick=()=>{S.ex.px=x;S.ex.py=y;syncExport();draw()};pg.appendChild(b)}
+  document.querySelectorAll('#exLayout [data-layout]').forEach(b=>b.onclick=()=>{S.ex.layout=b.dataset.layout;syncExport()});
+  const num=(id,k,lo,hi,int)=>$(id).addEventListener('input',()=>{let v=parseFloat($(id).value);if(!isFinite(v))return;v=Math.max(lo,Math.min(hi,int?Math.round(v):v));S.ex[k]=v;syncExport();draw()});
+  num('exCols','cols',1,64,true);num('exMargin','margin',0,256,true);num('exPad','pad',0,256,true);num('exPx','px',0,1);num('exPy','py',0,1);
+  $('exJson').onchange=e=>{S.ex.json=e.target.checked;syncExport()};
+  $('exTres').onchange=e=>{S.ex.tres=e.target.checked;syncExport()};
 }
 function syncAll(){
   if(S.sel>=S.frames.length)S.sel=S.frames.length-1;if(S.base>=S.frames.length)S.base=Math.max(0,S.frames.length-1);
@@ -1368,7 +1456,6 @@ $('snap').onchange=e=>{S.snap=e.target.checked};
 $('pixel').onchange=e=>{S.pixel=e.target.checked;renderFrames();draw()};
 $('refAlpha').oninput=e=>{S.refAlpha=+e.target.value;draw()};
 $('refTop').onchange=e=>{S.refTop=e.target.checked;draw()};
-$('exCols').oninput=syncExport;
 document.querySelectorAll('[data-align]').forEach(b=>b.onclick=()=>align(b.dataset.align));
 document.querySelectorAll('[data-guide]').forEach(b=>b.onclick=()=>{
   const t=b.dataset.guide,W=S.cellW,H=S.cellH,colors={h:'#36c5ff',v:'#36c5ff',rect:'#c77dff',ellipse:'#7dffb0'};
@@ -1561,22 +1648,49 @@ async function download(blob,name){
     if(navigator.canShare({files:[file]})){try{await navigator.share({files:[file]});return}catch(e){if(e.name==='AbortError')return}}
   }
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
-function buildSheet(cols){
-  const n=S.frames.length,rows=Math.max(1,Math.ceil(n/cols)),c=document.createElement('canvas');c.width=cols*S.cellW;c.height=rows*S.cellH;
+function buildSheet(){
+  const L=exLayout(),c=document.createElement('canvas');c.width=L.w;c.height=L.h;
   const g=c.getContext('2d');
-  S.frames.forEach((f,i)=>{g.save();g.translate((i%cols)*S.cellW,Math.floor(i/cols)*S.cellH);g.beginPath();g.rect(0,0,S.cellW,S.cellH);g.clip();drawFrame(g,f);g.restore()});
-  return{canvas:c,rows};
+  S.frames.forEach((f,i)=>{const r=L.rects[i];g.save();g.translate(r.x,r.y);g.beginPath();g.rect(0,0,S.cellW,S.cellH);g.clip();drawFrame(g,f);g.restore()});
+  return{canvas:c,...L};
 }
+function frameNames(){const w=Math.max(2,String(S.frames.length-1).length);return S.frames.map((_,i)=>T('表情_')+String(i).padStart(w,'0')+'.png')}
+const frameMs=()=>Math.round(1000/Math.max(1,Math.min(60,+$('fps').value||8)));
+// TexturePacker “JSON (Hash)” layout, readable by Unity / Godot / Phaser importers; pivot is 0–1 from top-left.
+function sheetJson(rects,image,w,h){
+  const W=S.cellW,H=S.cellH,frames={},names=frameNames(),ms=frameMs();
+  rects.forEach((r,i)=>{frames[names[i]]={frame:{x:r.x,y:r.y,w:W,h:H},rotated:false,trimmed:false,spriteSourceSize:{x:0,y:0,w:W,h:H},sourceSize:{w:W,h:H},pivot:{x:fmt(S.ex.px),y:fmt(S.ex.py)},duration:ms}});
+  const meta={app:'sprite-align (精灵表对齐工具)',version:'1.7',format:'RGBA8888',scale:'1',frameTags:[{name:'default',from:0,to:rects.length-1,direction:'forward'}]};
+  if(image){meta.image=image;meta.size={w,h};meta.margin=S.ex.margin;meta.spacing=S.ex.pad}
+  return JSON.stringify({frames,meta},null,2);
+}
+// Godot 4 SpriteFrames: one AtlasTexture per cell, animation “default” at the preview speed.
+function godotTres(image,rects){
+  const W=S.cellW,H=S.cellH,fps=Math.max(1,Math.min(60,+$('fps').value||8));
+  let s='[gd_resource type="SpriteFrames" load_steps='+(rects.length+2)+' format=3]\n\n[ext_resource type="Texture2D" path="res://'+image+'" id="1_sheet"]\n\n';
+  rects.forEach((r,i)=>{s+='[sub_resource type="AtlasTexture" id="AtlasTexture_'+i+'"]\natlas = ExtResource("1_sheet")\nregion = Rect2('+r.x+', '+r.y+', '+W+', '+H+')\n\n'});
+  s+='[resource]\nanimations = [{\n"frames": ['+rects.map((_,i)=>'{\n"duration": 1.0,\n"texture": SubResource("AtlasTexture_'+i+'")\n}').join(', ')+'],\n"loop": true,\n"name": &"default",\n"speed": '+fps.toFixed(1)+'\n}]\n';
+  return s;
+}
+const enc=s=>new TextEncoder().encode(s);
 $('exSheet').onclick=async()=>{
-  if(!S.frames.length)return;const cols=Math.max(1,+$('exCols').value|0),{canvas,rows}=buildSheet(cols);
+  if(!S.frames.length)return;const {canvas,cols,rows,rects}=buildSheet();
   // iPhone Safari refuses canvases over ~16.7 megapixels.
   if(canvas.width>16384||canvas.height>16384||(COARSE&&canvas.width*canvas.height>16777216)){toast(T('图太大（超过 16384 px），请减小格子或调整列数'));return}
-  download(await toBlob(canvas),T('精灵表_{0}x{1}.png',cols,rows));dirty=false;toast(T('已导出：横 {0} × 竖 {1}',cols,rows));
+  const png=await toBlob(canvas),name=T('精灵表_{0}x{1}.png',cols,rows),base=name.replace(/\.png$/,'');
+  if(S.ex.json||S.ex.tres){
+    const files=[{name,data:new Uint8Array(await png.arrayBuffer())}];
+    if(S.ex.json)files.push({name:base+'.json',data:enc(sheetJson(rects,name,canvas.width,canvas.height))});
+    if(S.ex.tres)files.push({name:base+'.tres',data:enc(godotTres(name,rects))});
+    download(makeZip(files),base+'.zip');
+  }else download(png,name);
+  dirty=false;toast(T('已导出：横 {0} × 竖 {1}',cols,rows));
 };
 $('exZip').onclick=async()=>{
-  if(!S.frames.length)return;const files=[],w=String(S.frames.length-1).length<2?2:String(S.frames.length-1).length;
-  for(let i=0;i<S.frames.length;i++){const b=await toBlob(renderCell(S.frames[i]));files.push({name:T('表情_')+String(i).padStart(w,'0')+'.png',data:new Uint8Array(await b.arrayBuffer())})}
-  download(makeZip(files),T('表情帧.zip'));dirty=false;toast(T('已导出 {0} 张',files.length));
+  if(!S.frames.length)return;const files=[],names=frameNames();
+  for(let i=0;i<S.frames.length;i++){const b=await toBlob(renderCell(S.frames[i]));files.push({name:names[i],data:new Uint8Array(await b.arrayBuffer())})}
+  if(S.ex.json)files.push({name:'frames.json',data:enc(sheetJson(S.frames.map(()=>({x:0,y:0}))))});
+  download(makeZip(files),T('表情帧.zip'));dirty=false;toast(T('已导出 {0} 张',S.frames.length));
 };
 // Minimal zip writer (stored, no compression); PNG data is already compressed.
 const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
@@ -1602,7 +1716,7 @@ function makeZip(files){
 $('btnSave').onclick=()=>{
   const used=new Set(S.frames.map(f=>f.imageId));if(S.refId)used.add(S.refId);
   const data={app:'精灵表对齐工具',version:1,cellW:S.cellW,cellH:S.cellH,frames:S.frames,guides:S.guides,base:S.base,
-    settings:{showCenter:S.showCenter,safe:S.safe,refId:S.refId,refAlpha:S.refAlpha,refTop:S.refTop,pixel:S.pixel,cols:+$('exCols').value},
+    settings:{showCenter:S.showCenter,safe:S.safe,refId:S.refId,refAlpha:S.refAlpha,refTop:S.refTop,pixel:S.pixel,cols:S.ex.cols,export:S.ex},
     images:[...used].map(id=>({id,name:S.images[id].name,dataURL:S.images[id].dataURL}))};
   download(new Blob([JSON.stringify(data)],{type:'application/json'}),T('表情对齐工程.json'));dirty=false;toast(T('工程已保存（图片也在里面）'));
 };
@@ -1615,7 +1729,8 @@ async function openProject(file){
     for(const im of o.images)await addImage(im.name,im.dataURL,im.id);
     Object.assign(S,{cellW:o.cellW,cellH:o.cellH,frames:o.frames,guides:o.guides||[],base:o.base||0,sel:o.frames.length?0:-1,selGuide:-1});
     const s=o.settings||{};Object.assign(S,{showCenter:s.showCenter!==false,safe:s.safe||0,refId:s.refId||null,refAlpha:s.refAlpha||.4,refTop:!!s.refTop,pixel:!!s.pixel});
-    $('gCenter').checked=S.showCenter;$('gSafe').value=S.safe;$('refAlpha').value=S.refAlpha;$('refTop').checked=S.refTop;$('pixel').checked=S.pixel;if(s.cols)$('exCols').value=s.cols;
+    $('gCenter').checked=S.showCenter;$('gSafe').value=S.safe;$('refAlpha').value=S.refAlpha;$('refTop').checked=S.refTop;$('pixel').checked=S.pixel;
+    S.ex={layout:'grid',cols:3,margin:0,pad:0,px:.5,py:.5,json:false,tres:false,...(s.cols?{cols:s.cols}:{}),...(s.export||{})};
     for(const id of Object.keys(S.images)){const n=+id.slice(1);if(n>=uid)uid=n+1}
     for(const f of S.frames){const n=+f.id.slice(1);if(n>=uid)uid=n+1}
     undoStack.length=redoStack.length=0;lastSnap=null;commit();dirty=false;syncAll();fitView('align');toast(T('已打开：{0} 帧',S.frames.length));

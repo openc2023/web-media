@@ -92,7 +92,7 @@ window.ASCII_DATA = {
             top: ["TOP", "《童趣里的暴力》图像识别 AR"],
             shanhai: ["山海", "水墨与声音的网页作品"],
             arcompare: ["WebAR 对比", "MindAR、8th Wall 与 Zappar 路线实验"],
-            spritealign: ["精灵表对齐工具", "序列帧、精灵表、GIF、视频逐帧对齐，导出精灵表"],
+            spritealign: ["Sprite Align", "序列帧、精灵表、GIF、视频逐帧对齐，导出精灵表"],
             notion: ["作品集", "art717.notion.site/box"]
         },
         companyNote: "在 노이미디어웍스（NEU）参与开发的项目。",
@@ -250,7 +250,7 @@ window.ASCII_DATA = {
             top: ["TOP", "《동심 속의 폭력》 이미지 인식 AR"],
             shanhai: ["산해", "수묵과 소리의 웹 작품"],
             arcompare: ["WebAR 비교", "MindAR, 8th Wall, Zappar 실험"],
-            spritealign: ["스프라이트 정렬 도구", "시퀀스·스프라이트 시트·GIF·영상을 프레임별로 정렬"],
+            spritealign: ["Sprite Align", "시퀀스·스프라이트 시트·GIF·영상을 프레임별로 정렬"],
             notion: ["포트폴리오", "art717.notion.site/box"]
         },
         companyNote: "노이미디어웍스(NEU)에서 개발에 참여한 프로젝트입니다.",

@@ -231,7 +231,7 @@ window.DESK_LANGUAGES = {
       },
       {
         "label": [
-          "精灵表对齐工具",
+          "Sprite Align",
           "序列帧、精灵表、GIF、视频逐帧对齐，导出精灵表"
         ],
         "href": "personal/tools/sprite-align/"
@@ -851,7 +851,7 @@ window.DESK_LANGUAGES = {
       },
       {
         "label": [
-          "스프라이트 정렬 도구",
+          "Sprite Align",
           "시퀀스·스프라이트 시트·GIF·영상을 프레임별로 정렬"
         ],
         "href": "personal/tools/sprite-align/"
