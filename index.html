@@ -1,121 +1,113 @@
-<!doctype html>
-<html lang="zh-CN">
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/svg+xml" href="personal/home/icons/studio7.svg">
-    <link rel="icon" type="image/png" sizes="32x32" href="personal/home/icons/studio7-32.png">
-    <link rel="apple-touch-icon" href="personal/home/icons/studio7-180.png">
-    <title>田漢 · Tian Han</title>
-    <meta name="description" content="田漢 Tian Han — animation researcher, media artist, production director. Busan.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Noto+Serif+SC:wght@400;600;900&family=Noto+Serif+KR:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="personal/home/style.css?v=20261027k">
-    <script>
-        // 默认浅色；访客自己切过的主题优先
-        var t = null; try { t = localStorage.getItem('ascii-theme'); } catch (e) {}
-        document.documentElement.dataset.theme = t || 'light';
-    </script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="icon" type="image/svg+xml" href="personal/home/icons/studio7.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="personal/home/icons/studio7-32.png">
+<link rel="apple-touch-icon" href="personal/home/icons/studio7-180.png">
+<title>田漢 · Tian Han — ~/desk</title>
+<meta name="description" content="田漢 Tian Han — animation researcher, media artist, production director. Busan.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Noto+Serif+SC:wght@400;600;900&family=Noto+Serif+KR:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="personal/desk/styles.css?v=20261103f">
 </head>
 <body>
-    <a class="skip" href="#about">skip</a>
-    <canvas id="bgField" class="bg-field" aria-hidden="true"></canvas>
-    <div class="boot" id="boot" aria-hidden="true"><pre id="bootLog"></pre></div>
+<canvas id="bgField" aria-hidden="true"></canvas>
 
-    <header class="bar">
-        <a class="bar-id" href="#top" aria-label="top"><span class="seal" aria-hidden="true">漢</span><span>TIAN HAN</span></a>
-        <span class="bar-path" aria-hidden="true">~/web-media</span>
-        <span class="bar-fill" aria-hidden="true"><span class="bar-prog" id="barProg"></span></span>
-        <span class="bar-pct" id="barPct" aria-hidden="true">000%</span>
-        <nav class="bar-lang" aria-label="Language">
-            <button type="button" data-lang="zh">中</button>
-            <button type="button" data-lang="en">EN</button>
-            <button type="button" data-lang="ko">한</button>
-        </nav>
-        <button type="button" class="bar-theme" id="themeBtn" aria-label="Toggle theme">◐</button>
-        <span class="bar-clock" id="clock" aria-label="Busan time">--:--</span>
-    </header>
+<div class="app" id="app" data-theme="light" data-layout="scroll">
+  <div class="titlebar">
+    <div class="traffic"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+    <svg class="brand-mark" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M161.001,304C234.469,180.024,367.89,104,512,104s277.531,76.024,350.999,200H161.001z M111.92,432H585L301.519,861.517C154.021,772.693,78.16,600.836,111.92,432z M744,432h168.08c26.899,134.521-15.606,273.554-113.127,370.038s-237.001,137.5-371.226,109.164L744,432z"/></svg>
+    <div class="title">STUDIO 7 <span class="dim">— ~/desk</span></div>
+    <div class="spacer"></div>
+    <div class="language-switch" id="languageSwitch" role="group" aria-label="语言">
+      <button type="button" data-lang="zh" lang="zh-CN" aria-label="中文" aria-pressed="true">中</button>
+      <button type="button" data-lang="en" lang="en" aria-label="English" aria-pressed="false">EN</button>
+      <button type="button" data-lang="ko" lang="ko" aria-label="한국어" aria-pressed="false">한</button>
+    </div>
+    <div class="layouts" id="layouts" role="tablist" aria-label="layout">
+      <button data-layout="file">file</button>
+      <button data-layout="scroll" class="active">scroll</button>
+    </div>
+    <button class="theme-btn" id="themeBtn" title="toggle theme" aria-label="toggle theme">◐</button>
+    <div class="hint">press <b>/</b> to focus</div>
+  </div>
 
-    <section class="hero" id="top">
-        <canvas id="heroCanvas" aria-label="STUDIO 7"></canvas>
-        <div class="hero-veil" aria-hidden="true"></div>
-        <div class="readout" id="readout" aria-hidden="true"></div>
-        <div class="hero-meta">
-            <div class="modes" id="modes" role="radiogroup" aria-label="Render"></div>
-            <p class="hero-hint" data-t="hint"></p>
-        </div>
-        <div class="hero-text">
+  <div class="tabs" id="tabs"></div>
+
+  <div class="workbench">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-head">Explorer</div>
+      <div class="tree" id="tree"></div>
+    </aside>
+
+    <div class="stage">
+      <div class="stage-scroll" id="stageScroll">
+        <section class="hero" id="top">
+          <canvas id="heroCanvas" aria-label="STUDIO 7 点阵标志"></canvas>
+          <div class="hero-veil"></div>
+          <div class="hero-text">
             <p class="cmd"><span class="ps1">$</span> whoami</p>
-            <h1 class="name"><span data-t="name"></span><small data-t="alias"></small></h1>
-            <p class="roles" id="roles"></p>
-            <p class="lead" data-t="lead"></p>
-            <p class="base"><span class="ps1">&gt;</span> <span data-t="base"></span></p>
+            <h1 class="name"><span id="nameMain">田漢</span><small id="alias">TIAN HAN · 动画研究者 · 媒体艺术家</small></h1>
+            <div class="roles" id="roles"></div>
+            <p class="lead" id="lead"></p>
+            <p class="base"><span class="ps1">&gt;</span> <span id="base"></span></p>
             <dl class="stats" id="stats"></dl>
-            <blockquote class="quote"><span data-t="quote"></span></blockquote>
-        </div>
-    </section>
-
-    <main>
-        <nav class="index" id="index" aria-label="Sections"></nav>
-
-        <section class="pane" id="about" data-n="01">
-            <h2 class="pane-h"></h2>
-            <div class="about-body" id="aboutBody"></div>
-            <ul class="tags" id="skills"></ul>
+            <blockquote class="quote" id="quote"></blockquote>
+          </div>
+          <div class="hero-meta">
+            <div class="modes" id="modes" role="radiogroup" aria-label="Render"></div>
+            <p class="hero-hint">移动 = 点亮 · 点击 = 涟漪 · M = 切换渲染</p>
+          </div>
         </section>
+        <div class="sections" id="sections"></div>
+      </div>
 
-        <section class="pane" id="path" data-n="02">
-            <h2 class="pane-h"></h2>
-            <ol class="log" id="pathList"></ol>
-        </section>
-
-        <section class="pane" id="papers" data-n="03">
-            <h2 class="pane-h"></h2>
-            <label class="grep"><span class="ps1">$ grep</span><input id="grepIn" type="search" spellcheck="false" autocomplete="off"><span class="grep-n" id="grepN"></span></label>
-            <ol class="table" id="paperList"></ol>
-        </section>
-
-        <section class="pane" id="works" data-n="04">
-            <h2 class="pane-h"></h2>
-            <ol class="table" id="workList"></ol>
-        </section>
-
-        <section class="pane" id="books" data-n="05">
-            <h2 class="pane-h"></h2>
-            <ol class="table" id="bookList"></ol>
-        </section>
-
-        <section class="pane" id="elsewhere" data-n="06">
-            <h2 class="pane-h"></h2>
-            <ul class="links" id="linkList"></ul>
-        </section>
-
-        <section class="pane" id="company" data-n="07">
-            <h2 class="pane-h"></h2>
-            <p class="pane-note" id="companyNote"></p>
-            <ul class="links" id="companyList"></ul>
-        </section>
-
-        <section class="pane" id="contact" data-n="08">
-            <h2 class="pane-h"></h2>
-            <dl class="contact" id="contactList"></dl>
-        </section>
-    </main>
-
-    <footer class="term">
-        <div class="term-out" id="termOut" aria-live="polite"></div>
-        <form class="term-line" id="termForm" autocomplete="off">
-            <label for="termIn" class="ps1">tianhan@busan:~$</label>
-            <input id="termIn" type="text" spellcheck="false">
+      <div class="cmdline">
+        <div class="term-out" id="termOut"></div>
+        <form class="term-line" id="termForm">
+          <span class="ps1">$</span>
+          <input id="termIn" type="text" spellcheck="false" autocomplete="off" placeholder="type a command — help">
         </form>
-        <p class="foot" data-t="footer"></p>
-    </footer>
+      </div>
+    </div>
+  </div>
 
-    <script src="personal/home/data.js?v=20261027k"></script>
-    <script src="personal/home/fx.js?v=20261027k"></script>
-    <script src="personal/home/hero.js?v=20261027k"></script>
-    <script src="personal/home/bgfield.js?v=20261027k"></script>
-    <script src="personal/home/main.js?v=20261027k"></script>
+  <div class="statusbar">
+    <div class="item branch">main</div>
+    <div class="item" id="statusPct">0%</div>
+    <div class="spacer"></div>
+    <div class="item" id="statusClock">—:—:— KST</div>
+    <div class="item">UTF-8</div>
+    <div class="item" id="statusLayout">layout: scroll</div>
+    <div class="item" id="statusTheme">theme: light</div>
+    <div class="item">zsh</div>
+  </div>
+</div>
+
+<div class="boot" id="boot" data-phase="access" aria-label="STUDIO 7 启动动画">
+  <div class="boot-hud" aria-hidden="true">
+    <div class="boot-hud-top"><span class="boot-brand"><b>[/]</b> STUDIO 7<br>PERSONAL TERMINAL / 001</span><span>TIAN HAN · BUSAN<br>VISUAL SYSTEMS / ONLINE</span></div>
+    <div class="boot-hud-bottom"><span>~/desk<br>UTF-8 · SESSION INITIALIZATION</span></div>
+  </div>
+  <div class="splash">
+    <div class="boot-stage">
+      <div class="boot-scope" aria-hidden="true">
+        <svg class="boot-rings" viewBox="0 0 260 260"><circle class="guide" cx="130" cy="130" r="116"/><circle class="ticks" cx="130" cy="130" r="108"/><circle class="orbit" cx="130" cy="130" r="98"/><circle class="inner" cx="130" cy="130" r="78"/><circle class="node" cx="130" cy="32" r="3"/></svg>
+        <div class="sp-logo"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path pathLength="1" d="M161.001,304C234.469,180.024,367.89,104,512,104s277.531,76.024,350.999,200H161.001z M111.92,432H585L301.519,861.517C154.021,772.693,78.16,600.836,111.92,432z M744,432h168.08c26.899,134.521-15.606,273.554-113.127,370.038s-237.001,137.5-371.226,109.164L744,432z"/></svg></div><span class="boot-coordinate">[ 07 / STUDIO SIGNATURE ]</span>
+      </div>
+      <div><div class="boot-kicker">// SYSTEM INITIALIZATION</div><div class="sp-status" id="spStatus">REQUESTING ACCESS</div><h2 class="sp-welcome"><span id="spTitle" style="font:inherit;letter-spacing:inherit;color:var(--ink);margin:0">STUDIO 7</span><span>CODE · IMAGE · MOTION</span></h2><p class="sp-sub">PERSONAL ARCHIVE / CREATIVE RESEARCH</p></div>
+    </div>
+    <div class="boot-code"><div class="boot-log" id="spLog" aria-hidden="true"></div><div class="boot-count"><span id="spCount">000</span><small>%</small></div></div>
+    <div class="sp-progress" aria-hidden="true"><i id="spBar"></i></div>
+    <div class="boot-rail" aria-hidden="true"><span>ACCESS</span><span>IDENTITY</span><span>MODULES</span><span>SESSION</span></div>
+  </div>
+  <button class="boot-skip" id="spSkip" type="button" aria-label="跳过开场动画">SKIP [ESC]</button>
+</div>
+
+<script src="personal/desk/data.js?v=20261103f"></script>
+<script src="personal/desk/app.js?v=20261103f"></script>
 </body>
 </html>
