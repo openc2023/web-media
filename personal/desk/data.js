@@ -260,6 +260,13 @@ window.DESK_LANGUAGES = {
           "用声音把纸牌（딱지）翻过来的互动游戏，Godot 制作的网页版"
         ],
         "href": "neu/sound-ttakji/"
+      },
+      {
+        "label": [
+          "鬼神系列 Ghost Series",
+          "以鬼怪与民间信仰为题的互动作品集，01 破碎鬼镜：摄像头镜面，脸上浮现鬼脸面具"
+        ],
+        "href": "neu/ghost-series/"
       }
     ],
     "contact": [
@@ -570,6 +577,13 @@ window.DESK_LANGUAGES = {
           "Flip ttakji cards with your voice: a Godot interaction exported for the web"
         ],
         "href": "neu/sound-ttakji/"
+      },
+      {
+        "label": [
+          "Ghost Series",
+          "Interactive works on ghosts and folk belief. 01 Ghost Mirror: a camera mirror that lays a ghost mask over your face"
+        ],
+        "href": "neu/ghost-series/"
       }
     ],
     "contact": [
@@ -880,6 +894,13 @@ window.DESK_LANGUAGES = {
           "목소리로 딱지를 뒤집는 인터랙션, Godot으로 만든 웹 버전"
         ],
         "href": "neu/sound-ttakji/"
+      },
+      {
+        "label": [
+          "귀신 시리즈 Ghost Series",
+          "귀신과 민간 신앙을 소재로 한 인터랙티브 작품 모음. 01 깨지는 귀신 거울: 얼굴 위로 귀신 가면이 떠오르는 카메라 거울"
+        ],
+        "href": "neu/ghost-series/"
       }
     ],
     "contact": [
