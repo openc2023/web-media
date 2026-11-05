@@ -264,7 +264,7 @@ window.DESK_LANGUAGES = {
       {
         "label": [
           "鬼神系列 Ghost Series",
-          "以鬼怪与民间信仰为题的互动作品集，01 破碎鬼镜：摄像头镜面，脸上浮现鬼脸面具"
+          "以鬼怪与民间信仰为题的互动作品集：01 破碎鬼镜 · 02 CCTV 鬼眼"
         ],
         "href": "neu/ghost-series/"
       }
@@ -581,7 +581,7 @@ window.DESK_LANGUAGES = {
       {
         "label": [
           "Ghost Series",
-          "Interactive works on ghosts and folk belief. 01 Ghost Mirror: a camera mirror that lays a ghost mask over your face"
+          "Interactive works on ghosts and folk belief: 01 Ghost Mirror · 02 Ghost CCTV"
         ],
         "href": "neu/ghost-series/"
       }
@@ -898,7 +898,7 @@ window.DESK_LANGUAGES = {
       {
         "label": [
           "귀신 시리즈 Ghost Series",
-          "귀신과 민간 신앙을 소재로 한 인터랙티브 작품 모음. 01 깨지는 귀신 거울: 얼굴 위로 귀신 가면이 떠오르는 카메라 거울"
+          "귀신과 민간 신앙을 소재로 한 인터랙티브 작품 모음: 01 깨지는 귀신 거울 · 02 CCTV 귀신 눈"
         ],
         "href": "neu/ghost-series/"
       }

@@ -27,6 +27,10 @@
   .work h2 { margin: var(--ui-space-1) 0 var(--ui-space-2); font-size: 18px; font-weight: 600; }
   .work p { margin: 0 0 var(--ui-space-3); color: var(--ui-text-muted); font-size: 13px; line-height: 1.6; }
   .tags { display: flex; flex-wrap: wrap; gap: var(--ui-space-1); }
+  /* 监控风格缩略图：黑白、扫描线、角标 */
+  .thumb.cctv { filter: grayscale(1) contrast(1.35); }
+  .thumb.cctv::before { content: ""; position: absolute; inset: 0; z-index: 1; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.35) 0 1px, transparent 1px 3px); }
+  .thumb .rec { position: absolute; z-index: 2; left: 10px; top: 8px; font: 10px var(--ui-font-mono); color: #eee; letter-spacing: 0.06em; text-shadow: 0 0 3px #000; }
   .soon { display: grid; place-items: center; min-height: 220px; border-radius: var(--ui-radius-md); box-shadow: inset 0 0 0 1px var(--ui-line); color: var(--ui-text-faint); font: 12px var(--ui-font-mono); }
   footer { margin-top: var(--ui-space-8); color: var(--ui-text-faint); font: 11px var(--ui-font-mono); }
 </style>
@@ -51,6 +55,17 @@
         <div class="tags"><span class="ui-chip">MediaPipe</span><span class="ui-chip">WebGL</span><span class="ui-chip" data-i="cam"></span></div>
       </div>
     </a>
+    <a class="work" href="cctv-eye/">
+      <div class="thumb cctv" style="background-image:url('cctv-eye/assets/face_veins.gif'); background-size: auto 210%; background-position: center 38%">
+        <span class="rec">CAM 02 ● REC</span>
+      </div>
+      <div class="meta">
+        <div class="no">02</div>
+        <h2 data-i="w2t"></h2>
+        <p data-i="w2d"></p>
+        <div class="tags"><span class="ui-chip">MediaPipe</span><span class="ui-chip">WebGL</span><span class="ui-chip" data-i="cam"></span></div>
+      </div>
+    </a>
     <div class="soon" data-i="soon"></div>
   </div>
 
@@ -60,13 +75,16 @@
   const I18N = {
     zh: { back: "← 返回", title: "鬼神系列", lead: "以韩国、中国鬼怪与民间信仰为题的互动作品。用摄像头、声音和身体触发，在展场里让“看不见的东西”出现。",
       w1t: "破碎鬼镜 Ghost Mirror", w1d: "靠近镜子，镜面慢慢结霜、出现裂痕和污痕，脸上浮现会闪烁的鬼脸面具。", cam: "需要摄像头",
-      soon: "02 · 筹备中", foot: "建议使用桌面版 Chrome 打开；需要允许摄像头。" },
+      w2t: "CCTV 鬼眼 Ghost CCTV", w2d: "黑白监控墙 CAM 01–04 各自锁定一个人，镜头推到双眼，眼睛变成黑洞，然后 NO SIGNAL。",
+      soon: "03 · 筹备中", foot: "建议使用桌面版 Chrome 打开；需要允许摄像头。" },
     en: { back: "← Back", title: "Ghost Series", lead: "Interactive pieces drawn from Korean and Chinese ghost lore and folk belief — triggered by camera, voice and body, letting the unseen appear in the room.",
       w1t: "Ghost Mirror", w1d: "Step close and the mirror slowly frosts, cracks and smears, while a flickering ghost mask settles over your face.", cam: "camera",
-      soon: "02 · in progress", foot: "Best in desktop Chrome; camera access required." },
+      w2t: "Ghost CCTV", w2d: "A black-and-white monitor wall: CAM 01–04 each lock onto a visitor, zoom into the eyes, turn them into black holes — then NO SIGNAL.",
+      soon: "03 · in progress", foot: "Best in desktop Chrome; camera access required." },
     ko: { back: "← 돌아가기", title: "귀신 시리즈", lead: "한국·중국의 귀신과 민간 신앙을 소재로 한 인터랙티브 작품. 카메라, 소리, 몸으로 작동하며 전시장에 ‘보이지 않는 것’을 드러냅니다.",
       w1t: "깨지는 귀신 거울 Ghost Mirror", w1d: "거울에 다가가면 서리와 금, 얼룩이 천천히 번지고 얼굴 위로 깜빡이는 귀신 가면이 떠오릅니다.", cam: "카메라 필요",
-      soon: "02 · 준비 중", foot: "데스크톱 Chrome 권장, 카메라 권한이 필요합니다." },
+      w2t: "CCTV 귀신 눈 Ghost CCTV", w2d: "흑백 모니터 월 CAM 01–04가 각자 한 사람을 잡아 눈까지 줌인하고, 눈이 검은 구멍으로 변한 뒤 NO SIGNAL.",
+      soon: "03 · 준비 중", foot: "데스크톱 Chrome 권장, 카메라 권한이 필요합니다." },
   };
   const pick = () => {
     const q = new URLSearchParams(location.search).get("lang");
