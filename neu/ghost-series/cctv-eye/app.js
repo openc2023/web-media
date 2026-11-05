@@ -39,7 +39,7 @@ const tr = (o) => (typeof o === "string" ? o : o[cfg.lang] || o.zh);
 // ---------- 画布 ----------
 let W = 0, H = 0, DPR = 1;
 function resize() {
-  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  DPR = Math.min(window.devicePixelRatio || 1, matchMedia("(pointer: coarse)").matches ? 1.5 : 2); // 手机像素比太高时限制到 1.5，省性能
   W = innerWidth; H = innerHeight;
   canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
 }
@@ -529,23 +529,28 @@ function stampText() {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
 }
 function drawHud(c, p, now) {
-  const r = c.rect, fs = clamp(Math.round(r.h / 26), 10, 22), m = fs * 0.9;
+  const r = c.rect, fs = clamp(Math.round(Math.min(r.h / 26, r.w / 17)), 10, 22), m = fs * 0.9; // 窄格子按宽度缩字
   ctx.font = `${fs}px "Cascadia Code", Consolas, monospace`; ctx.textBaseline = "top";
   ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 3;
   ctx.fillStyle = "rgba(235,235,235,0.9)";
   ctx.fillText(c.label, r.x + m, r.y + m);
   if ((now / 600 | 0) % 2 === 0) { ctx.fillStyle = "#e33"; ctx.beginPath(); ctx.arc(r.x + m + fs * 5.2, r.y + m + fs * 0.55, fs * 0.3, 0, Math.PI * 2); ctx.fill(); }
   ctx.fillStyle = "rgba(235,235,235,0.9)"; ctx.fillText("REC", r.x + m + fs * 5.7, r.y + m);
-  if (cfg.stamp) { const s = stampText(); ctx.fillText(s, r.x + r.w - m - ctx.measureText(s).width, r.y + m); }
+  if (cfg.stamp) { // 格子太窄（竖屏手机四分屏）时只显示时分秒，免得和 CAM 标签叠在一起
+    let s = stampText(); if (ctx.measureText(s).width > r.w - fs * 9.5) s = s.slice(11);
+    if (ctx.measureText(s).width <= r.w - fs * 9.5) ctx.fillText(s, r.x + r.w - m - ctx.measureText(s).width, r.y + m);
+  }
   const asp = r.w / Math.max(1, r.h), wideH = Math.min(frame.height, frame.width / asp); // 以全景为 ×1
   const zoom = wideH / Math.exp(c.cam.lh);
-  const z = `×${zoom.toFixed(1)}`; ctx.fillText(z, r.x + r.w - m - ctx.measureText(z).width, r.y + r.h - m - fs);
+  const z = `×${zoom.toFixed(1)}`;
   const status = {
     idle: now < c.coolUntil ? "STANDBY" : "MOTION SCAN", lock: "TARGET ACQUIRED", face: `TRACKING · SUBJ ${pad2(p ? p.id % 100 : 0)}`,
     eyes: "OCULAR ZOOM", black: "ANOMALY DETECTED", hold: "ANOMALY DETECTED", lost: "NO SIGNAL", drop: "",
   }[c.phase];
   const blinkStatus = (c.phase === "black" || c.phase === "hold" || c.phase === "lock") && (now / 350 | 0) % 2;
   if (!blinkStatus) ctx.fillText(status, r.x + m, r.y + r.h - m - fs);
+  // 变焦倍数放右下；和状态文字挤不下时不显示
+  if (ctx.measureText(status).width + ctx.measureText(z).width + m * 3 < r.w) ctx.fillText(z, r.x + r.w - m - ctx.measureText(z).width, r.y + r.h - m - fs);
   // 锁定框：在全景 / 推近到脸时框住目标的脸
   if (p && p.slm && (c.phase === "lock" || c.phase === "face")) {
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
@@ -656,6 +661,8 @@ async function startCamera() {
     }
   }
   video.srcObject = stream;
+  // 摄像头被拔掉或被系统中断时自动重连（自己 stop() 不会触发 ended）
+  for (const tr of stream.getVideoTracks()) tr.addEventListener("ended", () => { if (stream && stream.getVideoTracks().includes(tr)) setTimeout(startCamera, 1000); });
   try { await video.play(); } catch {}
   try { cams = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput"); } catch { cams = []; }
   renderCamSelect();
@@ -725,7 +732,9 @@ const TABS = [
     { l: T("声音", "Sound", "소리"), items: [R("volume", T("音量", "Volume", "볼륨"), 0, 1, 0.01)] },
     { l: T("测试", "Test", "테스트"), items: [
       { t: "btns", b: [{ id: "force", l: T("模拟有人", "Simulate", "시뮬레이션"), cls: "primary" }, { id: "resetShow", l: T("重置", "Reset", "초기화"), cls: "danger" }] },
+      { t: "btns", b: [{ id: "fullscreen", l: T("全屏 / 退出全屏", "Fullscreen", "전체화면") }, { id: "closePanel", l: T("关闭设置", "Close panel", "설정 닫기") }] },
       { t: "sub", l: T("快捷键：S 面板 · D 调试 · F 全屏 · P 模拟有人（两张假脸）· R 重置", "Keys: S panel · D debug · F fullscreen · P simulate · R reset", "단축키: S 패널 · D 디버그 · F 전체화면 · P 시뮬레이션 · R 초기화") },
+      { t: "sub", l: T("手机 / 平板：右上角连点三下，或两指按住屏幕 1.2 秒，打开或关闭设置。", "Phone / tablet: triple-tap the top-right corner, or hold two fingers for 1.2 s.", "휴대폰 / 태블릿: 오른쪽 위를 세 번 탭하거나 두 손가락으로 1.2초 누르기.") },
     ] },
   ] },
   { id: "look", l: T("画面", "Image", "화면"), groups: [
@@ -810,9 +819,10 @@ side.addEventListener("click", (e) => {
     for (const s of b.parentElement.children) s.classList.toggle("on", s === b);
     onChange(k); return;
   }
-  if (b.id === "close") openPanel(false);
+  if (b.id === "close" || b.id === "closePanel") openPanel(false);
   else if (b.id === "camRefresh") startCamera();
   else if (b.id === "force") { force = !force; syncButtons(); }
+  else if (b.id === "fullscreen") toggleFullscreen();
   else if (b.id === "resetShow") resetShow();
 });
 let hotClicks = [];
@@ -828,7 +838,7 @@ addEventListener("keydown", (e) => {
   if (k === "s") openPanel(!side.classList.contains("open"));
   else if (k === "escape") openPanel(false);
   else if (k === "d") { cfg.debug = !cfg.debug; saveCfg(); renderPanel(); }
-  else if (k === "f") { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); }
+  else if (k === "f") toggleFullscreen();
   else if (k === "p") { force = !force; syncButtons(); }
   else if (k === "r") resetShow();
 });
@@ -838,6 +848,31 @@ setInterval(() => {
     `<span>faces <b class="v">${faces.length}</b></span><span>tracking <b class="v">${busy}</b></span><span>${fps.toFixed(0)} fps</span>`;
   if (!camError && $("#camInfo") && video.videoWidth && !$("#camInfo").textContent) renderCamSelect();
 }, 250);
+
+// ---------- 手机 / 展场 ----------
+// 防 iOS 双指缩放和长按菜单；屏幕常亮；横竖屏切换、地址栏伸缩时重算画布
+addEventListener("gesturestart", (e) => e.preventDefault());
+addEventListener("contextmenu", (e) => e.preventDefault());
+let wakeLock = null;
+async function keepAwake() {
+  try { if ("wakeLock" in navigator && document.visibilityState === "visible" && !wakeLock) { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); } } catch {}
+}
+document.addEventListener("visibilitychange", keepAwake);
+addEventListener("pointerdown", keepAwake);
+if (window.visualViewport) visualViewport.addEventListener("resize", resize);
+addEventListener("orientationchange", () => setTimeout(resize, 250));
+function toggleFullscreen() {
+  const d = document, el = d.documentElement;
+  if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+  else (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
+}
+// 手机没有键盘：两指按住屏幕 1.2 秒也能打开设置（右上角连点三下同样可以）
+let twoFingerTimer = 0;
+addEventListener("touchstart", (e) => {
+  if (e.touches.length >= 2) { clearTimeout(twoFingerTimer); twoFingerTimer = setTimeout(() => openPanel(!side.classList.contains("open")), 1200); }
+}, { passive: true });
+addEventListener("touchend", () => clearTimeout(twoFingerTimer), { passive: true });
+addEventListener("touchcancel", () => clearTimeout(twoFingerTimer), { passive: true });
 
 // ---------- 启动 ----------
 async function loadModel() {

@@ -44,7 +44,7 @@ const tr = (o) => (typeof o === "string" ? o : o[cfg.lang] || o.zh);
 // ---------- 画布与视图 ----------
 let W = 0, H = 0, DPR = 1;
 function resize() {
-  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  DPR = Math.min(window.devicePixelRatio || 1, matchMedia("(pointer: coarse)").matches ? 1.5 : 2); // 手机像素比太高时限制到 1.5，省性能
   W = innerWidth; H = innerHeight;
   canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
   fxLayer.width = canvas.width; fxLayer.height = canvas.height;
@@ -1468,6 +1468,8 @@ async function startCamera() {
     }
   }
   video.srcObject = stream;
+  // 摄像头被拔掉或被系统中断时自动重连（自己 stop() 不会触发 ended）
+  for (const tr of stream.getVideoTracks()) tr.addEventListener("ended", () => { if (stream && stream.getVideoTracks().includes(tr)) setTimeout(startCamera, 1000); });
   try { await video.play(); } catch {}
   try { cams = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput"); } catch { cams = []; }
   renderCamSelect();
@@ -1581,7 +1583,9 @@ const TABS = [
         { id: "jumpFull", l: T("直接满级", "Jump to full", "바로 최대") },
         { id: "resetShow", l: T("重置", "Reset", "초기화"), cls: "danger" },
       ] },
+      { t: "btns", b: [{ id: "fullscreen", l: T("全屏 / 退出全屏", "Fullscreen", "전체화면") }, { id: "closePanel", l: T("关闭设置", "Close panel", "설정 닫기") }] },
       { t: "sub", l: T("快捷键：S 面板 · D 调试 · F 全屏 · P 模拟有人 · R 重置", "Keys: S panel · D debug · F fullscreen · P simulate · R reset", "단축키: S 패널 · D 디버그 · F 전체화면 · P 시뮬레이션 · R 초기화") },
+      { t: "sub", l: T("手机 / 平板：右上角连点三下，或两指按住屏幕 1.2 秒，打开或关闭设置。", "Phone / tablet: triple-tap the top-right corner, or hold two fingers for 1.2 s.", "휴대폰 / 태블릿: 오른쪽 위를 세 번 탭하거나 두 손가락으로 1.2초 누르기.") },
     ] },
   ] },
 ];
@@ -1666,11 +1670,12 @@ side.addEventListener("click", (e) => {
     for (const s of b.parentElement.children) s.classList.toggle("on", s === b);
     onChange(k); return;
   }
-  if (b.id === "close") openPanel(false);
+  if (b.id === "close" || b.id === "closePanel") openPanel(false);
   else if (b.id === "camRefresh") startCamera();
   else if (b.id === "resetView") { for (const k of ["rot", "tilt", "mirror", "flipY", "fit", "zoom", "offX", "offY"]) cfg[k] = DEFAULTS[k]; saveCfg(); renderPanel(); }
   else if (b.id === "force") { force = !force; syncButtons(); }
   else if (b.id === "jumpFull") level = 1;
+  else if (b.id === "fullscreen") toggleFullscreen();
   else if (b.id === "resetShow") { level = 0; resetFx(); }
 });
 
@@ -1688,7 +1693,7 @@ addEventListener("keydown", (e) => {
   if (k === "s") openPanel(!side.classList.contains("open"));
   else if (k === "escape") openPanel(false);
   else if (k === "d") { cfg.debug = !cfg.debug; saveCfg(); renderPanel(); }
-  else if (k === "f") { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); }
+  else if (k === "f") toggleFullscreen();
   else if (k === "p") { force = !force; syncButtons(); }
   else if (k === "r") { level = 0; resetFx(); }
 });
@@ -1700,6 +1705,31 @@ setInterval(() => {
     `<span>faces <b class="v">${faces.length}</b></span><span>${track}</span><span>level <b class="v">${(level * 100).toFixed(0)}%</b></span><span>${fps.toFixed(0)} fps</span>`;
   if (!camError && $("#camInfo") && video.videoWidth && !$("#camInfo").textContent) renderCamSelect();
 }, 250);
+
+// ---------- 手机 / 展场 ----------
+// 防 iOS 双指缩放和长按菜单；屏幕常亮；横竖屏切换、地址栏伸缩时重算画布
+addEventListener("gesturestart", (e) => e.preventDefault());
+addEventListener("contextmenu", (e) => e.preventDefault());
+let wakeLock = null;
+async function keepAwake() {
+  try { if ("wakeLock" in navigator && document.visibilityState === "visible" && !wakeLock) { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); } } catch {}
+}
+document.addEventListener("visibilitychange", keepAwake);
+addEventListener("pointerdown", keepAwake);
+if (window.visualViewport) visualViewport.addEventListener("resize", resize);
+addEventListener("orientationchange", () => setTimeout(resize, 250));
+function toggleFullscreen() {
+  const d = document, el = d.documentElement;
+  if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+  else (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
+}
+// 手机没有键盘：两指按住屏幕 1.2 秒也能打开设置（右上角连点三下同样可以）
+let twoFingerTimer = 0;
+addEventListener("touchstart", (e) => {
+  if (e.touches.length >= 2) { clearTimeout(twoFingerTimer); twoFingerTimer = setTimeout(() => openPanel(!side.classList.contains("open")), 1200); }
+}, { passive: true });
+addEventListener("touchend", () => clearTimeout(twoFingerTimer), { passive: true });
+addEventListener("touchcancel", () => clearTimeout(twoFingerTimer), { passive: true });
 
 // ---------- 启动 ----------
 async function loadSegmenter(fs) {
