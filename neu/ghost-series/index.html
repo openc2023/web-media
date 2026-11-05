@@ -3,88 +3,199 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ghost Series</title>
-<link rel="stylesheet" href="../neu-ui/index.css">
+<title>Ghost Case Bureau</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Noto+Serif+SC:wght@500;700;900&family=Noto+Serif+KR:wght@500;700;900&display=swap" rel="stylesheet">
 <style>
-  html, body { margin: 0; min-height: 100%; background: var(--ui-bg); color: var(--ui-text); font-family: var(--ui-font-sans); }
-  body { background: radial-gradient(ellipse at 50% -10%, rgba(140, 240, 200, 0.07), transparent 60%), var(--ui-bg); }
-  .wrap { max-width: 960px; margin: 0 auto; padding: var(--ui-space-8) var(--ui-space-4) var(--ui-space-8); }
-  .top { display: flex; align-items: center; justify-content: space-between; gap: var(--ui-space-3); margin-bottom: var(--ui-space-8); }
-  .back { color: var(--ui-text-faint); text-decoration: none; font: 12px var(--ui-font-mono); }
-  .back:hover { color: var(--ui-text); }
-  .lang { display: flex; gap: 2px; padding: 2px; border-radius: var(--ui-radius-sm); box-shadow: var(--ui-shadow-line); }
-  .lang button { border: 0; background: transparent; color: var(--ui-text-faint); font: 11px var(--ui-font-mono); padding: 4px 9px; border-radius: var(--ui-radius-xs); cursor: pointer; }
-  .lang button.on { background: var(--ui-surface-3); color: var(--ui-text); }
-  h1 { margin: var(--ui-space-2) 0 var(--ui-space-3); font-size: clamp(28px, 6vw, 44px); letter-spacing: -0.02em; font-weight: 600; }
-  .lead { max-width: 620px; margin: 0 0 var(--ui-space-8); color: var(--ui-text-muted); line-height: 1.7; }
-  .works { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--ui-space-4); }
-  .work { display: block; color: inherit; text-decoration: none; border-radius: var(--ui-radius-md); overflow: hidden; background: var(--ui-surface-1); box-shadow: var(--ui-shadow-panel); transition: transform .15s, box-shadow .15s; }
-  .work:hover { transform: translateY(-2px); box-shadow: var(--ui-shadow-panel), var(--ui-shadow-glow); }
-  .thumb { aspect-ratio: 4 / 3; background: #000 center / cover no-repeat; position: relative; }
-  .thumb::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 55%, rgba(4, 5, 6, 0.9)); }
-  .meta { padding: var(--ui-space-4); }
-  .no { font: 11px var(--ui-font-mono); color: var(--ui-mint); letter-spacing: 0.08em; }
-  .work h2 { margin: var(--ui-space-1) 0 var(--ui-space-2); font-size: 18px; font-weight: 600; }
-  .work p { margin: 0 0 var(--ui-space-3); color: var(--ui-text-muted); font-size: 13px; line-height: 1.6; }
-  .tags { display: flex; flex-wrap: wrap; gap: var(--ui-space-1); }
-  /* 监控风格缩略图：黑白、扫描线、角标 */
-  .thumb.cctv { filter: grayscale(1) contrast(1.35); }
-  .thumb.cctv::before { content: ""; position: absolute; inset: 0; z-index: 1; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.35) 0 1px, transparent 1px 3px); }
-  .thumb .rec { position: absolute; z-index: 2; left: 10px; top: 8px; font: 10px var(--ui-font-mono); color: #eee; letter-spacing: 0.06em; text-shadow: 0 0 3px #000; }
-  .soon { display: grid; place-items: center; min-height: 220px; border-radius: var(--ui-radius-md); box-shadow: inset 0 0 0 1px var(--ui-line); color: var(--ui-text-faint); font: 12px var(--ui-font-mono); }
-  footer { margin-top: var(--ui-space-8); color: var(--ui-text-faint); font: 11px var(--ui-font-mono); }
+  /* 鬼神事件调查局 · 案卷档案：暗室 + 手电光 + 牛皮纸档案卡 + 黑白证物照 + 红色印章 */
+  :root {
+    --night: #0b0a09; --paper: #e6dcc4; --paper-2: #d9ccae; --ink: #2a241c; --ink-dim: #5c5142;
+    --red: #a3231b; --tape: rgba(236, 226, 196, 0.55); --glow: #f3e6c0;
+    --type: "Special Elite", "Courier New", monospace;
+    --serif: "Noto Serif SC", "Noto Serif KR", serif;
+  }
+  :root:lang(ko) { --serif: "Noto Serif KR", "Noto Serif SC", serif; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body { background: var(--night); color: var(--glow); font-family: var(--serif); overflow-x: hidden; }
+  /* 胶片颗粒 */
+  body::before { content: ""; position: fixed; inset: -50%; z-index: 0; pointer-events: none; opacity: 0.07;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation: grain 0.6s steps(3) infinite; }
+  @keyframes grain { 0% { transform: translate(0, 0); } 33% { transform: translate(-3%, 2%); } 66% { transform: translate(2%, -3%); } }
+  /* 手电筒：跟着鼠标的光圈，其余压暗 */
+  .torch { position: fixed; inset: 0; z-index: 3; pointer-events: none;
+    background: radial-gradient(circle 460px at var(--x, 50%) var(--y, 32%), rgba(0,0,0,0) 0, rgba(0,0,0,0.38) 55%, rgba(0,0,0,0.72) 100%); }
+  .wrap { position: relative; z-index: 2; max-width: 1080px; margin: 0 auto; padding: 48px 20px 64px; }
+
+  header { display: flex; align-items: center; gap: 18px; }
+  .seal { width: 76px; height: 76px; flex-shrink: 0; color: var(--red); filter: drop-shadow(0 0 12px rgba(163,35,27,0.35)); }
+  .bureau { font-family: var(--type); letter-spacing: 0.14em; font-size: 13px; color: #c9b98f; line-height: 1.7; }
+  .bureau b { display: block; color: var(--glow); font-size: 18px; letter-spacing: 0.18em; font-weight: 400; }
+  .lang { margin-left: auto; display: flex; gap: 4px; font-family: var(--type); }
+  .lang button { background: none; border: 1px solid #4a4235; color: #b8a982; padding: 4px 9px; font: inherit; font-size: 12px; cursor: pointer; }
+  .lang button.on { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+
+  .intro { margin: 56px 0 44px; max-width: 680px; }
+  .kicker { font-family: var(--type); color: var(--red); letter-spacing: 0.3em; font-size: 13px; }
+  h1 { margin: 10px 0 16px; font-size: clamp(40px, 8vw, 72px); font-weight: 900; letter-spacing: 0.04em; color: var(--glow);
+    text-shadow: 0 0 22px rgba(243,230,192,0.18); }
+  .lead { margin: 0; color: #c8bc9c; line-height: 1.9; font-size: 15px; }
+
+  .cases { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 40px 34px; }
+  /* 档案卡 */
+  .case { position: relative; display: block; color: var(--ink); text-decoration: none; padding: 22px 20px 20px;
+    background:
+      radial-gradient(ellipse at 20% 10%, rgba(255,255,255,0.35), transparent 55%),
+      radial-gradient(ellipse at 85% 90%, rgba(120,90,40,0.18), transparent 60%),
+      linear-gradient(var(--paper), var(--paper-2));
+    box-shadow: 0 14px 34px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(80,60,30,0.15);
+    transform: rotate(var(--r, -0.8deg)); transition: transform .25s ease, box-shadow .25s ease; }
+  .case:nth-child(2n) { --r: 1deg; }
+  .case:hover { transform: rotate(0) translateY(-6px); box-shadow: 0 22px 44px rgba(0,0,0,0.7), inset 0 0 0 1px rgba(80,60,30,0.15); }
+  /* 档案夹的标签页 */
+  .case::before { content: attr(data-no); position: absolute; top: -18px; left: 16px; padding: 3px 14px 2px; font: 12px var(--type);
+    letter-spacing: 0.12em; color: var(--ink); background: var(--paper-2); border-radius: 4px 4px 0 0; }
+  .head { display: flex; justify-content: space-between; font: 11px var(--type); letter-spacing: 0.12em; color: var(--ink-dim);
+    border-bottom: 1px dashed rgba(42,36,28,0.35); padding-bottom: 8px; }
+  .head .conf { color: var(--red); }
+  /* 证物照：统一黑白旧照处理 + 宝丽来白边 + 胶带 */
+  .photo { position: relative; margin: 18px auto 16px; width: 88%; padding: 9px 9px 30px; background: #f4efe2;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.35); transform: rotate(var(--pr, 1.6deg)); }
+  .case:nth-child(2n) .photo { --pr: -1.8deg; }
+  .photo .img { aspect-ratio: 4 / 3; background: #111 center / cover no-repeat; position: relative; overflow: hidden;
+    filter: grayscale(1) sepia(0.28) contrast(1.25) brightness(0.92); }
+  .photo .img::after { content: ""; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.55)),
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0 1px, transparent 1px 3px); }
+  .photo .cap { position: absolute; left: 12px; right: 12px; bottom: 7px; font: 12px var(--type); color: #4a4033; letter-spacing: 0.08em; }
+  .photo::before { content: ""; position: absolute; z-index: 2; top: -12px; left: 50%; width: 96px; height: 24px; margin-left: -48px;
+    background: var(--tape); transform: rotate(-3deg); box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
+  .case h2 { margin: 4px 0 10px; font-size: 22px; font-weight: 900; letter-spacing: 0.02em; }
+  .case h2 small { display: block; font: 12px var(--type); letter-spacing: 0.14em; color: var(--ink-dim); font-weight: 400; margin-top: 2px; }
+  .fields { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.6; }
+  .fields td { padding: 4px 0; vertical-align: top; border-top: 1px solid rgba(42,36,28,0.14); }
+  .fields td:first-child { width: 4.8em; color: var(--ink-dim); font-family: var(--type); font-size: 12px; letter-spacing: 0.06em; }
+  .skull { letter-spacing: 2px; color: var(--red); }
+  /* 红色印章 */
+  .stamp { position: absolute; z-index: 3; right: 10px; top: 41%; padding: 6px 12px; border: 3px double var(--red); color: var(--red);
+    font: 15px var(--type); letter-spacing: 0.2em; transform: rotate(-14deg); opacity: 0.82; mix-blend-mode: multiply;
+    background: radial-gradient(circle at 30% 40%, rgba(163,35,27,0.06), transparent 70%); text-transform: uppercase; }
+  .stamp small { display: block; font-size: 10px; letter-spacing: 0.1em; text-align: center; }
+  .open-hint { display: inline-block; margin-top: 12px; font: 13px var(--type); letter-spacing: 0.12em; color: var(--red); }
+  .case:hover .open-hint { text-decoration: underline; }
+  /* 封存中的档案 */
+  .sealed { position: relative; min-height: 420px; display: grid; place-items: center; text-align: center; padding: 24px;
+    background: linear-gradient(#2a251d, #1c1913); box-shadow: 0 14px 34px rgba(0,0,0,0.6); transform: rotate(0.6deg); overflow: hidden; color: #8f8166; }
+  /* 封条和文字都转同一个角度、压在正中 */
+  .sealed::before { content: ""; position: absolute; left: -20%; right: -20%; top: calc(50% - 24px); height: 48px; background: var(--red); opacity: 0.88;
+    transform: rotate(-18deg); box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+  .sealed span { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%) rotate(-18deg); font: 14px var(--type); letter-spacing: 0.3em; color: #f1e3c2; }
+  .sealed p { position: absolute; left: 0; right: 0; bottom: 22px; margin: 0; font: 12px var(--type); letter-spacing: 0.12em; }
+
+  footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid #2c271f; font: 12px var(--type); letter-spacing: 0.08em; color: #7d715a; line-height: 1.9; }
+  @media (max-width: 640px) {
+    .wrap { padding: 28px 16px 48px; }
+    header { flex-wrap: wrap; }
+    .seal { width: 56px; height: 56px; }
+    .intro { margin: 36px 0 32px; }
+    .cases { gap: 40px; }
+    .torch { background: radial-gradient(circle 70vmax at 50% 20%, rgba(0,0,0,0) 0, rgba(0,0,0,0.5) 100%); }
+  }
+  @media (prefers-reduced-motion: reduce) { body::before { animation: none; } .case, .case:hover { transition: none; } }
 </style>
 </head>
 <body>
+<div class="torch" aria-hidden="true"></div>
 <div class="wrap">
-  <div class="top">
-    <a class="back" href="../../" data-i="back"></a>
+  <header>
+    <svg class="seal" viewBox="0 0 100 100" aria-hidden="true">
+      <defs><path id="ring" d="M50,50 m-38,0 a38,38 0 1,1 76,0 a38,38 0 1,1 -76,0"/></defs>
+      <circle cx="50" cy="50" r="47" fill="none" stroke="currentColor" stroke-width="2.5"/>
+      <circle cx="50" cy="50" r="29" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text font-family="Special Elite, monospace" font-size="9.2" letter-spacing="2.2" fill="currentColor"><textPath href="#ring">GHOST CASE BUREAU · EST. 2026 ·</textPath></text>
+      <text x="50" y="62" text-anchor="middle" font-family="Noto Serif SC, serif" font-weight="900" font-size="34" fill="currentColor">鬼</text>
+    </svg>
+    <div class="bureau"><b data-i="org"></b><span data-i="orgSub"></span></div>
     <div class="lang"><button data-l="zh">中</button><button data-l="en">EN</button><button data-l="ko">한</button></div>
-  </div>
-  <div class="ui-eyebrow">NEU · SERIES</div>
-  <h1 data-i="title"></h1>
-  <p class="lead" data-i="lead"></p>
+  </header>
 
-  <div class="works">
-    <a class="work" href="ghost-mirror/">
-      <div class="thumb" style="background-image:url('ghost-mirror/assets/face_blink.gif'); background-size: auto 125%; background-position: center 35%"></div>
-      <div class="meta">
-        <div class="no">01</div>
-        <h2 data-i="w1t"></h2>
-        <p data-i="w1d"></p>
-        <div class="tags"><span class="ui-chip">MediaPipe</span><span class="ui-chip">WebGL</span><span class="ui-chip" data-i="cam"></span></div>
-      </div>
+  <section class="intro">
+    <div class="kicker" data-i="kicker"></div>
+    <h1 data-i="title"></h1>
+    <p class="lead" data-i="lead"></p>
+  </section>
+
+  <section class="cases">
+    <a class="case" href="ghost-mirror/" data-no="GS-001">
+      <div class="head"><span data-i="file"></span><span class="conf" data-i="conf"></span></div>
+      <div class="photo"><div class="img" style="background-image:url('ghost-mirror/assets/face_base.webp'); background-size: auto 175%; background-position: center 36%"></div><div class="cap">EVIDENCE #01</div></div>
+      <h2><span data-i="c1t"></span><small>GHOST MIRROR</small></h2>
+      <table class="fields">
+        <tr><td data-i="fSite"></td><td data-i="c1site"></td></tr>
+        <tr><td data-i="fWhat"></td><td data-i="c1what"></td></tr>
+        <tr><td data-i="fRisk"></td><td><span class="skull">☠☠☠</span>☠☠</td></tr>
+        <tr><td data-i="fNeed"></td><td data-i="need"></td></tr>
+      </table>
+      <div class="stamp"><span data-i="contained"></span><small>CONTAINED</small></div>
+      <span class="open-hint" data-i="open"></span>
     </a>
-    <a class="work" href="cctv-eye/">
-      <div class="thumb cctv" style="background-image:url('cctv-eye/assets/face_veins.gif'); background-size: auto 210%; background-position: center 38%">
-        <span class="rec">CAM 02 ● REC</span>
-      </div>
-      <div class="meta">
-        <div class="no">02</div>
-        <h2 data-i="w2t"></h2>
-        <p data-i="w2d"></p>
-        <div class="tags"><span class="ui-chip">MediaPipe</span><span class="ui-chip">WebGL</span><span class="ui-chip" data-i="cam"></span></div>
-      </div>
+
+    <a class="case" href="cctv-eye/" data-no="GS-002">
+      <div class="head"><span data-i="file"></span><span class="conf" data-i="conf"></span></div>
+      <div class="photo"><div class="img" style="background-image:url('cctv-eye/assets/face_veins.gif'); background-size: auto 210%; background-position: center 38%"></div><div class="cap">CAM 02 · 00:13:07</div></div>
+      <h2><span data-i="c2t"></span><small>GHOST CCTV</small></h2>
+      <table class="fields">
+        <tr><td data-i="fSite"></td><td data-i="c2site"></td></tr>
+        <tr><td data-i="fWhat"></td><td data-i="c2what"></td></tr>
+        <tr><td data-i="fRisk"></td><td><span class="skull">☠☠☠☠</span>☠</td></tr>
+        <tr><td data-i="fNeed"></td><td data-i="need"></td></tr>
+      </table>
+      <div class="stamp"><span data-i="active"></span><small>UNDER INVESTIGATION</small></div>
+      <span class="open-hint" data-i="open"></span>
     </a>
-    <div class="soon" data-i="soon"></div>
-  </div>
+
+    <div class="sealed"><span data-i="sealed"></span><p>GS-003</p></div>
+  </section>
 
   <footer data-i="foot"></footer>
 </div>
 <script>
   const I18N = {
-    zh: { back: "← 返回", title: "鬼神系列", lead: "以韩国、中国鬼怪与民间信仰为题的互动作品。用摄像头、声音和身体触发，在展场里让“看不见的东西”出现。",
-      w1t: "破碎鬼镜 Ghost Mirror", w1d: "靠近镜子，镜面慢慢结霜、出现裂痕和污痕，脸上浮现会闪烁的鬼脸面具。", cam: "需要摄像头",
-      w2t: "CCTV 鬼眼 Ghost CCTV", w2d: "黑白监控墙 CAM 01–04 各自锁定一个人，镜头推到双眼，眼睛变成黑洞，然后 NO SIGNAL。",
-      soon: "03 · 筹备中", foot: "建议使用桌面版 Chrome 打开；需要允许摄像头。" },
-    en: { back: "← Back", title: "Ghost Series", lead: "Interactive pieces drawn from Korean and Chinese ghost lore and folk belief — triggered by camera, voice and body, letting the unseen appear in the room.",
-      w1t: "Ghost Mirror", w1d: "Step close and the mirror slowly frosts, cracks and smears, while a flickering ghost mask settles over your face.", cam: "camera",
-      w2t: "Ghost CCTV", w2d: "A black-and-white monitor wall: CAM 01–04 each lock onto a visitor, zoom into the eyes, turn them into black holes — then NO SIGNAL.",
-      soon: "03 · in progress", foot: "Best in desktop Chrome; camera access required." },
-    ko: { back: "← 돌아가기", title: "귀신 시리즈", lead: "한국·중국의 귀신과 민간 신앙을 소재로 한 인터랙티브 작품. 카메라, 소리, 몸으로 작동하며 전시장에 ‘보이지 않는 것’을 드러냅니다.",
-      w1t: "깨지는 귀신 거울 Ghost Mirror", w1d: "거울에 다가가면 서리와 금, 얼룩이 천천히 번지고 얼굴 위로 깜빡이는 귀신 가면이 떠오릅니다.", cam: "카메라 필요",
-      w2t: "CCTV 귀신 눈 Ghost CCTV", w2d: "흑백 모니터 월 CAM 01–04가 각자 한 사람을 잡아 눈까지 줌인하고, 눈이 검은 구멍으로 변한 뒤 NO SIGNAL.",
-      soon: "03 · 준비 중", foot: "데스크톱 Chrome 권장, 카메라 권한이 필요합니다." },
+    zh: {
+      org: "鬼神事件调查局", orgSub: "GHOST CASE BUREAU · 案卷档案室",
+      kicker: "CASE ARCHIVE / 鬼神系列", title: "鬼神系列",
+      lead: "本局收录的异常事件案卷。每一件都发生在展场里，需要你亲自到场、正面面对它，才会显现。请按编号依次调阅。",
+      file: "案卷", conf: "机密", fSite: "现场", fWhat: "现象", fRisk: "危险等级", fNeed: "调查装备", need: "摄像头 · 桌面版 Chrome",
+      c1t: "破碎鬼镜", c1site: "展厅尽头的一面镜子", c1what: "靠近者的倒影开始结霜、龟裂，脸上浮现不属于自己的面孔。",
+      c2t: "CCTV 鬼眼", c2site: "监控室 · CAM 01–04", c2what: "摄像头自行锁定来访者，推近到双眼——眼睛变成了黑洞，随后信号中断。",
+      contained: "已收容", active: "调查中", open: "调阅案卷 →",
+      sealed: "封存中 · 待解禁",
+      foot: "本局不对调阅后发生的任何异常现象负责。调阅时需允许摄像头；画面只在本机处理，不会上传。",
+    },
+    en: {
+      org: "GHOST CASE BUREAU", orgSub: "Paranormal Case Archive",
+      kicker: "CASE ARCHIVE / GHOST SERIES", title: "Ghost Series",
+      lead: "Anomalous incidents on file with the Bureau. Each one happens in the exhibition room and only shows itself when you stand in front of it. Review in order.",
+      file: "CASE FILE", conf: "CONFIDENTIAL", fSite: "Site", fWhat: "Event", fRisk: "Threat", fNeed: "Equipment", need: "Camera · desktop Chrome",
+      c1t: "Ghost Mirror", c1site: "A mirror at the end of the gallery", c1what: "The visitor's reflection frosts over and cracks; a face that is not theirs surfaces.",
+      c2t: "Ghost CCTV", c2site: "Control room · CAM 01–04", c2what: "Cameras lock onto visitors on their own and zoom into the eyes — the eyes turn into black holes. Then the signal dies.",
+      contained: "Contained", active: "Active", open: "Open case file →",
+      sealed: "SEALED · PENDING RELEASE",
+      foot: "The Bureau accepts no responsibility for anomalies that occur after review. Camera access required; video is processed locally and never uploaded.",
+    },
+    ko: {
+      org: "귀신사건조사국", orgSub: "GHOST CASE BUREAU · 사건 기록 보관실",
+      kicker: "CASE ARCHIVE / 귀신 시리즈", title: "귀신 시리즈",
+      lead: "본국이 보관 중인 이상 사건 기록입니다. 모두 전시장에서 일어나며, 직접 그 앞에 마주 서야만 모습을 드러냅니다. 번호 순서대로 열람하십시오.",
+      file: "사건 파일", conf: "기밀", fSite: "현장", fWhat: "현상", fRisk: "위험 등급", fNeed: "조사 장비", need: "카메라 · 데스크톱 Chrome",
+      c1t: "깨지는 귀신 거울", c1site: "전시실 끝의 거울 하나", c1what: "다가선 사람의 모습에 서리와 금이 번지고, 자신의 것이 아닌 얼굴이 떠오릅니다.",
+      c2t: "CCTV 귀신 눈", c2site: "관제실 · CAM 01–04", c2what: "카메라가 스스로 방문자를 잡아 눈까지 줌인합니다 — 눈이 검은 구멍으로 변하고, 신호가 끊깁니다.",
+      contained: "수용 완료", active: "조사 중", open: "사건 파일 열람 →",
+      sealed: "봉인 중 · 해제 대기",
+      foot: "본국은 열람 후 발생하는 어떠한 이상 현상에도 책임지지 않습니다. 카메라 권한이 필요하며, 영상은 기기 안에서만 처리되고 업로드되지 않습니다.",
+    },
   };
   const pick = () => {
     const q = new URLSearchParams(location.search).get("lang");
@@ -101,6 +212,9 @@
   }
   for (const b of document.querySelectorAll(".lang button")) b.onclick = () => apply(b.dataset.l);
   apply(pick());
+  // 手电筒光圈跟着鼠标
+  const torch = document.querySelector(".torch");
+  addEventListener("pointermove", (e) => { torch.style.setProperty("--x", e.clientX + "px"); torch.style.setProperty("--y", e.clientY + "px"); });
 </script>
 </body>
 </html>
