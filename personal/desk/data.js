@@ -231,10 +231,10 @@ window.DESK_LANGUAGES = {
       },
       {
         "label": [
-          "Sprite Align",
-          "序列帧、精灵表、GIF、视频逐帧对齐，导出精灵表"
+          "07 Tools",
+          "离线小工具集合：Sprite Align 等，在浏览器本地运行"
         ],
-        "href": "personal/tools/sprite-align/"
+        "href": "https://openc2023.github.io/07tools/"
       },
       {
         "label": [
@@ -541,10 +541,10 @@ window.DESK_LANGUAGES = {
       },
       {
         "label": [
-          "Sprite Align",
-          "Align sequences, sprite sheets, GIFs and video frame by frame"
+          "07 Tools",
+          "Offline tools such as Sprite Align, running locally in your browser"
         ],
-        "href": "personal/tools/sprite-align/"
+        "href": "https://openc2023.github.io/07tools/"
       },
       {
         "label": [
@@ -851,10 +851,10 @@ window.DESK_LANGUAGES = {
       },
       {
         "label": [
-          "Sprite Align",
-          "시퀀스·스프라이트 시트·GIF·영상을 프레임별로 정렬"
+          "07 Tools",
+          "Sprite Align 등 브라우저에서 로컬로 실행되는 오프라인 도구"
         ],
-        "href": "personal/tools/sprite-align/"
+        "href": "https://openc2023.github.io/07tools/"
       },
       {
         "label": [

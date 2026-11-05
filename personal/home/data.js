@@ -27,7 +27,7 @@ window.ASCII_DATA = {
             { href: "personal/works/top/", key: "top" },
             { href: "personal/works/shanhai/", key: "shanhai" },
             { href: "personal/works/ar-compare/", key: "arcompare" },
-            { href: "personal/tools/sprite-align/", key: "spritealign" },
+            { href: "https://openc2023.github.io/07tools/", key: "tools" },
             { href: "https://art717.notion.site/box", key: "notion", external: true }
         ]
     },
@@ -92,7 +92,7 @@ window.ASCII_DATA = {
             top: ["TOP", "《童趣里的暴力》图像识别 AR"],
             shanhai: ["山海", "水墨与声音的网页作品"],
             arcompare: ["WebAR 对比", "MindAR、8th Wall 与 Zappar 路线实验"],
-            spritealign: ["Sprite Align", "序列帧、精灵表、GIF、视频逐帧对齐，导出精灵表"],
+            tools: ["07 Tools", "离线小工具集合：Sprite Align 等，在浏览器本地运行"],
             notion: ["作品集", "art717.notion.site/box"]
         },
         companyNote: "在 노이미디어웍스（NEU）参与开发的项目。",
@@ -171,7 +171,7 @@ window.ASCII_DATA = {
             top: ["TOP", "Image-tracking AR, Violence in Childlike Play"],
             shanhai: ["Shanhai", "Ink and sound on the web"],
             arcompare: ["WebAR compare", "MindAR, 8th Wall and Zappar tests"],
-            spritealign: ["Sprite Align", "Align sequences, sprite sheets, GIFs and video frame by frame"],
+            tools: ["07 Tools", "Offline tools such as Sprite Align, running locally in your browser"],
             notion: ["Portfolio", "art717.notion.site/box"]
         },
         companyNote: "Projects developed at 노이미디어웍스 (NEU).",
@@ -250,7 +250,7 @@ window.ASCII_DATA = {
             top: ["TOP", "《동심 속의 폭력》 이미지 인식 AR"],
             shanhai: ["산해", "수묵과 소리의 웹 작품"],
             arcompare: ["WebAR 비교", "MindAR, 8th Wall, Zappar 실험"],
-            spritealign: ["Sprite Align", "시퀀스·스프라이트 시트·GIF·영상을 프레임별로 정렬"],
+            tools: ["07 Tools", "Sprite Align 등 브라우저에서 로컬로 실행되는 오프라인 도구"],
             notion: ["포트폴리오", "art717.notion.site/box"]
         },
         companyNote: "노이미디어웍스(NEU)에서 개발에 참여한 프로젝트입니다.",
