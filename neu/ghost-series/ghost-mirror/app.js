@@ -1575,9 +1575,9 @@ const TABS = [
     ] },
     { l: T("脸部追踪", "Face tracking", "얼굴 추적"), items: [
       R("smooth", T("防抖", "Stabilize", "떨림 보정"), 0.2, 5, 0.1, "Hz"),
-      R("faceConf", T("人脸置信度", "Face confidence", "얼굴 신뢰도"), 0.1, 0.95, 0.05),
-
       { t: "sub", l: T("数值越小越稳，但跟随会慢一点；快速移动时自动放开。", "Lower = steadier but laggier; loosens on fast moves.", "작을수록 안정적이지만 조금 늦게 따라갑니다.") },
+      R("faceConf", T("人脸置信度", "Face confidence", "얼굴 신뢰도"), 0.1, 0.95, 0.05),
+      { t: "sub", l: T("越低越容易认出侧脸、远处、暗处的脸，但更容易误认；越高越严。人脸模型不给每张脸单独的分数，叠加里显示的是当前门槛。", "Lower finds side / far / dark faces more easily but with more false hits; higher is stricter. The face model gives no per-face score, so the overlay shows the current threshold.", "낮을수록 옆얼굴·먼 얼굴·어두운 얼굴을 잘 찾지만 오검출이 늘고, 높을수록 엄격합니다. 얼굴 모델은 얼굴별 점수를 주지 않아 오버레이에는 현재 기준값이 표시됩니다.") },
       C("occlusion", T("遮挡（头发 / 手 / 眼镜）", "Occlusion (hair / hands / glasses)", "가림 (머리카락 / 손 / 안경)")),
       { t: "sub", l: T("用多类分割只在脸部皮肤上画裂痕。打开“显示关键点”可看到遮罩。", "Cracks only on face-skin pixels. Turn on landmarks to see the mask.", "얼굴 피부 픽셀에만 금을 그립니다. 랜드마크 표시로 마스크 확인.") },
     ] },
@@ -1867,7 +1867,7 @@ async function loadModel() {
 // 人脸模型的三个置信度一起调（检测 / 存在 / 跟踪）；改了立刻生效，不用重新加载
 const faceConfOpts = () => ({ minFaceDetectionConfidence: cfg.faceConf, minFacePresenceConfidence: cfg.faceConf, minTrackingConfidence: cfg.faceConf });
 function applyFaceConf() { for (const m of [landmarker, tileLm]) if (m) m.setOptions(faceConfOpts()).catch((e) => console.warn(e)); }
-
+async function loadLandmarker(mode, fs) {
   fs = fs || await FilesetResolver.forVisionTasks(WASM_URL);
   const asset = await modelAsset("face_landmarker.task", MODEL_URL);
   const opts = (delegate) => ({
