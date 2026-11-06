@@ -174,7 +174,8 @@ function mergeFar(base, now) {
     roiFaces = [];
     for (const c of cells) {
       const p = c.pid != null && people.find((q) => q.id === c.pid);
-      if (p && (!p.seen || p.width < 0.12)) roiFaces.push(...detectCrop(roiRect(p)));
+      // 刚丢过脸的人（3 秒内）也继续裁，免得整幅画面时找到时找不到、脸一闪一闪
+      if (p && (!p.seen || p.width < 0.12 || now - (p.missAt || -1e9) < 3000)) roiFaces.push(...detectCrop(roiRect(p)));
     }
   } catch (e) { console.warn(e); }
   // 合并去重：整幅画面的结果优先，其次每帧裁的，最后是轮流扫的块
@@ -189,11 +190,13 @@ function mergeFar(base, now) {
 // 低头、只露头顶的人，人脸模型找不到。先用人头模型找出所有人头，格子先追头；
 // 被追的头每帧裁一块找脸（mergeFar），找到脸就接着走原来的流程。
 // 所有格子都追上有脸的人时不再跑人头检测，省性能。
+const FACE_PER_HEAD = 0.76; // 脸宽（两颊）÷ 人头框宽，实测 0.75–0.77
 const HEAD_MODELS = { nano: "yolo-head-nano.onnx", medium: "yolo-head-medium.onnx" };
 let headSess = null, headName = "", headEP = "", headLoading = false, headFailed = false, headBusy = false, headAt = 0, headMs = 0, heads = [], headErr = "";
 const headC = document.createElement("canvas"); headC.width = headC.height = 640;
 const hctx = headC.getContext("2d", { willReadFrequently: true });
-const headGrace = () => Math.max(2000, cfg.headEvery * 3000);
+// 人头框多久算过期：至少 2 秒，并且跟着实际检测耗时走（慢的电脑一轮要几秒，固定 2 秒会在下一轮结果出来前把人全删掉）
+const headGrace = () => Math.max(2000, cfg.headEvery * 3000, (cfg.headEvery * 1000 + headMs) * 2.5);
 function loadScript(src) { return new Promise((ok, no) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
 async function ensureHead() {
   if (cfg.headDet === "off" || headLoading) return null;
@@ -244,10 +247,29 @@ function headTiles() {
 }
 // 头框对上已有的人（有脸的人鼻尖在头框里）；对不上就新建一个“只有人头”的人
 function applyHeads(hs, now) {
-  for (const h of hs) {
-    let best = null, bd = 1e9;
-    for (const p of people) { const d = Math.hypot(p.cx - h.cx, p.cy - h.cy); if (d < Math.max(h.w, p.width) * 0.8 && d < bd) { bd = d; best = p; } }
-    if (best) { best.hb = h; best.headAt = now; if (!best.seen) { best.cx = h.cx; best.cy = h.cy; best.width = h.w; } continue; }
+  // 一对一：按距离从近到远配对，挨得近的两个人不会抢同一个头框
+  const pairs = [];
+  // 有脸的人：头框大小要和脸对得上（脸宽的 0.7–3 倍），不然鼻子附近的小误检会被当成他的头
+  hs.forEach((h, hi) => people.forEach((p, pi) => {
+    const d = Math.hypot(p.cx - h.cx, p.cy - h.cy), sizeOk = !p.seen || (h.w >= p.width * 0.7 && h.w <= p.width * 3);
+    if (sizeOk && d < Math.max(h.w, p.width) * 0.8) pairs.push([d, hi, pi]);
+  }));
+  pairs.sort((a, b) => a[0] - b[0]);
+  const usedH = new Set(), usedP = new Set();
+  for (const [, hi, pi] of pairs) {
+    if (usedH.has(hi) || usedP.has(pi)) continue;
+    usedH.add(hi); usedP.add(pi);
+    const h = hs[hi], p = people[pi]; p.hb = h; p.headAt = now; p.headMiss = 0;
+    if (!p.seen) { p.cx = h.cx; p.cy = h.cy; p.width = h.w; }
+  }
+  // 只有人头的人，连续两轮人头检测都没再找到 → 人已经走了，马上过期（不用等过期时间）
+  people.forEach((p, pi) => {
+    if (usedP.has(pi) || !p.hb || faceFresh(p, now)) return;
+    if ((p.headMiss = (p.headMiss || 0) + 1) >= 2) p.headAt = -1e9;
+  });
+  for (let hi = 0; hi < hs.length; hi++) {
+    if (usedH.has(hi)) continue;
+    const h = hs[hi];
     people.push({ id: nextPersonId++, lm: null, slm: null, sm: null, cx: h.cx, cy: h.cy, width: h.w, yaw: NaN, near: false, frontal: false, ok: false,
       lastSeen: -1e9, seen: false, hb: h, headAt: now, tex: ["base", "veins"][Math.random() * 2 | 0], eyeRef: [0, 0] });
   }
@@ -255,7 +277,8 @@ function applyHeads(hs, now) {
 function headTick(now) {
   if (cfg.headDet === "off" || headBusy || now - headAt < cfg.headEvery * 1000 || !frame.width) return;
   // 每一格都已经追上有脸的人：不用再找头
-  const need = visibleCells().some((c) => { const p = c.pid != null && people.find((q) => q.id === c.pid); return !p || !p.seen; });
+  // （脸闪一两帧不算丢；用 faceFresh，不然一个人的脸时有时无就会让人头检测一直跑）
+  const need = visibleCells().some((c) => { const p = c.pid != null && people.find((q) => q.id === c.pid); return !p || !faceFresh(p, now); });
   if (!need) return;
   headBusy = true; headAt = now;
   (async () => {
@@ -302,7 +325,7 @@ function updatePeople(now, fresh) {
       if (usedP.has(pi) || usedF.has(fi)) continue;
       usedP.add(pi); usedF.add(fi); Object.assign(people[pi], pickFace(faces[fi]), { lastSeen: now, seen: true });
     }
-    people.forEach((p, pi) => { if (!usedP.has(pi)) p.seen = false; });
+    people.forEach((p, pi) => { if (!usedP.has(pi)) { if (p.seen) p.missAt = now; p.seen = false; } });
     faces.forEach((f, fi) => {
       if (usedF.has(fi)) return;
       people.push({ id: nextPersonId++, ...pickFace(f), lastSeen: now, seen: true, sm: null, slm: null,
@@ -581,11 +604,12 @@ function stepCam(c, tgt, dt) {
 }
 
 function updateCells(now, dt) {
-  // 分配：空闲的格子去追离得最近、还没被追的合格的人
+  // 合格 = 够近，同一把尺子：看得到脸 → 脸宽 ≥ 近距离阈值，而且要正脸；
+  // 只有人头 → 头框宽 × 0.76 ≥ 近距离阈值（实测脸宽约为头框的 0.76），同一个人抬头、低头判断一样，也不受人头检测暂停影响。
+  // 在合格的人里随机挑，刚被追完的人 20 秒内先不挑（只剩他时照挑）
   const taken = new Set(cells.filter((c) => c.pid != null).map((c) => c.pid));
-  const headOk = (p) => cfg.headDet !== "off" && headFresh(p, now) && p.hb.w >= cfg.nearRatio * 0.8;
-  // 合格 = 够近（脸够大，或只有人头时头框够大）；在合格的人里随机挑，刚被追完的人 20 秒内先不挑（只剩他时照挑）
-  const free = people.filter((p) => !taken.has(p.id) && ((p.ok && p.seen) || (!p.seen && headOk(p))));
+  const headOk = (p) => cfg.headDet !== "off" && headFresh(p, now) && p.hb.w * FACE_PER_HEAD >= cfg.nearRatio;
+  const free = people.filter((p) => !taken.has(p.id) && (p.seen ? p.frontal && p.near : headOk(p)));
   const pickFree = () => {
     const fresh = free.filter((p) => !(now - (p.doneAt || -1e9) < 20000)), pool = fresh.length ? fresh : free;
     const p = pool[Math.random() * pool.length | 0]; free.splice(free.indexOf(p), 1); return p;
@@ -617,8 +641,9 @@ function updateCells(now, dt) {
     } else if (p) {
       // 近距离只用来挑人；锁定以后只看是不是正脸（从人头接上的脸往往偏小，不能再卡大小）。
       // 转头太多 / 只有人头（低头）时暂停计时、停在原处等；暂停累计超过 headWait 就放掉这个人，换别人
-      const headOnly = !p.seen && headFresh(p, now);
-      const go = (p.seen && p.frontal) || (headOnly && c.phase === "lock");
+      // 脸偶尔一两帧没检测到（0.4 秒内）照算有脸，不暂停
+      const hasFace = faceFresh(p, now), headOnly = !hasFace && headFresh(p, now);
+      const go = (hasFace && p.frontal) || (headOnly && c.phase === "lock");
       if (go) c.t += dt;
       c.stall = go ? 0 : (c.stall || 0) + dt;
       if (c.stall > cfg.headWait) { c.phase = "lost"; c.t = 0; c.stall = 0; sndStatic(1.2, 0.3); }
@@ -1245,7 +1270,7 @@ async function loadModel(mode = "VIDEO") {
   const fs = await FilesetResolver.forVisionTasks(WASM_URL);
   const asset = await modelAsset("face_landmarker.task", MODEL_URL);
   const opts = (delegate) => ({
-    baseOptions: { ...asset, delegate }, runningMode: mode, numFaces: 5,
+    baseOptions: { ...asset, delegate }, runningMode: mode, numFaces: 8,
     outputFacialTransformationMatrixes: true, outputFaceBlendshapes: false, ...faceConfOpts(),
   });
   try { return await FaceLandmarker.createFromOptions(fs, opts("GPU")); }
@@ -1257,5 +1282,5 @@ startCamera();
 loadFaceAssets().catch((e) => console.warn("黑眼贴图不可用", e));
 loadModel().then((lm) => { landmarker = lm; }).catch((e) => { camError = "model: " + e.message; openPanel(true); renderCamSelect(); });
 // 调试用：控制台里 __cctv 查看状态
-window.__cctv = { cells, get people() { return people; }, get faces() { return faces; }, FACE_TEX, cfg, glC, detectCrop, tileRects };
+window.__cctv = { cells, get people() { return people; }, get faces() { return faces; }, FACE_TEX, cfg, glC, detectCrop, tileRects, get head() { return { at: headAt, n: heads.length, ms: headMs, ep: headEP, name: headName, err: headErr, failed: headFailed, mode: farMode() }; } };
 requestAnimationFrame(loop);
