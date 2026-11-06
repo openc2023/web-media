@@ -21,7 +21,7 @@ const DEFAULTS = {
   lang: "zh", deviceId: "", res: "720",
   rot: 0, tilt: 0, mirror: true, flipY: false, fit: "cover", zoom: 1, offX: 0, offY: 0,
   bright: 1, contrast: 1, sat: 1, sheen: 0.5, vignette: 0.6,
-  nearRatio: 0.18, yawLimit: 45, lostGrace: 0.5, recede: 8, smooth: 1.2, occlusion: true, debug: false, mesh: false,
+  nearRatio: 0.18, scan: "off", yawLimit: 45, lostGrace: 0.5, recede: 8, smooth: 1.2, occlusion: true, debug: false, mesh: false,
   build: 30, frost: true, frostAmt: 0.85, stains: true, stainAmt: 0.75, cracks: true, crackCount: 6,
   light: true, lightAmt: 1, lightMode: "random", lightFlicker: true, ghostMask: true, maskTex: "random", maskAmt: 0.92, maskOffY: 0, maskScale: 1, maskGrow: 1, edgeFeather: 0.25, mouthLock: 1, maskFlicker: true, flickRate: 1,
   jumpFlash: true, jumpRate: 1, crackAmt: 0.9, maxFaces: 3, idleFx: 0.6, glitch: true, glitchRate: 1, pale: true, paleAmt: 0.85, faceCracks: true, expr: true, exprAmt: 1, eyes: true, volume: 0.7, ambience: true,
@@ -412,6 +412,53 @@ function analyze(res) {
   return out;
 }
 
+// ---------- 远距离：分块检测 ----------
+// 整幅画面送进模型会被缩小，远处的小脸（只占画面宽 5% 左右）检测不到。
+// 打开后把画面切成几块、每帧轮流检测一块；已经找到的小脸再每帧在他附近裁一块精确跟踪。
+let tileLm = null, tileLoading = false, tileIdx = 0, tileFaces = [], roiFaces = [];
+const tileC = document.createElement("canvas"), tctx = tileC.getContext("2d");
+function tileRects() {
+  const [nx, ny] = cfg.scan === "3x2" ? [3, 2] : [2, 2], ov = 1.3, out = [];
+  const w = Math.min(1, ov / nx), h = Math.min(1, ov / ny);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++)
+    out.push({ x: clamp((i + 0.5) / nx - w / 2, 0, 1 - w), y: clamp((j + 0.5) / ny - h / 2, 0, 1 - h), w, h });
+  return out;
+}
+function roiRect(p) { // 以鼻尖为中心、约 3.5 倍脸宽的方块
+  const fw = frame.width, fh = frame.height, side = clamp(p.width * fw * 3.5, 160, Math.min(fw, fh));
+  const w = side / fw, h = side / fh;
+  return { x: clamp(p.cx - w / 2, 0, 1 - w), y: clamp(p.cy - h / 2, 0, 1 - h), w, h };
+}
+function detectCrop(r) {
+  const fw = frame.width, fh = frame.height, sw = r.w * fw, sh = r.h * fh, k = Math.min(1, 640 / Math.max(sw, sh));
+  tileC.width = Math.round(sw * k); tileC.height = Math.round(sh * k);
+  tctx.drawImage(frame, r.x * fw, r.y * fh, sw, sh, 0, 0, tileC.width, tileC.height);
+  const res = tileLm.detect(tileC);
+  const lms = (res.faceLandmarks || []).map((l) => l.map((q) => ({ x: r.x + q.x * r.w, y: r.y + q.y * r.h, z: q.z * r.w })));
+  return analyze({ faceLandmarks: lms, facialTransformationMatrixes: res.facialTransformationMatrixes, faceBlendshapes: res.faceBlendshapes });
+}
+function mergeFar(base, now) {
+  if (cfg.scan === "off") return base;
+  if (!tileLm) {
+    if (!tileLoading) { tileLoading = true; loadLandmarker("IMAGE").then((m) => { tileLm = m; }).catch((e) => { console.warn("分块检测模型加载失败", e); tileLoading = false; }); }
+    return base;
+  }
+  const rects = tileRects();
+  try {
+    tileIdx = (tileIdx + 1) % rects.length;
+    tileFaces[tileIdx] = { t: now, faces: detectCrop(rects[tileIdx]) };
+    tileFaces.length = rects.length;
+    roiFaces = [];
+    for (const p of people.filter((q) => q.seen && q.width < 0.12).slice(0, 4)) roiFaces.push(...detectCrop(roiRect(p)));
+  } catch (e) { console.warn(e); }
+  // 合并去重：整幅画面的结果优先，其次每帧裁的，最后是轮流扫的块
+  const all = [...base];
+  const add = (f) => { if (!all.some((g) => Math.hypot(g.cx - f.cx, g.cy - f.cy) < Math.max(g.width, f.width) * 0.6)) all.push(f); };
+  roiFaces.forEach(add);
+  for (const tf of tileFaces) if (tf && now - tf.t < rects.length * 70 + 250) tf.faces.forEach(add);
+  return all;
+}
+
 // 多人跟踪：每张脸按位置匹配到已有的人；新出现的人拿到新的随机面相和自己的进度
 const pickFace = (f) => ({ lm: f.lm, cx: f.cx, cy: f.cy, width: f.width, yaw: f.yaw, smile: f.smile, near: f.near, frontal: f.frontal, ok: f.ok });
 function newPerson(f, now) {
@@ -426,7 +473,7 @@ function updatePeople(now, dt, fresh) {
   if (fresh) {
     const pairs = [];
     people.forEach((p, pi) => faces.forEach((f, fi) => {
-      const d = Math.hypot(f.cx - p.cx, f.cy - p.cy); if (d < 0.15) pairs.push([d, pi, fi]);
+      const d = Math.hypot(f.cx - p.cx, f.cy - p.cy); if (d < clamp(p.width * 1.2, 0.03, 0.15)) pairs.push([d, pi, fi]); // 匹配距离跟脸大小走
     }));
     pairs.sort((a, b) => a[0] - b[0]);
     const usedP = new Set(), usedF = new Set();
@@ -1406,6 +1453,7 @@ function loop() {
   if (ok && landmarker && video.currentTime !== lastVideoTime) {
     lastVideoTime = video.currentTime; fresh = true;
     try { faces = analyze(landmarker.detectForVideo(frame, now)); } catch (e) { console.warn(e); faces = []; }
+    faces = mergeFar(faces, now);
     if (force && !faces.length && canonVerts) faces = [fakeFace(now)];
     fakeActive = faces.length > 0 && !!faces[0].fake; // 假脸下面没有真皮肤，遮罩不适用
   }
@@ -1506,7 +1554,9 @@ const TABS = [
   ] },
   { id: "detect", l: T("识别", "Detect", "인식"), groups: [
     { l: T("距离", "Distance", "거리"), n: T("脸宽 / 画面宽", "face / frame", "얼굴 / 화면"), items: [
-      R("nearRatio", T("近距离阈值", "Near threshold", "근거리 기준"), 0.05, 0.45, 0.01),
+      R("nearRatio", T("近距离阈值", "Near threshold", "근거리 기준"), 0.02, 0.45, 0.005),
+      { t: "seg", k: "scan", l: T("远距离检测", "Far detection", "원거리 검출"), o: [{ v: "off", l: T("关", "Off", "끔") }, { v: "2x2", l: "2×2" }, { v: "3x2", l: "3×2" }] },
+      { t: "sub", l: T("摄像头离人远、脸很小时打开：画面切块轮流检测，找到的小脸每帧在附近裁一块跟踪。阈值同时调到 0.03–0.05。更吃性能。", "For far cameras with tiny faces: scans the frame in tiles and re-crops each found face every frame. Lower the threshold to 0.03–0.05. Heavier.", "카메라가 멀고 얼굴이 작을 때: 화면을 나눠 검출하고 찾은 얼굴은 매 프레임 주변을 잘라 추적합니다. 기준을 0.03–0.05로 낮추세요. 더 무겁습니다.") },
       { t: "sub", l: T("脸宽小于阈值视为远处，不推进演出。现场用调试叠加看 w 值再调。", "Faces narrower than this count as far away.", "이 값보다 작으면 먼 사람으로 보고 연출을 진행하지 않습니다.") },
     ] },
     { l: T("朝向", "Facing", "방향"), n: "yaw", items: [
@@ -1741,9 +1791,13 @@ async function loadModel() {
   const fs = await FilesetResolver.forVisionTasks(WASM_URL);
   // 分割模型单独加载，失败只是没有遮挡，不影响主流程
   loadSegmenter(fs).then((s) => { segmenter = s; }).catch((e) => console.warn("分割模型加载失败，只用脸轮廓裁剪", e));
+  return loadLandmarker("VIDEO", fs);
+}
+async function loadLandmarker(mode, fs) {
+  fs = fs || await FilesetResolver.forVisionTasks(WASM_URL);
   const opts = (delegate) => ({
     baseOptions: { modelAssetPath: MODEL_URL, delegate },
-    runningMode: "VIDEO", numFaces: 5,
+    runningMode: mode, numFaces: 5,
     outputFacialTransformationMatrixes: true, outputFaceBlendshapes: true,
     minFaceDetectionConfidence: 0.5, minTrackingConfidence: 0.5,
   });
@@ -1757,6 +1811,6 @@ renderPanel();
 startCamera();
 loadFaceAssets().catch((e) => console.warn("鬼脸贴图不可用", e));
 // 调试用：控制台里 __gm 查看状态
-window.__gm = { get people() { return people; }, FACE_TEX, get faceReady() { return faceReady; }, get gl() { return gl; }, glC, cfg };
+window.__gm = { get people() { return people; }, get faces() { return faces; }, FACE_TEX, get faceReady() { return faceReady; }, get gl() { return gl; }, glC, cfg };
 loadModel().then((lm) => { landmarker = lm; }).catch((e) => { camError = "model: " + e.message; openPanel(true); renderCamSelect(); });
 requestAnimationFrame(loop);

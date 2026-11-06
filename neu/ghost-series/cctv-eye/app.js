@@ -18,9 +18,9 @@ const wrapAng = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 // ---------- 参数 ----------
 const DEFAULTS = {
   lang: "zh", deviceId: "", res: "1080", rot: 0, mirror: false, flipY: false, layout: "quad", stamp: true,
-  nearRatio: 0.15, yawLimit: 45, lostGrace: 0.8, smooth: 1.2, debug: false, mesh: false,
+  nearRatio: 0.15, scan: "off", yawLimit: 45, lostGrace: 0.8, smooth: 1.2, debug: false, mesh: false,
   tLock: 1.2, tFace: 3, tEyes: 3, tBlack: 2.5, tHold: 4, cooldown: 5,
-  faceFrame: 1.5, eyeFill: 0.62, follow: 2.6, hunt: 0.5,
+  faceFrame: 1.5, eyeFill: 0.62, follow: 2.6, hunt: 0.5, vary: 0.7,
   eyeTex: "random", eyeAmt: 1, eyeRadius: 1.2, eyeLock: true,
   pixel: 400, contrast: 1.3, bright: 1, noise: 0.35, scan: 0.45, vignette: 0.7, glitchRate: 1, dropRate: 1,
   volume: 0.7,
@@ -128,12 +128,62 @@ function analyze(res) {
   return out;
 }
 
+// ---------- 远距离：分块检测 ----------
+// 整幅画面送进模型会被缩小，远处的小脸（只占画面宽 5% 左右）检测不到。
+// 打开后把画面切成几块、每帧轮流检测一块；正在被追的小脸再每帧在他附近裁一块精确跟踪。
+let tileLm = null, tileLoading = false, tileIdx = 0, tileFaces = [], roiFaces = [];
+const tileC = document.createElement("canvas"), tctx = tileC.getContext("2d");
+function tileRects() {
+  const [nx, ny] = cfg.scan === "3x2" ? [3, 2] : [2, 2], ov = 1.3, out = [];
+  const w = Math.min(1, ov / nx), h = Math.min(1, ov / ny);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++)
+    out.push({ x: clamp((i + 0.5) / nx - w / 2, 0, 1 - w), y: clamp((j + 0.5) / ny - h / 2, 0, 1 - h), w, h });
+  return out;
+}
+function roiRect(p) { // 以鼻尖为中心、约 3.5 倍脸宽的方块
+  const fw = frame.width, fh = frame.height, side = clamp(p.width * fw * 3.5, 160, Math.min(fw, fh));
+  const w = side / fw, h = side / fh;
+  return { x: clamp(p.cx - w / 2, 0, 1 - w), y: clamp(p.cy - h / 2, 0, 1 - h), w, h };
+}
+function detectCrop(r) {
+  const fw = frame.width, fh = frame.height, sw = r.w * fw, sh = r.h * fh, k = Math.min(1, 640 / Math.max(sw, sh));
+  tileC.width = Math.round(sw * k); tileC.height = Math.round(sh * k);
+  tctx.drawImage(frame, r.x * fw, r.y * fh, sw, sh, 0, 0, tileC.width, tileC.height);
+  const res = tileLm.detect(tileC);
+  const lms = (res.faceLandmarks || []).map((l) => l.map((q) => ({ x: r.x + q.x * r.w, y: r.y + q.y * r.h, z: q.z * r.w })));
+  return analyze({ faceLandmarks: lms, facialTransformationMatrixes: res.facialTransformationMatrixes });
+}
+function mergeFar(base, now) {
+  if (cfg.scan === "off") return base;
+  if (!tileLm) {
+    if (!tileLoading) { tileLoading = true; loadModel("IMAGE").then((m) => { tileLm = m; }).catch((e) => { console.warn("分块检测模型加载失败", e); tileLoading = false; }); }
+    return base;
+  }
+  const rects = tileRects();
+  try {
+    tileIdx = (tileIdx + 1) % rects.length;
+    tileFaces[tileIdx] = { t: now, faces: detectCrop(rects[tileIdx]) };
+    tileFaces.length = rects.length;
+    roiFaces = [];
+    for (const c of cells) {
+      const p = c.pid != null && people.find((q) => q.id === c.pid);
+      if (p && p.seen && p.width < 0.12) roiFaces.push(...detectCrop(roiRect(p)));
+    }
+  } catch (e) { console.warn(e); }
+  // 合并去重：整幅画面的结果优先，其次每帧裁的，最后是轮流扫的块
+  const all = [...base];
+  const add = (f) => { if (!all.some((g) => Math.hypot(g.cx - f.cx, g.cy - f.cy) < Math.max(g.width, f.width) * 0.6)) all.push(f); };
+  roiFaces.forEach(add);
+  for (const tf of tileFaces) if (tf && now - tf.t < rects.length * 70 + 250) tf.faces.forEach(add);
+  return all;
+}
+
 // 测试用假脸：官方模型顶点投影，轻轻晃动；“模拟有人”时生成两张，方便看监控墙分格
 let canonVerts = null;
 function fakeFace(now, k) {
-  const t = now / 1000 + k * 2.1, yaw = Math.sin(t * 0.5) * 0.3, s = 0.24 / 15.3, sy = s * frame.width / frame.height;
+  const t = now / 1000 + k * 2.1, yaw = Math.sin(t * 0.5) * 0.3, s = [0.22, 0.2, 0.14, 0.12][k] / 15.3, sy = s * frame.width / frame.height;
   const c = Math.cos(yaw), sn = Math.sin(yaw), lm = [];
-  const ox = k ? 0.68 : 0.36, oy = k ? 0.5 : 0.42;
+  const ox = [0.38, 0.64, 0.13, 0.87][k], oy = [0.42, 0.5, 0.6, 0.36][k];
   // 假脸每 3 秒眨一次眼（用来测锁眼）
   const blink = Math.max(0, Math.sin(t * 2.1)) ** 8;
   const ec = [[33, 133, 159, 145], [263, 362, 386, 374]].map((ids) => ids.reduce((s, i) => [s[0] + canonVerts[i * 3] / 4, s[1] + canonVerts[i * 3 + 1] / 4], [0, 0]));
@@ -153,7 +203,8 @@ const pickFace = (f) => ({ lm: f.lm, cx: f.cx, cy: f.cy, width: f.width, yaw: f.
 function updatePeople(now, fresh) {
   if (fresh) {
     const pairs = [];
-    people.forEach((p, pi) => faces.forEach((f, fi) => { const d = Math.hypot(f.cx - p.cx, f.cy - p.cy); if (d < 0.15) pairs.push([d, pi, fi]); }));
+    // 匹配距离跟脸大小走：远处小脸挨得近，固定 0.15 会把两个人认成一个
+    people.forEach((p, pi) => faces.forEach((f, fi) => { const d = Math.hypot(f.cx - p.cx, f.cy - p.cy); if (d < clamp(p.width * 1.2, 0.03, 0.15)) pairs.push([d, pi, fi]); }));
     pairs.sort((a, b) => a[0] - b[0]);
     const usedP = new Set(), usedF = new Set();
     for (const [, pi, fi] of pairs) {
@@ -360,7 +411,21 @@ const cells = [0, 1, 2, 3].map((i) => ({
   mon: document.createElement("canvas"), rect: { x: 0, y: 0, w: 0, h: 0 }, M: new DOMMatrix(), tear: 0,
 }));
 for (const c of cells) c.mx = c.mon.getContext("2d");
-const durOf = (ph) => ({ lock: cfg.tLock, face: cfg.tFace, eyes: cfg.tEyes, black: cfg.tBlack, hold: cfg.tHold }[ph]);
+// 每次锁定给这一格随机一套“镜头风格”，四格不会同步、取景也不一样
+const NO_STY = { dur: {}, frame: 1, fill: 1, follow: 1, eye: "both", skipFace: false, ox: 0, oy: 0, tilt: 0 };
+function rollStyle() {
+  const v = cfg.vary, r = (a) => 1 + rnd(-a, a) * v;
+  return {
+    dur: { lock: r(0.5), face: r(0.6), eyes: r(0.6), black: r(0.5), hold: r(0.6) },
+    frame: r(0.35), fill: r(0.3), follow: r(0.5),
+    eye: Math.random() < 0.35 * v ? (Math.random() < 0.5 ? "L" : "R") : "both", // 只推一只眼
+    skipFace: Math.random() < 0.2 * v,                                          // 跳过脸，直接怼到眼睛
+    ox: rnd(-0.12, 0.12) * v, oy: rnd(-0.1, 0.1) * v,                           // 不居中的取景
+    tilt: rnd(-0.12, 0.12) * v,                                                 // 镜头歪一点
+  };
+}
+const styOf = (c) => c.sty || NO_STY;
+const durOf = (ph, c) => ({ lock: cfg.tLock, face: cfg.tFace, eyes: cfg.tEyes, black: cfg.tBlack, hold: cfg.tHold }[ph]) * (styOf(c).dur[ph] || 1);
 
 function layoutCells() {
   const quad = cfg.layout === "quad", g = 2;
@@ -386,23 +451,29 @@ function faceView(c, lm) {
   const P = (i) => lmPx(lm[i]);
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   for (const i of [10, 152, 234, 454, 127, 356, 58, 288]) { const p = P(i); x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
-  const asp = c.rect.w / Math.max(1, c.rect.h);
-  const h = Math.max((y1 - y0) * cfg.faceFrame, (x1 - x0) * cfg.faceFrame / asp);
+  const asp = c.rect.w / Math.max(1, c.rect.h), st = styOf(c), ff = cfg.faceFrame * st.frame;
+  const h = Math.max((y1 - y0) * ff, (x1 - x0) * ff / asp);
   const A = P(33), B = P(263);
-  return { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, h, rot: Math.atan2(B.y - A.y, B.x - A.x) * 0.5 };
+  return { cx: (x0 + x1) / 2 + st.ox * h, cy: (y0 + y1) / 2 + st.oy * h, h, rot: Math.atan2(B.y - A.y, B.x - A.x) * 0.5 + st.tilt };
 }
 function eyesView(c, lm) {
   const P = (i) => lmPx(lm[i]);
   const ce = (ids) => ids.map(P).reduce((s, p) => ({ x: s.x + p.x / ids.length, y: s.y + p.y / ids.length }), { x: 0, y: 0 });
   const R = ce([33, 133, 159, 145]), L = ce([263, 362, 386, 374]);
   const A = P(33), B = P(263), span = Math.hypot(B.x - A.x, B.y - A.y);
-  const asp = c.rect.w / Math.max(1, c.rect.h);
-  return { cx: (R.x + L.x) / 2, cy: (R.y + L.y) / 2, h: span / cfg.eyeFill / asp, rot: Math.atan2(B.y - A.y, B.x - A.x) };
+  const asp = c.rect.w / Math.max(1, c.rect.h), st = styOf(c), rot = Math.atan2(B.y - A.y, B.x - A.x) + st.tilt * 0.6;
+  if (st.eye !== "both") { // 单眼特写：一只眼占画面
+    const E = st.eye === "L" ? L : R, w = st.eye === "L" ? Math.hypot(P(263).x - P(362).x, P(263).y - P(362).y) : Math.hypot(P(33).x - P(133).x, P(33).y - P(133).y);
+    const h = w / (cfg.eyeFill * 0.85 * st.fill) / asp;
+    return { cx: E.x + st.ox * h * 0.5, cy: E.y + st.oy * h * 0.5, h, rot };
+  }
+  const h = span / (cfg.eyeFill * st.fill) / asp;
+  return { cx: (R.x + L.x) / 2 + st.ox * h * 0.5, cy: (R.y + L.y) / 2 + st.oy * h * 0.5, h, rot };
 }
 
 // 镜头：带一点过冲的弹簧，变焦在对数空间里做，像真的云台
 function stepCam(c, tgt, dt) {
-  const k = cfg.follow * cfg.follow, d = 2 * cfg.follow * 0.72, m = c.cam;
+  const f = cfg.follow * (c.pid != null ? styOf(c).follow : 1), k = f * f, d = 2 * f * 0.72, m = c.cam;
   if (!m.init) { Object.assign(m, { cx: tgt.cx, cy: tgt.cy, lh: Math.log(tgt.h), rot: tgt.rot, init: true }); return; }
   const spring = (x, v, target) => { const a = k * (target - x) - d * v; v += a * dt; return [x + v * dt, v]; };
   [m.cx, m.vx] = spring(m.cx, m.vx, tgt.cx);
@@ -417,8 +488,11 @@ function updateCells(now, dt) {
   const free = people.filter((p) => p.ok && p.seen && !taken.has(p.id)).sort((a, b) => b.width - a.width);
   for (const c of visibleCells()) {
     if (c.pid == null && c.phase === "idle" && now >= c.coolUntil && free.length) {
-      const p = free.shift(); c.pid = p.id; c.phase = "lock"; c.t = 0; sndBeep();
-    }
+      // 每格反应快慢不一样，不会几格同时锁定
+      if (c.wait == null) c.wait = now + rnd(0, 1800) * cfg.vary;
+      if (now < c.wait) continue;
+      const p = free.shift(); c.pid = p.id; c.phase = "lock"; c.t = 0; c.wait = null; c.sty = rollStyle(); sndBeep();
+    } else if (c.pid == null) c.wait = null;
   }
   // 空闲的格子时不时随机断讯（人越少，空闲格越多，断得越频繁）
   for (const c of visibleCells()) {
@@ -439,8 +513,9 @@ function updateCells(now, dt) {
     } else if (p) {
       // 人在但不合格（转头太多）时暂停计时，不推进
       if (p.ok && p.seen) c.t += dt;
-      if (c.t >= durOf(c.phase)) {
-        const idx = PHASES.indexOf(c.phase);
+      if (c.t >= durOf(c.phase, c)) {
+        let idx = PHASES.indexOf(c.phase);
+        if (c.phase === "lock" && styOf(c).skipFace) idx++;
         if (idx < PHASES.length - 1) { c.phase = PHASES[idx + 1]; c.t = 0; if (c.phase === "black") sndDrop(); if (c.phase === "face" || c.phase === "eyes") c.focus = 1; }
         else { c.phase = "lost"; c.t = 0; sndStatic(1.2, 0.3); }
       }
@@ -486,7 +561,7 @@ function drawCell(c, now) {
   const p = c.pid != null ? people.find((q) => q.id === c.pid) : null;
   if (p && p.slm) {
     let op = 0;
-    if (c.phase === "black") op = clamp(c.t / cfg.tBlack, 0, 1) * (Math.random() < 0.25 ? rnd(0.2, 0.8) : 1);
+    if (c.phase === "black") op = clamp(c.t / durOf("black", c), 0, 1) * (Math.random() < 0.25 ? rnd(0.2, 0.8) : 1);
     else if (c.phase === "hold" || c.phase === "lost") op = Math.random() < 0.06 ? 0 : 1;
     drawBlackEyes(mx, mw, mh, c.M, p, op * cfg.eyeAmt, texFor(p), now);
   }
@@ -603,10 +678,13 @@ function drawDebug(now) {
     ctx.restore();
   }
   ctx.restore();
-  ctx.save(); ctx.font = "12px Consolas, monospace"; ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(W / 2 - 170, H / 2 - 40, 340, 80);
+  ctx.save(); ctx.font = "12px Consolas, monospace"; ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(W / 2 - 230, H / 2 - 40, 460, 80);
   ctx.fillStyle = "#7fd1a8";
-  ctx.fillText(`faces ${faces.length}  people ${people.length}  near ≥ ${cfg.nearRatio}  yaw ≤ ±${cfg.yawLimit}°  fps ${fps.toFixed(0)}${force ? "  (force)" : ""}`, W / 2 - 160, H / 2 - 28);
-  cells.forEach((c, i) => ctx.fillText(`${c.label}  ${c.phase.padEnd(5)} ${c.t.toFixed(1)}s  subj ${c.pid ?? "-"}`, W / 2 - 160, H / 2 - 12 + i * 14));
+  ctx.fillText(`faces ${faces.length}  people ${people.length}  near ≥ ${cfg.nearRatio}  yaw ≤ ±${cfg.yawLimit}°  fps ${fps.toFixed(0)}${force ? "  (force)" : ""}`, W / 2 - 220, H / 2 - 28);
+  cells.forEach((c, i) => {
+    const st = c.pid != null && c.sty ? `  eye ${c.sty.eye}${c.sty.skipFace ? " skip" : ""} ×${c.sty.frame.toFixed(2)}/${c.sty.fill.toFixed(2)} spd ${c.sty.follow.toFixed(2)}` : "";
+    ctx.fillText(`${c.label}  ${c.phase.padEnd(5)} ${c.t.toFixed(1)}s  subj ${c.pid ?? "-"}${st}`, W / 2 - 220, H / 2 - 12 + i * 14);
+  });
   ctx.restore();
 }
 
@@ -620,7 +698,8 @@ function loop() {
   if (ok && landmarker && video.currentTime !== lastVideoTime) {
     lastVideoTime = video.currentTime; fresh = true;
     try { faces = analyze(landmarker.detectForVideo(frame, now)); } catch (e) { console.warn(e); faces = []; }
-    if (force && !faces.length && canonVerts) faces = [fakeFace(now, 0), fakeFace(now, 1)];
+    faces = mergeFar(faces, now);
+    if (force && !faces.length && canonVerts) faces = [0, 1, 2, 3].map((k) => fakeFace(now, k));
   }
   updatePeople(now, fresh);
   layoutCells();
@@ -692,7 +771,9 @@ const TABS = [
   ] },
   { id: "detect", l: T("识别", "Detect", "인식"), groups: [
     { l: T("距离", "Distance", "거리"), n: T("脸宽 / 画面宽", "face / frame", "얼굴 / 화면"), items: [
-      R("nearRatio", T("近距离阈值", "Near threshold", "근거리 기준"), 0.05, 0.45, 0.01),
+      R("nearRatio", T("近距离阈值", "Near threshold", "근거리 기준"), 0.02, 0.45, 0.005),
+      { t: "seg", k: "scan", l: T("远距离检测", "Far detection", "원거리 검출"), o: [{ v: "off", l: T("关", "Off", "끔") }, { v: "2x2", l: "2×2" }, { v: "3x2", l: "3×2" }] },
+      { t: "sub", l: T("摄像头离人远、脸很小（教室、大厅俯拍）时打开：画面切块轮流检测，被追的人每帧在附近裁一块跟踪。阈值同时调到 0.03–0.05。更吃性能。", "For far cameras with tiny faces (classroom / hall): scans the frame in tiles and re-crops each tracked person every frame. Lower the threshold to 0.03–0.05. Heavier.", "카메라가 멀고 얼굴이 작을 때(교실·홀): 화면을 나눠 검출하고 추적 중인 사람은 매 프레임 주변을 잘라 추적합니다. 기준을 0.03–0.05로 낮추세요. 더 무겁습니다.") },
     ] },
     { l: T("朝向", "Facing", "방향"), n: "yaw", items: [
       R("yawLimit", T("左右角度上限", "Yaw limit", "좌우 각도 한계"), 10, 80, 1, "°"),
@@ -720,6 +801,7 @@ const TABS = [
       R("eyeFill", T("双眼占画面", "Eyes fill", "눈 비율"), 0.25, 0.95, 0.01),
       R("follow", T("跟随速度", "Follow speed", "따라가는 속도"), 0.5, 8, 0.1),
       R("hunt", T("找焦抖动", "Focus hunting", "초점 흔들림"), 0, 2, 0.05),
+      R("vary", T("每格随机差异", "Per-cell variety", "칸별 랜덤 차이"), 0, 1, 0.05),
     ] },
     { l: T("黑眼洞", "Black eyes", "검은 눈"), n: T("用面具贴图的眼部", "from mask textures", "마스크 텍스처 눈"), items: [
       { t: "seg", k: "eyeTex", l: T("贴图", "Texture", "텍스처"), o: [
@@ -875,10 +957,10 @@ addEventListener("touchend", () => clearTimeout(twoFingerTimer), { passive: true
 addEventListener("touchcancel", () => clearTimeout(twoFingerTimer), { passive: true });
 
 // ---------- 启动 ----------
-async function loadModel() {
+async function loadModel(mode = "VIDEO") {
   const fs = await FilesetResolver.forVisionTasks(WASM_URL);
   const opts = (delegate) => ({
-    baseOptions: { modelAssetPath: MODEL_URL, delegate }, runningMode: "VIDEO", numFaces: 5,
+    baseOptions: { modelAssetPath: MODEL_URL, delegate }, runningMode: mode, numFaces: 5,
     outputFacialTransformationMatrixes: true, outputFaceBlendshapes: false, minFaceDetectionConfidence: 0.5, minTrackingConfidence: 0.5,
   });
   try { return await FaceLandmarker.createFromOptions(fs, opts("GPU")); }
@@ -890,5 +972,5 @@ startCamera();
 loadFaceAssets().catch((e) => console.warn("黑眼贴图不可用", e));
 loadModel().then((lm) => { landmarker = lm; }).catch((e) => { camError = "model: " + e.message; openPanel(true); renderCamSelect(); });
 // 调试用：控制台里 __cctv 查看状态
-window.__cctv = { cells, get people() { return people; }, FACE_TEX, cfg, glC };
+window.__cctv = { cells, get people() { return people; }, get faces() { return faces; }, FACE_TEX, cfg, glC, detectCrop, tileRects };
 requestAnimationFrame(loop);
