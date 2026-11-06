@@ -21,7 +21,7 @@ const DEFAULTS = {
   lang: "zh", deviceId: "", res: "720",
   rot: 0, tilt: 0, mirror: true, flipY: false, fit: "cover", zoom: 1, offX: 0, offY: 0,
   bright: 1, contrast: 1, sat: 1, sheen: 0.5, vignette: 0.6,
-  nearRatio: 0.18, farScan: "off", yawLimit: 45, lostGrace: 0.5, recede: 8, smooth: 1.2, occlusion: true, debug: false, mesh: false,
+  nearRatio: 0.18, farScan: "off", faceConf: 0.5, yawLimit: 45, lostGrace: 0.5, recede: 8, smooth: 1.2, occlusion: true, debug: false, mesh: false,
   build: 30, frost: true, frostAmt: 0.85, stains: true, stainAmt: 0.75, cracks: true, crackCount: 6,
   light: true, lightAmt: 1, lightMode: "random", lightFlicker: true, ghostMask: true, maskTex: "random", maskAmt: 0.92, maskOffY: 0, maskScale: 1, maskGrow: 1, edgeFeather: 0.25, mouthLock: 1, maskFlicker: true, flickRate: 1,
   jumpFlash: true, jumpRate: 1, crackAmt: 0.9, maxFaces: 3, idleFx: 0.6, glitch: true, glitchRate: 1, pale: true, paleAmt: 0.85, faceCracks: true, expr: true, exprAmt: 1, eyes: true, volume: 0.7, ambience: true,
@@ -1430,14 +1430,14 @@ function drawDebug() {
     ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
     const yawTxt = Number.isFinite(f.yaw) ? f.yaw.toFixed(0) + "°" : "--";
     ctx.fillText(`#${f.id} ${f.prof.look.id}  lv ${(f.level * 100).toFixed(0)}%`, x0, y0 - 22);
-    ctx.fillText(`w ${f.width.toFixed(2)}${f.near ? "" : " far"}  yaw ${yawTxt}${f.frontal ? "" : " side"}  smile ${f.smile.toFixed(2)}`, x0, y0 - 6);
+    ctx.fillText(`conf ≥ ${cfg.faceConf.toFixed(2)}  w ${f.width.toFixed(2)}${f.near ? "" : " far"}  yaw ${yawTxt}${f.frontal ? "" : " side"}  smile ${f.smile.toFixed(2)}`, x0, y0 - 6);
     if (cfg.mesh) for (let i = 0; i < 468; i += 2) { const p = scr(lmPx(f.lm[i])); ctx.fillRect(p.x - 0.7, p.y - 0.7, 1.4, 1.4); }
   }
   if (cfg.mesh && maskReady) { // 脸部皮肤遮罩显示成暗色区域
     ctx.save(); ctx.globalAlpha = 0.35; ctx.transform(VM.a, VM.b, VM.c, VM.d, VM.e, VM.f); ctx.drawImage(maskC, 0, 0, frame.width, frame.height); ctx.restore();
   }
   ctx.fillStyle = "rgba(12,12,13,0.75)"; ctx.fillRect(10, 10, 300, 46);
-  ctx.fillStyle = "#e4e4e7"; ctx.fillText(`track ${track}${force ? " (force)" : ""}  faces ${faces.length}  fps ${fps.toFixed(0)}`, 20, 28);
+  ctx.fillStyle = "#e4e4e7"; ctx.fillText(`track ${track.padEnd(6)}${force ? " (force)" : ""}  faces ${String(faces.length).padStart(2)}  fps ${String(fps.toFixed(0)).padStart(3)}  conf ≥ ${cfg.faceConf.toFixed(2)}  scan ${cfg.farScan}`, 20, 28);
   ctx.fillStyle = "#c4a1f0"; ctx.fillRect(20, 40, 280 * level, 6);
   ctx.strokeStyle = "#323237"; ctx.strokeRect(20, 40, 280, 6);
   ctx.restore();
@@ -1575,6 +1575,8 @@ const TABS = [
     ] },
     { l: T("脸部追踪", "Face tracking", "얼굴 추적"), items: [
       R("smooth", T("防抖", "Stabilize", "떨림 보정"), 0.2, 5, 0.1, "Hz"),
+      R("faceConf", T("人脸置信度", "Face confidence", "얼굴 신뢰도"), 0.1, 0.95, 0.05),
+
       { t: "sub", l: T("数值越小越稳，但跟随会慢一点；快速移动时自动放开。", "Lower = steadier but laggier; loosens on fast moves.", "작을수록 안정적이지만 조금 늦게 따라갑니다.") },
       C("occlusion", T("遮挡（头发 / 手 / 眼镜）", "Occlusion (hair / hands / glasses)", "가림 (머리카락 / 손 / 안경)")),
       { t: "sub", l: T("用多类分割只在脸部皮肤上画裂痕。打开“显示关键点”可看到遮罩。", "Cracks only on face-skin pixels. Turn on landmarks to see the mask.", "얼굴 피부 픽셀에만 금을 그립니다. 랜드마크 표시로 마스크 확인.") },
@@ -1655,7 +1657,12 @@ function itemHTML(it) {
   if (it.t === "seg") return `<div class="field"><label>${tr(it.l)}</label><div class="seg">${it.o.map((o) => `<button data-seg="${it.k}" data-v="${o.v}" class="${String(cfg[it.k]) === String(o.v) ? "on" : ""}">${tr(o.l)}</button>`).join("")}</div></div>`;
   if (it.t === "sub") return `<div class="sub">${tr(it.l)}</div>`;
   if (it.t === "info") return `<div class="info" id="${it.id}"></div>`;
-  if (it.t === "models") return MODELS.map((m) => `<div class="mdl"><div><b>${m.file}</b><i>${m.size}</i></div><div class="sub">${tr(m.use)} · ${m.src}</div><a class="btn" href="${MODEL_DIR}${m.file}" download>${tr(T("下载", "Download", "다운로드"))}</a></div>`).join("");
+  if (it.t === "models") {
+    const total = MODELS.reduce((s, m) => s + parseFloat(m.size), 0).toFixed(0);
+    return MODELS.map((m) => `<div class="mdl"><b>${m.file}</b><i>${m.size}</i><div class="sub">${tr(m.use)} · ${m.src}</div></div>`).join("")
+      + `<div class="grid2" style="margin-top:10px"><button class="btn" id="zipModels">${tr(T("下载模型 zip", "Download models.zip", "모델 zip 다운로드"))} · ${total} MB</button></div>`
+      + `<div class="sub">${tr(T("网页会自动加载这些模型，不用手动下载。离线或现场电脑用时，下载 zip 解压出 models/ 文件夹，放到 互动demo/ 里（和作品文件夹并排）。", "The page loads these models by itself. For offline / on-site machines, download the zip and put the models/ folder inside 互动demo/ next to the demo folders.", "웹페이지가 모델을 자동으로 불러옵니다. 오프라인·현장 PC용으로는 zip을 받아 models/ 폴더를 互动demo/ 안(작품 폴더 옆)에 두세요."))}</div>`;
+  }
   if (it.t === "meter") return `<div class="field"><label>level</label><div class="meter"><i id="levelBar"></i></div></div>`;
   if (it.t === "camera") return `<div class="field"><label>${tr(T("设备", "Device", "장치"))}</label><div class="sel"><select id="camSel"></select><button class="btn icon" id="camRefresh" title="refresh">↻</button></div></div>`;
   if (it.t === "btns") return `<div class="grid${it.b.length >= 3 ? 3 : 2}">${it.b.map((b) => `<button class="btn ${b.cls || ""}" id="${b.id}">${tr(b.l)}</button>`).join("")}</div>`;
@@ -1691,6 +1698,7 @@ function onChange(k) {
   saveCfg();
   if (k === "volume" && master) master.gain.value = cfg.volume;
   if (k === "res") startCamera();
+  if (k === "faceConf") applyFaceConf();
   if (k === "crackCount") resetFx();
 }
 const side = $("#side");
@@ -1790,7 +1798,52 @@ const MODEL_DIR = "../models/";
 const MODELS = [
   { file: "face_landmarker.task", size: "3.6 MB", use: T("人脸 478 点 + 表情 + 头部姿态", "Face 478 landmarks + blendshapes + pose", "얼굴 478점 + 표정 + 자세"), src: "Google MediaPipe · Apache-2.0" },
   { file: "selfie_multiclass_256x256.tflite", size: "15.6 MB", use: T("人物分割（手、头发挡住面具）", "Person segmentation (hands / hair occlude the mask)", "인물 분할 (손·머리카락 가림)"), src: "Google MediaPipe · Apache-2.0" },
-];
+];const ZIP_NAME = "ghost-mirror-models.zip";
+// 模型 zip：点按钮时在网页里现场把这个作品用到的模型打成一个 zip（不压缩）。
+// 模型加起来超过 GitHub 单文件 100 MB 上限，放不了现成的 zip，所以在浏览器里打包。
+const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = (d) => { let c = 0xffffffff; for (let i = 0; i < d.length; i++) c = CRC_T[(c ^ d[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+async function downloadModelsZip(zipName, list, onProgress) {
+  const enc = new TextEncoder(), parts = [], central = [];
+  let off = 0;
+  const notes = ["Models used by " + zipName.replace(/\.zip$/, ""), "Put this models/ folder next to the demo folders (互动demo/models/).", ""];
+  const entries = [];
+  for (let i = 0; i < list.length; i++) {
+    onProgress && onProgress(i, list.length);
+    const m = list[i], r = await fetch(MODEL_DIR + m.file);
+    if (!r.ok) throw new Error(m.file + " " + r.status);
+    entries.push({ name: "models/" + m.file, data: new Uint8Array(await r.arrayBuffer()) });
+    notes.push(`${m.file}  ${m.size}  ${m.src}`);
+  }
+  entries.push({ name: "models/README.txt", data: enc.encode(notes.join("\r\n") + "\r\n") });
+  for (const { name: n, data } of entries) {
+    const name = enc.encode(n), crc = crc32(data);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(12, 0x21, true);
+    h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true);
+    parts.push(h, name, data);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(14, 0x21, true);
+    c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, name.length, true); c.setUint32(42, off, true);
+    central.push(c, name);
+    off += 30 + name.length + data.length;
+  }
+  const csize = central.reduce((s, x) => s + x.byteLength, 0), e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, entries.length, true); e.setUint16(10, entries.length, true); e.setUint32(12, csize, true); e.setUint32(16, off, true);
+  const url = URL.createObjectURL(new Blob([...parts, ...central, e], { type: "application/zip" }));
+  const a = document.createElement("a"); a.href = url; a.download = zipName; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+// 模型 zip 按钮（面板会重绘，所以用事件委托）
+document.addEventListener("click", (e) => {
+  const b = e.target.closest && e.target.closest("#zipModels"); if (!b || b.disabled) return;
+  const label = b.textContent; b.disabled = true;
+  downloadModelsZip(ZIP_NAME, MODELS, (i, n) => { b.textContent = `${i + 1} / ${n} …`; })
+    .then(() => { b.textContent = label; }).catch((err) => { console.warn(err); b.textContent = "✕ " + err.message; })
+    .finally(() => { b.disabled = false; setTimeout(() => { b.textContent = label; }, 4000); });
+});
+
 // 先读自带的模型文件（GitHub 上是 ghost-series/models/，本地服务器把 /models/ 映射到 互动demo/models/），读不到再用官方地址；
 // 每个实例一份拷贝，MediaPipe 会占用传进去的缓冲区
 const modelBytes = {};
@@ -1811,14 +1864,17 @@ async function loadModel() {
   loadSegmenter(fs).then((s) => { segmenter = s; }).catch((e) => console.warn("分割模型加载失败，只用脸轮廓裁剪", e));
   return loadLandmarker("VIDEO", fs);
 }
-async function loadLandmarker(mode, fs) {
+// 人脸模型的三个置信度一起调（检测 / 存在 / 跟踪）；改了立刻生效，不用重新加载
+const faceConfOpts = () => ({ minFaceDetectionConfidence: cfg.faceConf, minFacePresenceConfidence: cfg.faceConf, minTrackingConfidence: cfg.faceConf });
+function applyFaceConf() { for (const m of [landmarker, tileLm]) if (m) m.setOptions(faceConfOpts()).catch((e) => console.warn(e)); }
+
   fs = fs || await FilesetResolver.forVisionTasks(WASM_URL);
   const asset = await modelAsset("face_landmarker.task", MODEL_URL);
   const opts = (delegate) => ({
     baseOptions: { ...asset, delegate },
     runningMode: mode, numFaces: 5,
     outputFacialTransformationMatrixes: true, outputFaceBlendshapes: true,
-    minFaceDetectionConfidence: 0.5, minTrackingConfidence: 0.5,
+    ...faceConfOpts(),
   });
   try { return await FaceLandmarker.createFromOptions(fs, opts("GPU")); }
   catch (e) { console.warn("GPU 不可用，改用 CPU", e); return await FaceLandmarker.createFromOptions(fs, opts("CPU")); }

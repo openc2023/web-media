@@ -21,7 +21,7 @@ const wrapAng = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 // ---------- 参数 ----------
 const DEFAULTS = {
   lang: "zh", deviceId: "", res: "1080", rot: 0, mirror: false, flipY: false, layout: "quad", stamp: true,
-  nearRatio: 0.15, farScan: "off", headDet: "off", headGrid: 2, headEvery: 0.5, headWait: 15, yawLimit: 45, lostGrace: 0.8, smooth: 1.2, debug: false, mesh: false,
+  nearRatio: 0.15, farScan: "off", headDet: "off", headConf: 0.35, faceConf: 0.5, headGrid: 2, headEvery: 0.5, headWait: 15, yawLimit: 45, lostGrace: 0.8, smooth: 1.2, debug: false, mesh: false,
   tLock: 1.2, tFace: 3, tEyes: 3, tBlack: 2.5, tHold: 4, cooldown: 5,
   faceFrame: 1.5, eyeFill: 0.62, follow: 2.6, hunt: 0.5, vary: 0.7,
   eyeTex: "random", eyeAmt: 1, eyeRadius: 1.2, eyeLock: true,
@@ -222,7 +222,7 @@ async function detectHeads(sess, r) {
   const out = await sess.run({ [sess.inputNames[0]]: new ort.Tensor("float32", f, [1, 3, 640, 640]) });
   const o = out[sess.outputNames[0]], n = o.dims[2], a = o.data, bs = [];
   for (let i = 0; i < n; i++) {
-    const s = a[4 * n + i]; if (s < 0.35) continue;
+    const s = a[4 * n + i]; if (s < cfg.headConf) continue;
     const w = a[2 * n + i] / k, h = a[3 * n + i] / k, cx = r.x * fw + a[i] / k, cy = r.y * fh + a[n + i] / k;
     bs.push({ cx: cx / fw, cy: cy / fh, w: w / fw, h: h / fh, s });
   }
@@ -779,7 +779,7 @@ function drawDebug(now) {
       ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
       const yawTxt = Number.isFinite(p.yaw) ? p.yaw.toFixed(0) + "°" : "--";
       ctx.fillText(`#${p.id}${cam ? " → " + cam.label : ""}`, x0, y0 - 20);
-      ctx.fillText(`w ${p.width.toFixed(2)}${p.near ? "" : " far"}  yaw ${yawTxt}${p.frontal ? "" : " side"}`, x0, y0 - 6);
+      ctx.fillText(`face conf ≥ ${cfg.faceConf.toFixed(2)}  w ${p.width.toFixed(2)}${p.near ? "" : " far"}  yaw ${yawTxt}${p.frontal ? "" : " side"}`, x0, y0 - 6);
       if (cfg.mesh) for (let i = 0; i < 468; i += 2) { const q = toS(lmPx(lm[i])); ctx.fillRect(q.x - 0.7, q.y - 0.7, 1.4, 1.4); }
     }
     // 人头框（黄色）：最近一次人头检测的结果，被追的标上格子
@@ -789,20 +789,33 @@ function drawDebug(now) {
       const cam = cells.find((k) => k.pid === p.id);
       ctx.strokeStyle = ctx.fillStyle = cam ? "#f2838f" : "#e8c25a";
       ctx.strokeRect(a.x, a.y, z.x - a.x, z.y - a.y);
-      ctx.fillText(`#${p.id} head ${b.s.toFixed(2)}${cam ? " → " + cam.label : ""}`, a.x, a.y - 6);
+      ctx.fillText(`#${p.id}${cam ? " → " + cam.label : ""}`, a.x, a.y - 20);
+      ctx.fillText(`head conf ${b.s.toFixed(2)}  w ${b.w.toFixed(2)}`, a.x, a.y - 6);
     }
     ctx.restore();
   }
   ctx.restore();
-  ctx.save(); ctx.font = "12px Consolas, monospace"; ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(W / 2 - 230, H / 2 - 54, 460, 94);
-  ctx.fillStyle = "#7fd1a8";
-  ctx.fillText(`faces ${faces.length}  people ${people.length}  near ≥ ${cfg.nearRatio}  yaw ≤ ±${cfg.yawLimit}°  fps ${fps.toFixed(0)}${force ? "  (force)" : ""}`, W / 2 - 220, H / 2 - 28);
-  const hs = cfg.headDet === "off" ? "head off" : headSess ? `head ${headName}/${headEP}  ${heads.length} heads  ${headMs.toFixed(0)} ms${headBusy ? " …" : ""}` : headLoading ? "head loading…" : `head ${headFailed ? "unavailable → tiles 3x2" : headErr || "idle"}`;
-  ctx.fillText(hs, W / 2 - 220, H / 2 - 42);
-  cells.forEach((c, i) => {
-    const st = c.pid != null && c.sty ? `  eye ${c.sty.eye}${c.sty.skipFace ? " skip" : ""} ×${c.sty.frame.toFixed(2)}/${c.sty.fill.toFixed(2)} spd ${c.sty.follow.toFixed(2)}` : "";
-    ctx.fillText(`${c.label}  ${c.phase.padEnd(5)} ${c.t.toFixed(1)}s  subj ${c.pid ?? "-"}${st}`, W / 2 - 220, H / 2 - 12 + i * 14);
-  });
+  // 中间的信息框：等宽字体按列补空格，每行对齐；框按最长一行自动变宽
+  const col = (v, n) => String(v).padEnd(n);
+  const headState = cfg.headDet === "off" ? "off" : headSess ? `${headName}/${headEP}  ${String(heads.length).padStart(2)} heads  ${String(headMs.toFixed(0)).padStart(4)} ms${headBusy ? " …" : ""}`
+    : headLoading ? "loading…" : headFailed ? "unavailable → tiles 3x2" : headErr || "idle";
+  const lines = [
+    `${col("detect", 7)}faces ${String(faces.length).padStart(2)}  people ${String(people.length).padStart(2)}  fps ${String(fps.toFixed(0)).padStart(3)}${force ? "  (force)" : ""}`,
+    `${col("conf", 7)}face ≥ ${cfg.faceConf.toFixed(2)}  head ≥ ${cfg.headConf.toFixed(2)}  near ≥ ${cfg.nearRatio}  yaw ≤ ±${cfg.yawLimit}°`,
+    `${col("scan", 7)}${col(farMode(), 4)}  head ${headState}`,
+    "",
+    ...cells.map((c) => {
+      const p = c.pid != null && people.find((q) => q.id === c.pid);
+      const src = !p ? "-" : faceFresh(p, now) ? "face" : p.hb ? `head ${p.hb.s.toFixed(2)}` : "-";
+      const st = c.pid != null && c.sty ? `eye ${col(c.sty.eye, 4)}${c.sty.skipFace ? "skip " : "     "}×${c.sty.frame.toFixed(2)}/${c.sty.fill.toFixed(2)}  spd ${c.sty.follow.toFixed(2)}` : "";
+      return `${col(c.label, 7)}${col(c.phase, 6)}${c.t.toFixed(1).padStart(5)}s  subj ${col(c.pid ?? "-", 4)}${col(src, 10)}${st}`;
+    }),
+  ];
+  ctx.save(); ctx.font = "12px Consolas, monospace";
+  const bw = Math.max(...lines.map((s) => ctx.measureText(s).width)) + 24, bh = lines.length * 15 + 14, bx = W / 2 - bw / 2, by = H / 2 - bh / 2;
+  ctx.fillStyle = "rgba(0,0,0,0.75)"; ctx.fillRect(bx, by, bw, bh);
+  ctx.fillStyle = "#7fd1a8"; ctx.textBaseline = "top";
+  lines.forEach((s, i) => ctx.fillText(s, bx + 12, by + 8 + i * 15));
   ctx.restore();
 }
 
@@ -897,6 +910,7 @@ const TABS = [
     { l: T("人头检测", "Head detection", "머리 검출"), n: "YOLOv8 head · ONNX", items: [
       { t: "seg", k: "headDet", l: T("模型", "Model", "모델"), o: [{ v: "off", l: T("关", "Off", "끔") }, { v: "nano", l: "nano 12MB" }, { v: "medium", l: "medium 104MB" }] },
       { t: "seg", k: "headGrid", l: T("检测范围", "Coverage", "검출 범위"), o: [{ v: 1, l: T("整幅", "Full", "전체") }, { v: 2, l: "2×2" }] },
+      R("headConf", T("人头置信度", "Head confidence", "머리 신뢰도"), 0.1, 0.9, 0.05),
       R("headEvery", T("检测间隔", "Interval", "간격"), 0.2, 3, 0.1, "s"),
       R("headWait", T("等抬头最长", "Wait for face", "얼굴 대기"), 3, 60, 1, "s"),
       { t: "sub", l: T("两种模式：上面的“远距离检测”是放大切片（不用额外模型）；这里是人头模型。人头模型加载不了时自动退回放大切片 3×2。", "Two modes: Far detection above = zoomed tiles (no extra model); this = head model. If the head model can't load it falls back to 3×2 tiles.", "두 가지 모드: 위의 원거리 검출은 확대 타일(추가 모델 없음), 여기는 머리 모델. 머리 모델을 못 불러오면 자동으로 3×2 타일로 돌아갑니다.") },
@@ -910,6 +924,8 @@ const TABS = [
     { l: T("追踪", "Tracking", "추적"), items: [
       R("lostGrace", T("丢失容忍", "Lost grace", "인식 끊김 허용"), 0, 3, 0.1, "s"),
       R("smooth", T("防抖", "Stabilize", "떨림 보정"), 0.2, 5, 0.1, "Hz"),
+      R("faceConf", T("人脸置信度", "Face confidence", "얼굴 신뢰도"), 0.1, 0.95, 0.05),
+      { t: "sub", l: T("越低越容易认出侧脸、远处、暗处的脸，但更容易误认；越高越严。人脸模型不给每张脸单独的分数，叠加里显示的是当前门槛。", "Lower finds side / far / dark faces more easily but with more false hits; higher is stricter. The face model gives no per-face score, so the overlay shows the current threshold.", "낮을수록 옆얼굴·먼 얼굴·어두운 얼굴을 잘 찾지만 오검출이 늘고, 높을수록 엄격합니다. 얼굴 모델은 얼굴별 점수를 주지 않아 오버레이에는 현재 기준값이 표시됩니다.") },
       C("debug", T("显示识别叠加（D）", "Detection overlay (D)", "인식 오버레이 (D)")),
       C("mesh", T("显示关键点", "Show landmarks", "랜드마크 표시")),
       { t: "sub", l: T("框的颜色：绿 = 合格未追，红 = 正在被追（→ CAM），灰 = 太远或侧脸。", "Green = eligible, red = being tracked (→ CAM), grey = too far or turned.", "초록 = 적합, 빨강 = 추적 중 (→ CAM), 회색 = 멀거나 옆얼굴.") },
@@ -970,7 +986,12 @@ function itemHTML(it) {
   if (it.t === "seg") return `<div class="field"><label>${tr(it.l)}</label><div class="seg">${it.o.map((o) => `<button data-seg="${it.k}" data-v="${o.v}" class="${String(cfg[it.k]) === String(o.v) ? "on" : ""}">${tr(o.l)}</button>`).join("")}</div></div>`;
   if (it.t === "sub") return `<div class="sub">${tr(it.l)}</div>`;
   if (it.t === "info") return `<div class="info" id="${it.id}"></div>`;
-  if (it.t === "models") return MODELS.map((m) => `<div class="mdl"><div><b>${m.file}</b><i>${m.size}</i></div><div class="sub">${tr(m.use)} · ${m.src}</div><a class="btn" href="${MODEL_DIR}${m.file}" download>${tr(T("下载", "Download", "다운로드"))}</a></div>`).join("");
+  if (it.t === "models") {
+    const total = MODELS.reduce((s, m) => s + parseFloat(m.size), 0).toFixed(0);
+    return MODELS.map((m) => `<div class="mdl"><b>${m.file}</b><i>${m.size}</i><div class="sub">${tr(m.use)} · ${m.src}</div></div>`).join("")
+      + `<div class="grid2" style="margin-top:10px"><button class="btn" id="zipModels">${tr(T("下载模型 zip", "Download models.zip", "모델 zip 다운로드"))} · ${total} MB</button></div>`
+      + `<div class="sub">${tr(T("网页会自动加载这些模型，不用手动下载。离线或现场电脑用时，下载 zip 解压出 models/ 文件夹，放到 互动demo/ 里（和作品文件夹并排）。", "The page loads these models by itself. For offline / on-site machines, download the zip and put the models/ folder inside 互动demo/ next to the demo folders.", "웹페이지가 모델을 자동으로 불러옵니다. 오프라인·현장 PC용으로는 zip을 받아 models/ 폴더를 互动demo/ 안(작품 폴더 옆)에 두세요."))}</div>`;
+  }
   if (it.t === "camera") return `<div class="field"><label>${tr(T("设备", "Device", "장치"))}</label><div class="sel"><select id="camSel"></select><button class="btn icon" id="camRefresh" title="refresh">↻</button></div></div>`;
   if (it.t === "btns") return `<div class="grid${it.b.length >= 3 ? 3 : 2}">${it.b.map((b) => `<button class="btn ${b.cls || ""}" id="${b.id}">${tr(b.l)}</button>`).join("")}</div>`;
   return "";
@@ -1003,6 +1024,7 @@ function onChange(k) {
   saveCfg();
   if (k === "volume" && master) master.gain.value = cfg.volume;
   if (k === "res") startCamera();
+  if (k === "faceConf") applyFaceConf();
   if (k === "layout" || k === "rot") resetShow();
 }
 const side = $("#side");
@@ -1091,7 +1113,52 @@ const MODELS = [
   { file: "face_landmarker.task", size: "3.6 MB", use: T("人脸 478 点 + 头部姿态", "Face 478 landmarks + head pose", "얼굴 478점 + 머리 자세"), src: "Google MediaPipe · Apache-2.0" },
   { file: "yolo-head-nano.onnx", size: "11.7 MB", use: T("人头检测（快）", "Head detection (fast)", "머리 검출 (빠름)"), src: "trysem/YOLOv8_head_detector · MIT" },
   { file: "yolo-head-medium.onnx", size: "98.8 MB", use: T("人头检测（准）", "Head detection (accurate)", "머리 검출 (정확)"), src: "trysem/YOLOv8_head_detector · MIT" },
-];
+];const ZIP_NAME = "ghost-cctv-models.zip";
+// 模型 zip：点按钮时在网页里现场把这个作品用到的模型打成一个 zip（不压缩）。
+// 模型加起来超过 GitHub 单文件 100 MB 上限，放不了现成的 zip，所以在浏览器里打包。
+const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = (d) => { let c = 0xffffffff; for (let i = 0; i < d.length; i++) c = CRC_T[(c ^ d[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+async function downloadModelsZip(zipName, list, onProgress) {
+  const enc = new TextEncoder(), parts = [], central = [];
+  let off = 0;
+  const notes = ["Models used by " + zipName.replace(/\.zip$/, ""), "Put this models/ folder next to the demo folders (互动demo/models/).", ""];
+  const entries = [];
+  for (let i = 0; i < list.length; i++) {
+    onProgress && onProgress(i, list.length);
+    const m = list[i], r = await fetch(MODEL_DIR + m.file);
+    if (!r.ok) throw new Error(m.file + " " + r.status);
+    entries.push({ name: "models/" + m.file, data: new Uint8Array(await r.arrayBuffer()) });
+    notes.push(`${m.file}  ${m.size}  ${m.src}`);
+  }
+  entries.push({ name: "models/README.txt", data: enc.encode(notes.join("\r\n") + "\r\n") });
+  for (const { name: n, data } of entries) {
+    const name = enc.encode(n), crc = crc32(data);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(12, 0x21, true);
+    h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true);
+    parts.push(h, name, data);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(14, 0x21, true);
+    c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, name.length, true); c.setUint32(42, off, true);
+    central.push(c, name);
+    off += 30 + name.length + data.length;
+  }
+  const csize = central.reduce((s, x) => s + x.byteLength, 0), e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, entries.length, true); e.setUint16(10, entries.length, true); e.setUint32(12, csize, true); e.setUint32(16, off, true);
+  const url = URL.createObjectURL(new Blob([...parts, ...central, e], { type: "application/zip" }));
+  const a = document.createElement("a"); a.href = url; a.download = zipName; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+// 模型 zip 按钮（面板会重绘，所以用事件委托）
+document.addEventListener("click", (e) => {
+  const b = e.target.closest && e.target.closest("#zipModels"); if (!b || b.disabled) return;
+  const label = b.textContent; b.disabled = true;
+  downloadModelsZip(ZIP_NAME, MODELS, (i, n) => { b.textContent = `${i + 1} / ${n} …`; })
+    .then(() => { b.textContent = label; }).catch((err) => { console.warn(err); b.textContent = "✕ " + err.message; })
+    .finally(() => { b.disabled = false; setTimeout(() => { b.textContent = label; }, 4000); });
+});
+
 // 先读自带的模型文件，读不到再用官方地址（读到的字节缓存起来，分块检测再建一个实例时不用重新下载）
 const modelBytes = {};
 async function modelAsset(file, url) {
@@ -1101,12 +1168,15 @@ async function modelAsset(file, url) {
   const b = await modelBytes[file];
   return b ? { modelAssetBuffer: b.slice() } : { modelAssetPath: url }; // 每个实例一份拷贝，MediaPipe 会占用传进去的缓冲区
 }
+// 人脸模型的三个置信度一起调（检测 / 存在 / 跟踪）；改了立刻生效，不用重新加载
+const faceConfOpts = () => ({ minFaceDetectionConfidence: cfg.faceConf, minFacePresenceConfidence: cfg.faceConf, minTrackingConfidence: cfg.faceConf });
+function applyFaceConf() { for (const m of [landmarker, tileLm]) if (m) m.setOptions(faceConfOpts()).catch((e) => console.warn(e)); }
 async function loadModel(mode = "VIDEO") {
   const fs = await FilesetResolver.forVisionTasks(WASM_URL);
   const asset = await modelAsset("face_landmarker.task", MODEL_URL);
   const opts = (delegate) => ({
     baseOptions: { ...asset, delegate }, runningMode: mode, numFaces: 5,
-    outputFacialTransformationMatrixes: true, outputFaceBlendshapes: false, minFaceDetectionConfidence: 0.5, minTrackingConfidence: 0.5,
+    outputFacialTransformationMatrixes: true, outputFaceBlendshapes: false, ...faceConfOpts(),
   });
   try { return await FaceLandmarker.createFromOptions(fs, opts("GPU")); }
   catch (e) { console.warn("GPU 不可用，改用 CPU", e); return await FaceLandmarker.createFromOptions(fs, opts("CPU")); }
