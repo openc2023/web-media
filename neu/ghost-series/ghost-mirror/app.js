@@ -21,7 +21,7 @@ const DEFAULTS = {
   lang: "zh", deviceId: "", res: "720",
   rot: 0, tilt: 0, mirror: true, flipY: false, fit: "cover", zoom: 1, offX: 0, offY: 0,
   bright: 1, contrast: 1, sat: 1, sheen: 0.5, vignette: 0.6,
-  nearRatio: 0.18, scan: "off", yawLimit: 45, lostGrace: 0.5, recede: 8, smooth: 1.2, occlusion: true, debug: false, mesh: false,
+  nearRatio: 0.18, farScan: "off", yawLimit: 45, lostGrace: 0.5, recede: 8, smooth: 1.2, occlusion: true, debug: false, mesh: false,
   build: 30, frost: true, frostAmt: 0.85, stains: true, stainAmt: 0.75, cracks: true, crackCount: 6,
   light: true, lightAmt: 1, lightMode: "random", lightFlicker: true, ghostMask: true, maskTex: "random", maskAmt: 0.92, maskOffY: 0, maskScale: 1, maskGrow: 1, edgeFeather: 0.25, mouthLock: 1, maskFlicker: true, flickRate: 1,
   jumpFlash: true, jumpRate: 1, crackAmt: 0.9, maxFaces: 3, idleFx: 0.6, glitch: true, glitchRate: 1, pale: true, paleAmt: 0.85, faceCracks: true, expr: true, exprAmt: 1, eyes: true, volume: 0.7, ambience: true,
@@ -418,7 +418,7 @@ function analyze(res) {
 let tileLm = null, tileLoading = false, tileIdx = 0, tileFaces = [], roiFaces = [];
 const tileC = document.createElement("canvas"), tctx = tileC.getContext("2d");
 function tileRects() {
-  const [nx, ny] = cfg.scan === "3x2" ? [3, 2] : [2, 2], ov = 1.3, out = [];
+  const [nx, ny] = cfg.farScan === "3x2" ? [3, 2] : [2, 2], ov = 1.3, out = [];
   const w = Math.min(1, ov / nx), h = Math.min(1, ov / ny);
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++)
     out.push({ x: clamp((i + 0.5) / nx - w / 2, 0, 1 - w), y: clamp((j + 0.5) / ny - h / 2, 0, 1 - h), w, h });
@@ -438,7 +438,7 @@ function detectCrop(r) {
   return analyze({ faceLandmarks: lms, facialTransformationMatrixes: res.facialTransformationMatrixes, faceBlendshapes: res.faceBlendshapes });
 }
 function mergeFar(base, now) {
-  if (cfg.scan === "off") return base;
+  if (cfg.farScan === "off") return base;
   if (!tileLm) {
     if (!tileLoading) { tileLoading = true; loadLandmarker("IMAGE").then((m) => { tileLm = m; }).catch((e) => { console.warn("分块检测模型加载失败", e); tileLoading = false; }); }
     return base;
@@ -1555,10 +1555,12 @@ const TABS = [
   { id: "detect", l: T("识别", "Detect", "인식"), groups: [
     { l: T("距离", "Distance", "거리"), n: T("脸宽 / 画面宽", "face / frame", "얼굴 / 화면"), items: [
       R("nearRatio", T("近距离阈值", "Near threshold", "근거리 기준"), 0.02, 0.45, 0.005),
-      { t: "seg", k: "scan", l: T("远距离检测", "Far detection", "원거리 검출"), o: [{ v: "off", l: T("关", "Off", "끔") }, { v: "2x2", l: "2×2" }, { v: "3x2", l: "3×2" }] },
+      { t: "seg", k: "farScan", l: T("远距离检测", "Far detection", "원거리 검출"), o: [{ v: "off", l: T("关", "Off", "끔") }, { v: "2x2", l: "2×2" }, { v: "3x2", l: "3×2" }] },
       { t: "sub", l: T("摄像头离人远、脸很小时打开：画面切块轮流检测，找到的小脸每帧在附近裁一块跟踪。阈值同时调到 0.03–0.05。更吃性能。", "For far cameras with tiny faces: scans the frame in tiles and re-crops each found face every frame. Lower the threshold to 0.03–0.05. Heavier.", "카메라가 멀고 얼굴이 작을 때: 화면을 나눠 검출하고 찾은 얼굴은 매 프레임 주변을 잘라 추적합니다. 기준을 0.03–0.05로 낮추세요. 더 무겁습니다.") },
       { t: "sub", l: T("脸宽小于阈值视为远处，不推进演出。现场用调试叠加看 w 值再调。", "Faces narrower than this count as far away.", "이 값보다 작으면 먼 사람으로 보고 연출을 진행하지 않습니다.") },
+      { t: "sub", l: T("镜子的面具要贴在脸上，必须看到脸，所以这里没有人头模型（低头的人本来也照不到镜子）。", "The mask needs a visible face, so the mirror has no head model (people looking down aren't facing the mirror anyway).", "마스크는 얼굴이 보여야 하므로 거울에는 머리 모델이 없습니다.") },
     ] },
+    { l: T("模型", "Models", "모델"), n: T("可下载", "downloadable", "다운로드"), items: [{ t: "models" }] },
     { l: T("朝向", "Facing", "방향"), n: "yaw", items: [
       R("yawLimit", T("左右角度上限", "Yaw limit", "좌우 각도 한계"), 10, 80, 1, "°"),
       { t: "sub", l: T("这是自己设的过滤阈值，不是 MediaPipe 的识别极限。超过时不推进，也不回退。", "A chosen filter, not the tracker's limit. Beyond it the show pauses.", "직접 정한 필터 값이며 인식 한계가 아닙니다. 넘으면 연출이 멈춥니다.") },
@@ -1653,6 +1655,7 @@ function itemHTML(it) {
   if (it.t === "seg") return `<div class="field"><label>${tr(it.l)}</label><div class="seg">${it.o.map((o) => `<button data-seg="${it.k}" data-v="${o.v}" class="${String(cfg[it.k]) === String(o.v) ? "on" : ""}">${tr(o.l)}</button>`).join("")}</div></div>`;
   if (it.t === "sub") return `<div class="sub">${tr(it.l)}</div>`;
   if (it.t === "info") return `<div class="info" id="${it.id}"></div>`;
+  if (it.t === "models") return MODELS.map((m) => `<div class="mdl"><div><b>${m.file}</b><i>${m.size}</i></div><div class="sub">${tr(m.use)} · ${m.src}</div><a class="btn" href="${MODEL_DIR}${m.file}" download>${tr(T("下载", "Download", "다운로드"))}</a></div>`).join("");
   if (it.t === "meter") return `<div class="field"><label>level</label><div class="meter"><i id="levelBar"></i></div></div>`;
   if (it.t === "camera") return `<div class="field"><label>${tr(T("设备", "Device", "장치"))}</label><div class="sel"><select id="camSel"></select><button class="btn icon" id="camRefresh" title="refresh">↻</button></div></div>`;
   if (it.t === "btns") return `<div class="grid${it.b.length >= 3 ? 3 : 2}">${it.b.map((b) => `<button class="btn ${b.cls || ""}" id="${b.id}">${tr(b.l)}</button>`).join("")}</div>`;
@@ -1782,8 +1785,23 @@ addEventListener("touchend", () => clearTimeout(twoFingerTimer), { passive: true
 addEventListener("touchcancel", () => clearTimeout(twoFingerTimer), { passive: true });
 
 // ---------- 启动 ----------
+// 这个作品用到的模型（设置 → 识别 → 模型 里可以下载）
+const MODEL_DIR = "../models/";
+const MODELS = [
+  { file: "face_landmarker.task", size: "3.6 MB", use: T("人脸 478 点 + 表情 + 头部姿态", "Face 478 landmarks + blendshapes + pose", "얼굴 478점 + 표정 + 자세"), src: "Google MediaPipe · Apache-2.0" },
+  { file: "selfie_multiclass_256x256.tflite", size: "15.6 MB", use: T("人物分割（手、头发挡住面具）", "Person segmentation (hands / hair occlude the mask)", "인물 분할 (손·머리카락 가림)"), src: "Google MediaPipe · Apache-2.0" },
+];
+// 先读自带的模型文件（GitHub 上是 ghost-series/models/，本地服务器把 /models/ 映射到 互动demo/models/），读不到再用官方地址；
+// 每个实例一份拷贝，MediaPipe 会占用传进去的缓冲区
+const modelBytes = {};
+async function modelAsset(file, url) {
+  if (!(file in modelBytes)) modelBytes[file] = fetch(MODEL_DIR + file).then((r) => (r.ok ? r.arrayBuffer() : null)).then((b) => (b ? new Uint8Array(b) : null)).catch(() => null);
+  const b = await modelBytes[file];
+  return b ? { modelAssetBuffer: b.slice() } : { modelAssetPath: url };
+}
 async function loadSegmenter(fs) {
-  const opts = (delegate) => ({ baseOptions: { modelAssetPath: SEG_URL, delegate }, runningMode: "VIDEO", outputCategoryMask: true, outputConfidenceMasks: false });
+  const asset = await modelAsset("selfie_multiclass_256x256.tflite", SEG_URL);
+  const opts = (delegate) => ({ baseOptions: { ...asset, delegate }, runningMode: "VIDEO", outputCategoryMask: true, outputConfidenceMasks: false });
   try { return await ImageSegmenter.createFromOptions(fs, opts("GPU")); }
   catch (e) { console.warn("分割 GPU 不可用，改用 CPU", e); return await ImageSegmenter.createFromOptions(fs, opts("CPU")); }
 }
@@ -1795,8 +1813,9 @@ async function loadModel() {
 }
 async function loadLandmarker(mode, fs) {
   fs = fs || await FilesetResolver.forVisionTasks(WASM_URL);
+  const asset = await modelAsset("face_landmarker.task", MODEL_URL);
   const opts = (delegate) => ({
-    baseOptions: { modelAssetPath: MODEL_URL, delegate },
+    baseOptions: { ...asset, delegate },
     runningMode: mode, numFaces: 5,
     outputFacialTransformationMatrixes: true, outputFaceBlendshapes: true,
     minFaceDetectionConfidence: 0.5, minTrackingConfidence: 0.5,

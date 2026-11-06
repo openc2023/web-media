@@ -4,7 +4,10 @@
 import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
 
 const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
+// 模型优先从自带的 models 文件夹加载（GitHub 上是 ghost-series/models/，本地服务器把 /models/ 映射到 互动demo/models/），失败再用官方地址
+const MODEL_DIR = "../models/";
 const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+const ORT_URL = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/";
 
 const $ = (s) => document.querySelector(s);
 const canvas = $("#stage");
@@ -18,7 +21,7 @@ const wrapAng = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 // ---------- 参数 ----------
 const DEFAULTS = {
   lang: "zh", deviceId: "", res: "1080", rot: 0, mirror: false, flipY: false, layout: "quad", stamp: true,
-  nearRatio: 0.15, scan: "off", yawLimit: 45, lostGrace: 0.8, smooth: 1.2, debug: false, mesh: false,
+  nearRatio: 0.15, farScan: "off", headDet: "off", headGrid: 2, headEvery: 0.5, headWait: 15, yawLimit: 45, lostGrace: 0.8, smooth: 1.2, debug: false, mesh: false,
   tLock: 1.2, tFace: 3, tEyes: 3, tBlack: 2.5, tHold: 4, cooldown: 5,
   faceFrame: 1.5, eyeFill: 0.62, follow: 2.6, hunt: 0.5, vary: 0.7,
   eyeTex: "random", eyeAmt: 1, eyeRadius: 1.2, eyeLock: true,
@@ -27,6 +30,7 @@ const DEFAULTS = {
 };
 const CFG_KEY = "ghostCctvCfg.v1";
 let cfg = loadCfg();
+if (typeof cfg.scan !== "number") cfg.scan = DEFAULTS.scan; // 旧版把远距离检测也存成了 scan，和扫描线撞名
 function loadCfg() {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(CFG_KEY) || "{}") }; }
   catch { return { ...DEFAULTS }; }
@@ -133,8 +137,10 @@ function analyze(res) {
 // 打开后把画面切成几块、每帧轮流检测一块；正在被追的小脸再每帧在他附近裁一块精确跟踪。
 let tileLm = null, tileLoading = false, tileIdx = 0, tileFaces = [], roiFaces = [];
 const tileC = document.createElement("canvas"), tctx = tileC.getContext("2d");
+// 人头模型加载不了（没联网、文件缺失、浏览器不支持）时，自动退回放大切片 3×2
+const farMode = () => (cfg.farScan !== "off" ? cfg.farScan : cfg.headDet !== "off" && headFailed ? "3x2" : "off");
 function tileRects() {
-  const [nx, ny] = cfg.scan === "3x2" ? [3, 2] : [2, 2], ov = 1.3, out = [];
+  const [nx, ny] = farMode() === "3x2" ? [3, 2] : [2, 2], ov = 1.3, out = [];
   const w = Math.min(1, ov / nx), h = Math.min(1, ov / ny);
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++)
     out.push({ x: clamp((i + 0.5) / nx - w / 2, 0, 1 - w), y: clamp((j + 0.5) / ny - h / 2, 0, 1 - h), w, h });
@@ -154,20 +160,21 @@ function detectCrop(r) {
   return analyze({ faceLandmarks: lms, facialTransformationMatrixes: res.facialTransformationMatrixes });
 }
 function mergeFar(base, now) {
-  if (cfg.scan === "off") return base;
+  const tiled = farMode() !== "off";
+  if (!tiled && cfg.headDet === "off") return base;
   if (!tileLm) {
     if (!tileLoading) { tileLoading = true; loadModel("IMAGE").then((m) => { tileLm = m; }).catch((e) => { console.warn("分块检测模型加载失败", e); tileLoading = false; }); }
     return base;
   }
-  const rects = tileRects();
+  const rects = tiled ? tileRects() : [];
   try {
-    tileIdx = (tileIdx + 1) % rects.length;
-    tileFaces[tileIdx] = { t: now, faces: detectCrop(rects[tileIdx]) };
+    if (tiled) { tileIdx = (tileIdx + 1) % rects.length; tileFaces[tileIdx] = { t: now, faces: detectCrop(rects[tileIdx]) }; }
     tileFaces.length = rects.length;
+    // 被格子追着的人：脸小、或者暂时没脸（低头，只有人头框）时，每帧在他附近裁一块找脸
     roiFaces = [];
     for (const c of cells) {
       const p = c.pid != null && people.find((q) => q.id === c.pid);
-      if (p && p.seen && p.width < 0.12) roiFaces.push(...detectCrop(roiRect(p)));
+      if (p && (!p.seen || p.width < 0.12)) roiFaces.push(...detectCrop(roiRect(p)));
     }
   } catch (e) { console.warn(e); }
   // 合并去重：整幅画面的结果优先，其次每帧裁的，最后是轮流扫的块
@@ -177,6 +184,88 @@ function mergeFar(base, now) {
   for (const tf of tileFaces) if (tf && now - tf.t < rects.length * 70 + 250) tf.faces.forEach(add);
   return all;
 }
+
+// ---------- 人头检测（YOLOv8 head，SCUT-HEAD 训练，ONNX，MIT）----------
+// 低头、只露头顶的人，人脸模型找不到。先用人头模型找出所有人头，格子先追头；
+// 被追的头每帧裁一块找脸（mergeFar），找到脸就接着走原来的流程。
+// 所有格子都追上有脸的人时不再跑人头检测，省性能。
+const HEAD_MODELS = { nano: "yolo-head-nano.onnx", medium: "yolo-head-medium.onnx" };
+let headSess = null, headName = "", headEP = "", headLoading = false, headFailed = false, headBusy = false, headAt = 0, headMs = 0, heads = [], headErr = "";
+const headC = document.createElement("canvas"); headC.width = headC.height = 640;
+const hctx = headC.getContext("2d", { willReadFrequently: true });
+const headGrace = () => Math.max(2000, cfg.headEvery * 3000);
+function loadScript(src) { return new Promise((ok, no) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
+async function ensureHead() {
+  if (cfg.headDet === "off" || headLoading) return null;
+  if (headSess && headName === cfg.headDet) return headSess;
+  if (headFailed && ensureHead.failed === cfg.headDet) return null; // 同一个模型失败过就不反复重试，换模型才再试
+  headLoading = true; ensureHead.failed = cfg.headDet;
+  try {
+    if (!window.ort) await loadScript(ORT_URL + "ort.webgpu.min.js");
+    ort.env.wasm.wasmPaths = ORT_URL;
+    const name = cfg.headDet;
+    for (const ep of ["webgpu", "wasm"]) {
+      try { headSess = await ort.InferenceSession.create(MODEL_DIR + HEAD_MODELS[name], { executionProviders: [ep] }); headName = name; headEP = ep; headErr = ""; headFailed = false; break; }
+      catch (e) { console.warn("人头模型", ep, e); headErr = String(e.message || e); }
+    }
+  } catch (e) { headErr = String(e.message || e); } finally { headLoading = false; }
+  if (!(headSess && headName === cfg.headDet)) headFailed = true;
+  return headSess && headName === cfg.headDet ? headSess : null;
+}
+// 一块区域按长边缩到 640、补灰边，跑 YOLOv8；输出 [1, 5, N]：cx cy w h score（640 像素坐标）
+async function detectHeads(sess, r) {
+  const fw = frame.width, fh = frame.height, sw = r.w * fw, sh = r.h * fh, k = 640 / Math.max(sw, sh);
+  hctx.fillStyle = "#727272"; hctx.fillRect(0, 0, 640, 640);
+  hctx.drawImage(frame, r.x * fw, r.y * fh, sw, sh, 0, 0, sw * k, sh * k);
+  const d = hctx.getImageData(0, 0, 640, 640).data, N = 640 * 640, f = new Float32Array(3 * N);
+  for (let i = 0, p = 0; i < N; i++, p += 4) { f[i] = d[p] / 255; f[i + N] = d[p + 1] / 255; f[i + 2 * N] = d[p + 2] / 255; }
+  const out = await sess.run({ [sess.inputNames[0]]: new ort.Tensor("float32", f, [1, 3, 640, 640]) });
+  const o = out[sess.outputNames[0]], n = o.dims[2], a = o.data, bs = [];
+  for (let i = 0; i < n; i++) {
+    const s = a[4 * n + i]; if (s < 0.35) continue;
+    const w = a[2 * n + i] / k, h = a[3 * n + i] / k, cx = r.x * fw + a[i] / k, cy = r.y * fh + a[n + i] / k;
+    bs.push({ cx: cx / fw, cy: cy / fh, w: w / fw, h: h / fh, s });
+  }
+  return bs;
+}
+function nmsHeads(bs) {
+  const fw = frame.width, fh = frame.height, box = (b) => [(b.cx - b.w / 2) * fw, (b.cy - b.h / 2) * fh, b.w * fw, b.h * fh];
+  const iou = (p, q) => { const [ax, ay, aw, ah] = box(p), [bx, by, bw, bh] = box(q); const ix = Math.max(0, Math.min(ax + aw, bx + bw) - Math.max(ax, bx)), iy = Math.max(0, Math.min(ay + ah, by + bh) - Math.max(ay, by)); const I = ix * iy; return I / (aw * ah + bw * bh - I); };
+  bs.sort((a, b) => b.s - a.s); const keep = [];
+  for (const b of bs) if (keep.every((q) => iou(q, b) < 0.45)) keep.push(b);
+  return keep;
+}
+function headTiles() {
+  if (+cfg.headGrid !== 2) return [{ x: 0, y: 0, w: 1, h: 1 }];
+  const out = []; for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) out.push({ x: i * 0.35, y: j * 0.35, w: 0.65, h: 0.65 });
+  return out;
+}
+// 头框对上已有的人（有脸的人鼻尖在头框里）；对不上就新建一个“只有人头”的人
+function applyHeads(hs, now) {
+  for (const h of hs) {
+    let best = null, bd = 1e9;
+    for (const p of people) { const d = Math.hypot(p.cx - h.cx, p.cy - h.cy); if (d < Math.max(h.w, p.width) * 0.8 && d < bd) { bd = d; best = p; } }
+    if (best) { best.hb = h; best.headAt = now; if (!best.seen) { best.cx = h.cx; best.cy = h.cy; best.width = h.w; } continue; }
+    people.push({ id: nextPersonId++, lm: null, slm: null, sm: null, cx: h.cx, cy: h.cy, width: h.w, yaw: NaN, near: false, frontal: false, ok: false,
+      lastSeen: -1e9, seen: false, hb: h, headAt: now, tex: ["base", "veins"][Math.random() * 2 | 0], eyeRef: [0, 0] });
+  }
+}
+function headTick(now) {
+  if (cfg.headDet === "off" || headBusy || now - headAt < cfg.headEvery * 1000 || !frame.width) return;
+  // 每一格都已经追上有脸的人：不用再找头
+  const need = visibleCells().some((c) => { const p = c.pid != null && people.find((q) => q.id === c.pid); return !p || !p.seen; });
+  if (!need) return;
+  headBusy = true; headAt = now;
+  (async () => {
+    const sess = await ensureHead(); if (!sess) return;
+    const t0 = performance.now(), all = [];
+    for (const r of headTiles()) all.push(...await detectHeads(sess, r));
+    heads = nmsHeads(all); headMs = performance.now() - t0;
+    applyHeads(heads, performance.now());
+  })().catch((e) => { console.warn(e); headErr = String(e.message || e); }).finally(() => { headBusy = false; });
+}
+const headFresh = (p, now) => p.hb && now - p.headAt < headGrace();
+const faceFresh = (p, now) => p.slm && (p.seen || now - p.lastSeen < 400);
 
 // 测试用假脸：官方模型顶点投影，轻轻晃动；“模拟有人”时生成两张，方便看监控墙分格
 let canonVerts = null;
@@ -218,7 +307,9 @@ function updatePeople(now, fresh) {
         tex: ["base", "veins"][Math.random() * 2 | 0], eyeRef: [0, 0] });
     });
   }
-  people = people.filter((p) => p.seen || now - p.lastSeen < cfg.lostGrace * 1000);
+  // 开着人头检测时，脸丢了（低头）的人先别删，等人头检测接上
+  const grace = cfg.headDet !== "off" ? Math.max(cfg.lostGrace * 1000, headGrace()) : cfg.lostGrace * 1000;
+  people = people.filter((p) => p.seen || now - p.lastSeen < grace || headFresh(p, now));
   for (const p of people) if (fresh && p.seen) p.slm = smoothLandmarks(p, now);
 }
 // One Euro 防抖（整张脸共用一个截止频率）
@@ -470,6 +561,11 @@ function eyesView(c, lm) {
   const h = span / (cfg.eyeFill * st.fill) / asp;
   return { cx: (R.x + L.x) / 2 + st.ox * h * 0.5, cy: (R.y + L.y) / 2 + st.oy * h * 0.5, h, rot };
 }
+function headView(c, p) { // 只有人头框（低头）时：推到头上，等他抬头
+  const b = p.hb, asp = c.rect.w / Math.max(1, c.rect.h), st = styOf(c), ff = cfg.faceFrame * st.frame * 1.25;
+  const h = Math.max(b.h * frame.height * ff, b.w * frame.width * ff / asp);
+  return { cx: b.cx * frame.width + st.ox * h, cy: b.cy * frame.height + st.oy * h, h, rot: st.tilt };
+}
 
 // 镜头：带一点过冲的弹簧，变焦在对数空间里做，像真的云台
 function stepCam(c, tgt, dt) {
@@ -485,7 +581,8 @@ function stepCam(c, tgt, dt) {
 function updateCells(now, dt) {
   // 分配：空闲的格子去追离得最近、还没被追的合格的人
   const taken = new Set(cells.filter((c) => c.pid != null).map((c) => c.pid));
-  const free = people.filter((p) => p.ok && p.seen && !taken.has(p.id)).sort((a, b) => b.width - a.width);
+  const headOk = (p) => cfg.headDet !== "off" && headFresh(p, now) && p.hb.w >= cfg.nearRatio * 0.8;
+  const free = people.filter((p) => !taken.has(p.id) && ((p.ok && p.seen) || (!p.seen && headOk(p)))).sort((a, b) => b.width - a.width);
   for (const c of visibleCells()) {
     if (c.pid == null && c.phase === "idle" && now >= c.coolUntil && free.length) {
       // 每格反应快慢不一样，不会几格同时锁定
@@ -511,19 +608,24 @@ function updateCells(now, dt) {
       c.t += dt;
       if (c.t > 1.4) { c.phase = "idle"; c.t = 0; c.pid = null; c.coolUntil = now + cfg.cooldown * 1000; c.cam.init = false; }
     } else if (p) {
-      // 人在但不合格（转头太多）时暂停计时，不推进
+      // 人在但不合格（转头太多）时暂停计时，不推进；只有人头（低头）时，锁定照走，之后停在头上等他抬头
+      const headOnly = !p.seen && headFresh(p, now);
       if (p.ok && p.seen) c.t += dt;
-      if (c.t >= durOf(c.phase, c)) {
+      else if (headOnly && c.phase === "lock") c.t += dt;
+      c.noFace = p.seen ? 0 : (c.noFace || 0) + dt;
+      if (headOnly && c.phase !== "lock" && c.noFace > cfg.headWait) { c.phase = "lost"; c.t = 0; c.noFace = 0; sndStatic(1.2, 0.3); }
+      if (c.phase !== "lost" && c.t >= durOf(c.phase, c)) {
         let idx = PHASES.indexOf(c.phase);
         if (c.phase === "lock" && styOf(c).skipFace) idx++;
         if (idx < PHASES.length - 1) { c.phase = PHASES[idx + 1]; c.t = 0; if (c.phase === "black") sndDrop(); if (c.phase === "face" || c.phase === "eyes") c.focus = 1; }
         else { c.phase = "lost"; c.t = 0; sndStatic(1.2, 0.3); }
       }
     }
-    const lm = p && p.slm;
+    const lm = p && faceFresh(p, now) && p.slm;
     let tgt = idleView(c, now);
     if (lm && c.phase === "face") tgt = faceView(c, lm);
     else if (lm && ["eyes", "black", "hold", "lost"].includes(c.phase)) tgt = eyesView(c, lm);
+    else if (p && !lm && p.hb && c.phase !== "lock") tgt = headView(c, p);
     stepCam(c, tgt, dt);
     c.focus = Math.max(0, (c.focus || 0) - dt * 1.2);
     servo += Math.abs(c.cam.vh) + Math.hypot(c.cam.vx, c.cam.vy) / Math.exp(c.cam.lh) * 0.5;
@@ -559,7 +661,7 @@ function drawCell(c, now) {
   mx.filter = "none"; mx.setTransform(1, 0, 0, 1, 0, 0);
   // 黑眼洞
   const p = c.pid != null ? people.find((q) => q.id === c.pid) : null;
-  if (p && p.slm) {
+  if (p && faceFresh(p, now)) {
     let op = 0;
     if (c.phase === "black") op = clamp(c.t / durOf("black", c), 0, 1) * (Math.random() < 0.25 ? rnd(0.2, 0.8) : 1);
     else if (c.phase === "hold" || c.phase === "lost") op = Math.random() < 0.06 ? 0 : 1;
@@ -618,20 +720,25 @@ function drawHud(c, p, now) {
   const asp = r.w / Math.max(1, r.h), wideH = Math.min(frame.height, frame.width / asp); // 以全景为 ×1
   const zoom = wideH / Math.exp(c.cam.lh);
   const z = `×${zoom.toFixed(1)}`;
-  const status = {
+  const noFace = p && !faceFresh(p, now) && p.hb && !["idle", "lock", "lost", "drop"].includes(c.phase);
+  const status = noFace ? `SUBJ ${pad2(p.id % 100)} · FACE NOT VISIBLE` : {
     idle: now < c.coolUntil ? "STANDBY" : "MOTION SCAN", lock: "TARGET ACQUIRED", face: `TRACKING · SUBJ ${pad2(p ? p.id % 100 : 0)}`,
     eyes: "OCULAR ZOOM", black: "ANOMALY DETECTED", hold: "ANOMALY DETECTED", lost: "NO SIGNAL", drop: "",
   }[c.phase];
-  const blinkStatus = (c.phase === "black" || c.phase === "hold" || c.phase === "lock") && (now / 350 | 0) % 2;
+  const blinkStatus = (noFace || c.phase === "black" || c.phase === "hold" || c.phase === "lock") && (now / 350 | 0) % 2;
   if (!blinkStatus) ctx.fillText(status, r.x + m, r.y + r.h - m - fs);
   // 变焦倍数放右下；和状态文字挤不下时不显示
   if (ctx.measureText(status).width + ctx.measureText(z).width + m * 3 < r.w) ctx.fillText(z, r.x + r.w - m - ctx.measureText(z).width, r.y + r.h - m - fs);
   // 锁定框：在全景 / 推近到脸时框住目标的脸
-  if (p && p.slm && (c.phase === "lock" || c.phase === "face")) {
+  const hasFace = p && faceFresh(p, now);
+  if (p && (hasFace || p.hb) && (c.phase === "lock" || c.phase === "face" || noFace)) {
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     const sx = r.w / c.mon.width, sy = r.h / c.mon.height;
-    for (const i of [10, 152, 234, 454]) {
-      const q = lmPx(p.slm[i]), X = r.x + (c.M.a * q.x + c.M.c * q.y + c.M.e) * sx, Y = r.y + (c.M.b * q.x + c.M.d * q.y + c.M.f) * sy;
+    // 有脸框脸，只有人头时框头
+    const pts = hasFace ? [10, 152, 234, 454].map((i) => lmPx(p.slm[i]))
+      : [[-1, -1], [1, 1]].map(([u, v]) => ({ x: (p.hb.cx + u * p.hb.w / 2) * frame.width, y: (p.hb.cy + v * p.hb.h / 2) * frame.height }));
+    for (const q of pts) {
+      const X = r.x + (c.M.a * q.x + c.M.c * q.y + c.M.e) * sx, Y = r.y + (c.M.b * q.x + c.M.d * q.y + c.M.f) * sy;
       x0 = Math.min(x0, X); x1 = Math.max(x1, X); y0 = Math.min(y0, Y); y1 = Math.max(y1, Y);
     }
     const padb = (x1 - x0) * 0.12; x0 -= padb; x1 += padb; y0 -= padb; y1 += padb;
@@ -675,12 +782,23 @@ function drawDebug(now) {
       ctx.fillText(`w ${p.width.toFixed(2)}${p.near ? "" : " far"}  yaw ${yawTxt}${p.frontal ? "" : " side"}`, x0, y0 - 6);
       if (cfg.mesh) for (let i = 0; i < 468; i += 2) { const q = toS(lmPx(lm[i])); ctx.fillRect(q.x - 0.7, q.y - 0.7, 1.4, 1.4); }
     }
+    // 人头框（黄色）：最近一次人头检测的结果，被追的标上格子
+    if (cfg.headDet !== "off") for (const p of people) {
+      if (!p.hb || p.seen || !headFresh(p, now)) continue;
+      const b = p.hb, a = toS({ x: (b.cx - b.w / 2) * frame.width, y: (b.cy - b.h / 2) * frame.height }), z = toS({ x: (b.cx + b.w / 2) * frame.width, y: (b.cy + b.h / 2) * frame.height });
+      const cam = cells.find((k) => k.pid === p.id);
+      ctx.strokeStyle = ctx.fillStyle = cam ? "#f2838f" : "#e8c25a";
+      ctx.strokeRect(a.x, a.y, z.x - a.x, z.y - a.y);
+      ctx.fillText(`#${p.id} head ${b.s.toFixed(2)}${cam ? " → " + cam.label : ""}`, a.x, a.y - 6);
+    }
     ctx.restore();
   }
   ctx.restore();
-  ctx.save(); ctx.font = "12px Consolas, monospace"; ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(W / 2 - 230, H / 2 - 40, 460, 80);
+  ctx.save(); ctx.font = "12px Consolas, monospace"; ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(W / 2 - 230, H / 2 - 54, 460, 94);
   ctx.fillStyle = "#7fd1a8";
   ctx.fillText(`faces ${faces.length}  people ${people.length}  near ≥ ${cfg.nearRatio}  yaw ≤ ±${cfg.yawLimit}°  fps ${fps.toFixed(0)}${force ? "  (force)" : ""}`, W / 2 - 220, H / 2 - 28);
+  const hs = cfg.headDet === "off" ? "head off" : headSess ? `head ${headName}/${headEP}  ${heads.length} heads  ${headMs.toFixed(0)} ms${headBusy ? " …" : ""}` : headLoading ? "head loading…" : `head ${headFailed ? "unavailable → tiles 3x2" : headErr || "idle"}`;
+  ctx.fillText(hs, W / 2 - 220, H / 2 - 42);
   cells.forEach((c, i) => {
     const st = c.pid != null && c.sty ? `  eye ${c.sty.eye}${c.sty.skipFace ? " skip" : ""} ×${c.sty.frame.toFixed(2)}/${c.sty.fill.toFixed(2)} spd ${c.sty.follow.toFixed(2)}` : "";
     ctx.fillText(`${c.label}  ${c.phase.padEnd(5)} ${c.t.toFixed(1)}s  subj ${c.pid ?? "-"}${st}`, W / 2 - 220, H / 2 - 12 + i * 14);
@@ -701,6 +819,7 @@ function loop() {
     faces = mergeFar(faces, now);
     if (force && !faces.length && canonVerts) faces = [0, 1, 2, 3].map((k) => fakeFace(now, k));
   }
+  if (ok) headTick(now);
   updatePeople(now, fresh);
   layoutCells();
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -772,9 +891,18 @@ const TABS = [
   { id: "detect", l: T("识别", "Detect", "인식"), groups: [
     { l: T("距离", "Distance", "거리"), n: T("脸宽 / 画面宽", "face / frame", "얼굴 / 화면"), items: [
       R("nearRatio", T("近距离阈值", "Near threshold", "근거리 기준"), 0.02, 0.45, 0.005),
-      { t: "seg", k: "scan", l: T("远距离检测", "Far detection", "원거리 검출"), o: [{ v: "off", l: T("关", "Off", "끔") }, { v: "2x2", l: "2×2" }, { v: "3x2", l: "3×2" }] },
+      { t: "seg", k: "farScan", l: T("远距离检测", "Far detection", "원거리 검출"), o: [{ v: "off", l: T("关", "Off", "끔") }, { v: "2x2", l: "2×2" }, { v: "3x2", l: "3×2" }] },
       { t: "sub", l: T("摄像头离人远、脸很小（教室、大厅俯拍）时打开：画面切块轮流检测，被追的人每帧在附近裁一块跟踪。阈值同时调到 0.03–0.05。更吃性能。", "For far cameras with tiny faces (classroom / hall): scans the frame in tiles and re-crops each tracked person every frame. Lower the threshold to 0.03–0.05. Heavier.", "카메라가 멀고 얼굴이 작을 때(교실·홀): 화면을 나눠 검출하고 추적 중인 사람은 매 프레임 주변을 잘라 추적합니다. 기준을 0.03–0.05로 낮추세요. 더 무겁습니다.") },
     ] },
+    { l: T("人头检测", "Head detection", "머리 검출"), n: "YOLOv8 head · ONNX", items: [
+      { t: "seg", k: "headDet", l: T("模型", "Model", "모델"), o: [{ v: "off", l: T("关", "Off", "끔") }, { v: "nano", l: "nano 12MB" }, { v: "medium", l: "medium 104MB" }] },
+      { t: "seg", k: "headGrid", l: T("检测范围", "Coverage", "검출 범위"), o: [{ v: 1, l: T("整幅", "Full", "전체") }, { v: 2, l: "2×2" }] },
+      R("headEvery", T("检测间隔", "Interval", "간격"), 0.2, 3, 0.1, "s"),
+      R("headWait", T("等抬头最长", "Wait for face", "얼굴 대기"), 3, 60, 1, "s"),
+      { t: "sub", l: T("两种模式：上面的“远距离检测”是放大切片（不用额外模型）；这里是人头模型。人头模型加载不了时自动退回放大切片 3×2。", "Two modes: Far detection above = zoomed tiles (no extra model); this = head model. If the head model can't load it falls back to 3×2 tiles.", "두 가지 모드: 위의 원거리 검출은 확대 타일(추가 모델 없음), 여기는 머리 모델. 머리 모델을 못 불러오면 자동으로 3×2 타일로 돌아갑니다.") },
+      { t: "sub", l: T("先找人头再找脸：低头、只露头顶的人也会被锁定，镜头停在头上显示 FACE NOT VISIBLE，等他抬头再推到眼睛。所有格子都追上脸以后自动停止人头检测。nano 快，medium 准但慢、手机别用。", "Heads first, then faces: people looking down still get locked; the camera holds on the head (FACE NOT VISIBLE) until they look up. Head detection pauses once every cell has a face. nano is fast; medium is more accurate but slow (not for phones).", "머리 먼저, 얼굴은 나중: 고개 숙인 사람도 잠그고 머리에서 FACE NOT VISIBLE로 기다렸다가 고개를 들면 눈으로 줌인. 모든 칸이 얼굴을 잡으면 머리 검출은 멈춥니다. nano는 빠르고 medium은 정확하지만 느립니다(휴대폰 비권장).") },
+    ] },
+    { l: T("模型", "Models", "모델"), n: T("可下载", "downloadable", "다운로드"), items: [{ t: "models" }] },
     { l: T("朝向", "Facing", "방향"), n: "yaw", items: [
       R("yawLimit", T("左右角度上限", "Yaw limit", "좌우 각도 한계"), 10, 80, 1, "°"),
       { t: "sub", l: T("超过时镜头停在当前阶段，不往下推进。", "Beyond it the camera pauses at the current stage.", "넘으면 현재 단계에서 멈춥니다.") },
@@ -842,6 +970,7 @@ function itemHTML(it) {
   if (it.t === "seg") return `<div class="field"><label>${tr(it.l)}</label><div class="seg">${it.o.map((o) => `<button data-seg="${it.k}" data-v="${o.v}" class="${String(cfg[it.k]) === String(o.v) ? "on" : ""}">${tr(o.l)}</button>`).join("")}</div></div>`;
   if (it.t === "sub") return `<div class="sub">${tr(it.l)}</div>`;
   if (it.t === "info") return `<div class="info" id="${it.id}"></div>`;
+  if (it.t === "models") return MODELS.map((m) => `<div class="mdl"><div><b>${m.file}</b><i>${m.size}</i></div><div class="sub">${tr(m.use)} · ${m.src}</div><a class="btn" href="${MODEL_DIR}${m.file}" download>${tr(T("下载", "Download", "다운로드"))}</a></div>`).join("");
   if (it.t === "camera") return `<div class="field"><label>${tr(T("设备", "Device", "장치"))}</label><div class="sel"><select id="camSel"></select><button class="btn icon" id="camRefresh" title="refresh">↻</button></div></div>`;
   if (it.t === "btns") return `<div class="grid${it.b.length >= 3 ? 3 : 2}">${it.b.map((b) => `<button class="btn ${b.cls || ""}" id="${b.id}">${tr(b.l)}</button>`).join("")}</div>`;
   return "";
@@ -957,10 +1086,26 @@ addEventListener("touchend", () => clearTimeout(twoFingerTimer), { passive: true
 addEventListener("touchcancel", () => clearTimeout(twoFingerTimer), { passive: true });
 
 // ---------- 启动 ----------
+// 这个作品用到的模型（设置 → 识别 → 模型 里可以下载）
+const MODELS = [
+  { file: "face_landmarker.task", size: "3.6 MB", use: T("人脸 478 点 + 头部姿态", "Face 478 landmarks + head pose", "얼굴 478점 + 머리 자세"), src: "Google MediaPipe · Apache-2.0" },
+  { file: "yolo-head-nano.onnx", size: "11.7 MB", use: T("人头检测（快）", "Head detection (fast)", "머리 검출 (빠름)"), src: "trysem/YOLOv8_head_detector · MIT" },
+  { file: "yolo-head-medium.onnx", size: "98.8 MB", use: T("人头检测（准）", "Head detection (accurate)", "머리 검출 (정확)"), src: "trysem/YOLOv8_head_detector · MIT" },
+];
+// 先读自带的模型文件，读不到再用官方地址（读到的字节缓存起来，分块检测再建一个实例时不用重新下载）
+const modelBytes = {};
+async function modelAsset(file, url) {
+  if (!(file in modelBytes)) {
+    modelBytes[file] = fetch(MODEL_DIR + file).then((r) => (r.ok ? r.arrayBuffer() : null)).then((b) => (b ? new Uint8Array(b) : null)).catch(() => null);
+  }
+  const b = await modelBytes[file];
+  return b ? { modelAssetBuffer: b.slice() } : { modelAssetPath: url }; // 每个实例一份拷贝，MediaPipe 会占用传进去的缓冲区
+}
 async function loadModel(mode = "VIDEO") {
   const fs = await FilesetResolver.forVisionTasks(WASM_URL);
+  const asset = await modelAsset("face_landmarker.task", MODEL_URL);
   const opts = (delegate) => ({
-    baseOptions: { modelAssetPath: MODEL_URL, delegate }, runningMode: mode, numFaces: 5,
+    baseOptions: { ...asset, delegate }, runningMode: mode, numFaces: 5,
     outputFacialTransformationMatrixes: true, outputFaceBlendshapes: false, minFaceDetectionConfidence: 0.5, minTrackingConfidence: 0.5,
   });
   try { return await FaceLandmarker.createFromOptions(fs, opts("GPU")); }

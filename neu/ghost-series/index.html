@@ -55,6 +55,14 @@
   .cases { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); gap: 22px; }
   .case { position: relative; display: block; color: inherit; text-decoration: none; background: var(--panel); border: 1px solid var(--line);
     box-shadow: 0 10px 28px rgba(0,0,0,0.45); transition: border-color .2s, transform .2s, box-shadow .2s; }
+  .case > .hit { display: block; color: inherit; text-decoration: none; }
+  /* 每件案卷下面：用到的模型，可单独下载（照 07tools 的“.html 下载”） */
+  .models { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; border-top: 1px dashed var(--line); padding: 9px 14px 11px; font-size: 11px; }
+  .models > .c { width: 100%; font-style: normal; }
+  .models a { display: inline-flex; gap: 6px; align-items: center; padding: 2px 8px; border: 1px solid var(--line-2); color: var(--dim); text-decoration: none; }
+  .models a::before { content: "↓"; color: var(--ok); }
+  .models a i { font-style: normal; color: var(--faint); }
+  .models a:hover { border-color: var(--accent); color: var(--text); }
   .case:hover { border-color: var(--line-2); transform: translateY(-3px); box-shadow: 0 16px 36px rgba(0,0,0,0.6), 0 0 0 1px rgba(242,131,143,0.15); }
   .tabbar { display: flex; align-items: center; height: 34px; border-bottom: 1px solid var(--line); background: var(--panel-2); font-size: 11.5px; }
   .tabbar .tab { height: 100%; display: flex; align-items: center; gap: 8px; padding: 0 14px; color: var(--text); background: var(--panel);
@@ -125,7 +133,7 @@
   <p class="lead" data-i="lead"></p>
 
   <section class="cases">
-    <a class="case" href="ghost-mirror/">
+    <div class="case"><a class="hit" href="ghost-mirror/">
       <div class="tabbar"><span class="tab">GS-001.case</span><span class="state contained" data-i="contained"></span></div>
       <div class="body">
         <div class="photo"><div class="img" style="background-image:url('ghost-mirror/assets/face_base.webp'); background-size: auto 185%; background-position: center 36%"></div><div class="cap">EVIDENCE #01</div><span class="stamp">CONTAINED</span></div>
@@ -133,15 +141,19 @@
       </div>
       <div class="foot"><span>mediapipe · webgl</span><span class="run" data-i="open"></span></div>
     </a>
+    <div class="models"><span class="c">// <span data-i="models"></span></span><a href="models/face_landmarker.task" download><span class="s">face_landmarker.task</span><i>3.6 MB</i></a><a href="models/selfie_multiclass_256x256.tflite" download><span class="s">selfie_multiclass_256x256.tflite</span><i>15.6 MB</i></a></div>
+    </div>
 
-    <a class="case" href="cctv-eye/">
+    <div class="case"><a class="hit" href="cctv-eye/">
       <div class="tabbar"><span class="tab">GS-002.case</span><span class="state active" data-i="active"></span></div>
       <div class="body">
         <div class="photo"><div class="img" style="background-image:url('cctv-eye/assets/face_veins.gif'); background-size: auto 220%; background-position: center 38%"></div><div class="cap">CAM 02 · 00:13</div><span class="stamp">ACTIVE</span></div>
         <pre><span class="l"><span class="kw">case</span> <span class="t">GS_002</span> <span class="p">{</span></span><span class="l">  <span class="k">name</span><span class="p">:</span>   <span class="s">"<span data-i="c2t"></span>"</span><span class="p">,</span></span><span class="l">  <span class="k">alias</span><span class="p">:</span>  <span class="s">"GHOST CCTV"</span><span class="p">,</span></span><span class="l">  <span class="k">site</span><span class="p">:</span>   <span class="s">"<span data-i="c2site"></span>"</span><span class="p">,</span></span><span class="l">  <span class="k">threat</span><span class="p">:</span> <span class="n">4</span><span class="p">,</span> <span class="c">// ☠☠☠☠</span></span><span class="l">  <span class="k">needs</span><span class="p">:</span>  <span class="p">[</span><span class="s">"camera"</span><span class="p">,</span> <span class="s">"chrome"</span><span class="p">],</span></span><span class="l">  <span class="c">// <span data-i="c2what"></span></span></span><span class="l"><span class="p">}</span></span></pre>
       </div>
-      <div class="foot"><span>mediapipe · webgl</span><span class="run" data-i="open"></span></div>
+      <div class="foot"><span>mediapipe · webgl · onnx</span><span class="run" data-i="open"></span></div>
     </a>
+    <div class="models"><span class="c">// <span data-i="models"></span></span><a href="models/face_landmarker.task" download><span class="s">face_landmarker.task</span><i>3.6 MB</i></a><a href="models/yolo-head-nano.onnx" download><span class="s">yolo-head-nano.onnx</span><i>11.7 MB</i></a><a href="models/yolo-head-medium.onnx" download><span class="s">yolo-head-medium.onnx</span><i>98.8 MB</i></a></div>
+    </div>
 
     <div class="case sealed" aria-disabled="true">
       <div class="tabbar"><span class="tab">GS-003.case</span><span class="state" style="color:var(--faint)" data-i="sealed"></span></div>
@@ -163,7 +175,7 @@
       c1t: "破碎鬼镜", c1site: "展厅尽头的一面镜子", c1what: "倒影结霜、龟裂，脸上浮现不属于你的面孔",
       c2t: "CCTV 鬼眼", c2site: "监控室 / CAM 01–04", c2what: "镜头自行锁定来访者，推到双眼——眼睛变成黑洞，然后 NO SIGNAL",
       contained: "CONTAINED 已收容", active: "ACTIVE 调查中", sealed: "SEALED 封存", open: "调阅案卷",
-      sealedNote: "权限不足，待解禁",
+      sealedNote: "权限不足，待解禁", models: "使用的模型 · 点击下载",
       foot: "// 本局不对调阅后发生的任何异常负责。需要允许摄像头；画面只在本机处理，不会上传。建议使用桌面版 Chrome。",
     },
     en: {
@@ -173,7 +185,7 @@
       c1t: "Ghost Mirror", c1site: "a mirror at the end of the gallery", c1what: "the reflection frosts and cracks; a face that is not yours surfaces",
       c2t: "Ghost CCTV", c2site: "control room / CAM 01–04", c2what: "cameras lock onto visitors and zoom into the eyes — black holes, then NO SIGNAL",
       contained: "CONTAINED", active: "ACTIVE", sealed: "SEALED", open: "open case",
-      sealedNote: "clearance required",
+      sealedNote: "clearance required", models: "models used · click to download",
       foot: "// The Bureau is not responsible for anomalies after review. Camera access required; video is processed locally, never uploaded. Desktop Chrome recommended.",
     },
     ko: {
@@ -183,7 +195,7 @@
       c1t: "깨지는 귀신 거울", c1site: "전시실 끝의 거울 하나", c1what: "모습에 서리와 금이 번지고, 내 것이 아닌 얼굴이 떠오름",
       c2t: "CCTV 귀신 눈", c2site: "관제실 / CAM 01–04", c2what: "카메라가 방문자를 잡아 눈까지 줌인 — 검은 구멍, 그리고 NO SIGNAL",
       contained: "CONTAINED 수용 완료", active: "ACTIVE 조사 중", sealed: "SEALED 봉인", open: "사건 열람",
-      sealedNote: "권한 부족, 해제 대기",
+      sealedNote: "권한 부족, 해제 대기", models: "사용 모델 · 클릭해서 다운로드",
       foot: "// 본국은 열람 후 발생하는 이상 현상에 책임지지 않습니다. 카메라 권한 필요, 영상은 기기 안에서만 처리되며 업로드되지 않습니다. 데스크톱 Chrome 권장.",
     },
   };
