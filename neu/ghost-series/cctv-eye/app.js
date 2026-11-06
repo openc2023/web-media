@@ -584,13 +584,18 @@ function updateCells(now, dt) {
   // 分配：空闲的格子去追离得最近、还没被追的合格的人
   const taken = new Set(cells.filter((c) => c.pid != null).map((c) => c.pid));
   const headOk = (p) => cfg.headDet !== "off" && headFresh(p, now) && p.hb.w >= cfg.nearRatio * 0.8;
-  const free = people.filter((p) => !taken.has(p.id) && ((p.ok && p.seen) || (!p.seen && headOk(p)))).sort((a, b) => b.width - a.width);
+  // 合格 = 够近（脸够大，或只有人头时头框够大）；在合格的人里随机挑，刚被追完的人 20 秒内先不挑（只剩他时照挑）
+  const free = people.filter((p) => !taken.has(p.id) && ((p.ok && p.seen) || (!p.seen && headOk(p))));
+  const pickFree = () => {
+    const fresh = free.filter((p) => !(now - (p.doneAt || -1e9) < 20000)), pool = fresh.length ? fresh : free;
+    const p = pool[Math.random() * pool.length | 0]; free.splice(free.indexOf(p), 1); return p;
+  };
   for (const c of visibleCells()) {
     if (c.pid == null && c.phase === "idle" && now >= c.coolUntil && free.length) {
       // 每格反应快慢不一样，不会几格同时锁定
       if (c.wait == null) c.wait = now + rnd(0, 1800) * cfg.vary;
       if (now < c.wait) continue;
-      const p = free.shift(); c.pid = p.id; c.phase = "lock"; c.t = 0; c.wait = null; c.sty = rollStyle(); sndBeep();
+      const p = pickFree(); c.pid = p.id; c.phase = "lock"; c.t = 0; c.wait = null; c.stall = 0; c.sty = rollStyle(); sndBeep();
     } else if (c.pid == null) c.wait = null;
   }
   // 空闲的格子时不时随机断讯（人越少，空闲格越多，断得越频繁）
@@ -608,14 +613,15 @@ function updateCells(now, dt) {
     if (c.pid != null && !p) { c.pid = null; if (c.phase !== "lost") { c.phase = "idle"; c.t = 0; } }
     if (c.phase === "lost") {
       c.t += dt;
-      if (c.t > 1.4) { c.phase = "idle"; c.t = 0; c.pid = null; c.coolUntil = now + cfg.cooldown * 1000; c.cam.init = false; }
+      if (c.t > 1.4) { if (p) p.doneAt = now; c.phase = "idle"; c.t = 0; c.pid = null; c.coolUntil = now + cfg.cooldown * 1000; c.cam.init = false; }
     } else if (p) {
-      // 人在但不合格（转头太多）时暂停计时，不推进；只有人头（低头）时，锁定照走，之后停在头上等他抬头
+      // 近距离只用来挑人；锁定以后只看是不是正脸（从人头接上的脸往往偏小，不能再卡大小）。
+      // 转头太多 / 只有人头（低头）时暂停计时、停在原处等；暂停累计超过 headWait 就放掉这个人，换别人
       const headOnly = !p.seen && headFresh(p, now);
-      if (p.ok && p.seen) c.t += dt;
-      else if (headOnly && c.phase === "lock") c.t += dt;
-      c.noFace = p.seen ? 0 : (c.noFace || 0) + dt;
-      if (headOnly && c.phase !== "lock" && c.noFace > cfg.headWait) { c.phase = "lost"; c.t = 0; c.noFace = 0; sndStatic(1.2, 0.3); }
+      const go = (p.seen && p.frontal) || (headOnly && c.phase === "lock");
+      if (go) c.t += dt;
+      c.stall = go ? 0 : (c.stall || 0) + dt;
+      if (c.stall > cfg.headWait) { c.phase = "lost"; c.t = 0; c.stall = 0; sndStatic(1.2, 0.3); }
       if (c.phase !== "lost" && c.t >= durOf(c.phase, c)) {
         let idx = PHASES.indexOf(c.phase);
         if (c.phase === "lock" && styOf(c).skipFace) idx++;
@@ -914,7 +920,7 @@ const TABS = [
       { t: "seg", k: "headGrid", l: T("检测范围", "Coverage", "검출 범위"), o: [{ v: 1, l: T("整幅", "Full", "전체") }, { v: 2, l: "2×2" }] },
       R("headConf", T("人头置信度", "Head confidence", "머리 신뢰도"), 0.1, 0.9, 0.05),
       R("headEvery", T("检测间隔", "Interval", "간격"), 0.2, 3, 0.1, "s"),
-      R("headWait", T("等抬头最长", "Wait for face", "얼굴 대기"), 3, 60, 1, "s"),
+      R("headWait", T("等正脸最长", "Wait for face", "얼굴 대기"), 3, 60, 1, "s"),
       { t: "sub", l: T("两种模式：上面的“远距离检测”是放大切片（不用额外模型）；这里是人头模型。人头模型加载不了时自动退回放大切片 3×2。", "Two modes: Far detection above = zoomed tiles (no extra model); this = head model. If the head model can't load it falls back to 3×2 tiles.", "두 가지 모드: 위의 원거리 검출은 확대 타일(추가 모델 없음), 여기는 머리 모델. 머리 모델을 못 불러오면 자동으로 3×2 타일로 돌아갑니다.") },
       { t: "sub", l: T("先找人头再找脸：低头、只露头顶的人也会被锁定，镜头停在头上显示 FACE NOT VISIBLE，等他抬头再推到眼睛。所有格子都追上脸以后自动停止人头检测。nano 快，medium 准但慢、手机别用。", "Heads first, then faces: people looking down still get locked; the camera holds on the head (FACE NOT VISIBLE) until they look up. Head detection pauses once every cell has a face. nano is fast; medium is more accurate but slow (not for phones).", "머리 먼저, 얼굴은 나중: 고개 숙인 사람도 잠그고 머리에서 FACE NOT VISIBLE로 기다렸다가 고개를 들면 눈으로 줌인. 모든 칸이 얼굴을 잡으면 머리 검출은 멈춥니다. nano는 빠르고 medium은 정확하지만 느립니다(휴대폰 비권장).") },
     ] },
