@@ -54,6 +54,7 @@
   .sub { font-size: 11px; color: var(--comment); margin: 12px 0 6px; white-space: normal; line-height: 1.6; }
   .mdl { display: grid; grid-template-columns: 1fr auto; gap: 0 10px; padding: 7px 0; border-bottom: 1px dashed var(--line2); font-size: 12px; }
   .mdl b { font-weight: 500; word-break: break-all; } .mdl i { font-style: normal; color: var(--comment); text-align: right; white-space: nowrap; }
+  .mdl .src { color: var(--comment); } .mdl .src.local { color: var(--green); } .mdl .src.official { color: var(--orange); } .mdl .src.missing { color: var(--danger); }
   .mdl .sub { margin: 2px 0 0; grid-column: 1 / -1; }
   .sub::before { content: "// "; }
   .field { display: grid; grid-template-columns: minmax(64px, max-content) minmax(0, 1fr); align-items: center; gap: 8px; min-height: 30px; }
@@ -119,6 +120,6 @@
   <footer id="statusbar"></footer>
 </aside>
 
-<script type="module" src="app.js?v=20261106d"></script>
+<script type="module" src="app.js?v=20261106f"></script>
 </body>
 </html>

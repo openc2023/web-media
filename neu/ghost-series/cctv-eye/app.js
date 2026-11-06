@@ -204,8 +204,10 @@ async function ensureHead() {
     if (!window.ort) await loadScript(ORT_URL + "ort.webgpu.min.js");
     ort.env.wasm.wasmPaths = ORT_URL;
     const name = cfg.headDet;
+    const headBytes = (await modelAsset(HEAD_MODELS[name], null)).modelAssetBuffer; // 本地文件夹 → 网站 models/，没有官方备用地址
+    if (!headBytes) throw new Error(HEAD_MODELS[name] + " missing");
     for (const ep of ["webgpu", "wasm"]) {
-      try { headSess = await ort.InferenceSession.create(MODEL_DIR + HEAD_MODELS[name], { executionProviders: [ep] }); headName = name; headEP = ep; headErr = ""; headFailed = false; break; }
+      try { headSess = await ort.InferenceSession.create(headBytes, { executionProviders: [ep] }); headName = name; headEP = ep; headErr = ""; headFailed = false; break; }
       catch (e) { console.warn("人头模型", ep, e); headErr = String(e.message || e); }
     }
   } catch (e) { headErr = String(e.message || e); } finally { headLoading = false; }
@@ -988,9 +990,9 @@ function itemHTML(it) {
   if (it.t === "info") return `<div class="info" id="${it.id}"></div>`;
   if (it.t === "models") {
     const total = MODELS.reduce((s, m) => s + parseFloat(m.size), 0).toFixed(0);
-    return MODELS.map((m) => `<div class="mdl"><b>${m.file}</b><i>${m.size}</i><div class="sub">${tr(m.use)} · ${m.src}</div></div>`).join("")
-      + `<div class="grid2" style="margin-top:10px"><button class="btn" id="zipModels">${tr(T("下载模型 zip", "Download models.zip", "모델 zip 다운로드"))} · ${total} MB</button></div>`
-      + `<div class="sub">${tr(T("网页会自动加载这些模型，不用手动下载。离线或现场电脑用时，下载 zip 解压出 models/ 文件夹，放到 互动demo/ 里（和作品文件夹并排）。", "The page loads these models by itself. For offline / on-site machines, download the zip and put the models/ folder inside 互动demo/ next to the demo folders.", "웹페이지가 모델을 자동으로 불러옵니다. 오프라인·현장 PC용으로는 zip을 받아 models/ 폴더를 互动demo/ 안(작품 폴더 옆)에 두세요."))}</div>`;
+    return MODELS.map((m) => `<div class="mdl"><b>${m.file}</b><i>${m.size} · <span data-src="${m.file}" class="src ${modelSrc[m.file] || ""}">${srcText(m.file)}</span></i><div class="sub">${tr(m.use)} · ${m.src}</div></div>`).join("")
+      + `<div class="grid2" style="margin-top:10px"><button class="btn" id="pickModels">${tr(T("选择 models 文件夹", "Choose models folder", "models 폴더 선택"))}</button><button class="btn" id="clearModels">${tr(T("清除本地模型", "Clear local models", "로컬 모델 지우기"))}</button></div><div class="grid2" style="margin-top:6px"><button class="btn" id="zipModels">${tr(T("下载模型 zip", "Download models.zip", "모델 zip 다운로드"))} · ${total} MB</button></div>`
+      + `<div class="sub">${tr(T("加载顺序：本地文件夹 → 网站自带 → 官方地址，每个模型后面标着这次从哪来。平时什么都不用做。网速慢或要离线时：先下载 zip 解压，再点“选择 models 文件夹”选中它（选上一层文件夹也行），文件存进浏览器，以后打开直接用；同一网站的三个作品共用。手机选不了文件夹，会改成多选文件。", "Load order: local folder → site → official; each model shows where it came from. Normally nothing to do. For slow networks / offline: download the zip, unzip, then “Choose models folder” (its parent folder works too). Files are stored in the browser and reused next time, shared by all three demos on this site. Phones can't pick folders, so it falls back to picking files.", "로드 순서: 로컬 폴더 → 사이트 → 공식. 각 모델 옆에 출처가 표시됩니다. 평소에는 아무것도 할 필요 없습니다. 느리거나 오프라인일 때: zip을 받아 풀고 “models 폴더 선택”으로 고르세요(상위 폴더도 됨). 파일은 브라우저에 저장되어 다음에도 쓰이며, 같은 사이트의 세 작품이 함께 씁니다. 휴대폰은 폴더 대신 파일 여러 개를 고릅니다."))}</div>`;
   }
   if (it.t === "camera") return `<div class="field"><label>${tr(T("设备", "Device", "장치"))}</label><div class="sel"><select id="camSel"></select><button class="btn icon" id="camRefresh" title="refresh">↻</button></div></div>`;
   if (it.t === "btns") return `<div class="grid${it.b.length >= 3 ? 3 : 2}">${it.b.map((b) => `<button class="btn ${b.cls || ""}" id="${b.id}">${tr(b.l)}</button>`).join("")}</div>`;
@@ -1160,11 +1162,73 @@ document.addEventListener("click", (e) => {
 });
 
 // 先读自带的模型文件，读不到再用官方地址（读到的字节缓存起来，分块检测再建一个实例时不用重新下载）
+// 本地模型文件夹：在设置里选一次 models 文件夹，文件存进浏览器缓存（Cache Storage）。
+// 同一个网站下的三个作品共用这份缓存，关掉网页再打开也还在；加载时优先用它，其次网站自带的 models/，最后官方地址。
+const LOCAL_CACHE = "ghost-series-models";
+const ALL_MODEL_FILES = ["face_landmarker.task", "selfie_multiclass_256x256.tflite", "yolo-head-nano.onnx", "yolo-head-medium.onnx"];
+const modelSrc = {}; // 文件名 → local / site / official / missing
+const SRC_LABEL = { local: T("本地文件夹", "local folder", "로컬 폴더"), site: T("网站", "site", "사이트"), official: T("官方地址", "official", "공식"), missing: T("缺失", "missing", "없음") };
+const srcText = (file) => tr(modelSrc[file] ? SRC_LABEL[modelSrc[file]] : T("未加载", "not loaded", "미로드"));
+function refreshModelSrc() {
+  for (const el of document.querySelectorAll(".mdl [data-src]")) { el.textContent = srcText(el.dataset.src); el.className = "src " + (modelSrc[el.dataset.src] || ""); }
+}
+async function cachedModel(file) {
+  try { const c = await caches.open(LOCAL_CACHE), r = await c.match("/__models/" + file); return r ? new Uint8Array(await r.arrayBuffer()) : null; } catch { return null; }
+}
+// 选文件夹：Chrome / Edge 用系统的“选择文件夹”；其他电脑浏览器用文件夹上传；手机选不了文件夹，改成多选文件
+async function collectDir(dir, depth = 0) {
+  const out = [];
+  for await (const h of dir.values()) {
+    if (h.kind === "file") { if (ALL_MODEL_FILES.includes(h.name)) out.push(await h.getFile()); }
+    else if (depth < 2) out.push(...await collectDir(h, depth + 1)); // 选的是 models 的上一层（比如 互动demo）也能找到
+  }
+  return out;
+}
+function pickViaInput() {
+  return new Promise((ok) => {
+    const i = document.createElement("input"); i.type = "file"; i.multiple = true;
+    if ("webkitdirectory" in i && !matchMedia("(pointer: coarse)").matches) i.webkitdirectory = true;
+    i.onchange = () => ok([...i.files].filter((f) => ALL_MODEL_FILES.includes(f.name)));
+    i.oncancel = () => ok(null);
+    i.click();
+  });
+}
+async function pickModelFolder() {
+  let files;
+  if (window.showDirectoryPicker) {
+    try { files = await collectDir(await showDirectoryPicker({ id: "ghost-models", mode: "read" })); }
+    catch (e) { if (e.name === "AbortError") return null; throw e; }
+  } else files = await pickViaInput();
+  if (!files) return null;
+  const c = await caches.open(LOCAL_CACHE);
+  for (const f of files) await c.put("/__models/" + f.name, new Response(f, { headers: { "Content-Type": "application/octet-stream", "Content-Length": String(f.size) } }));
+  return files.map((f) => f.name);
+}
+document.addEventListener("click", (e) => {
+  const pick = e.target.closest && e.target.closest("#pickModels"), clear = e.target.closest && e.target.closest("#clearModels");
+  if (pick && !pick.disabled) {
+    const label = pick.textContent; pick.disabled = true; pick.textContent = "…";
+    pickModelFolder().then((names) => {
+      if (!names) { pick.textContent = label; return; }
+      if (!names.length) { pick.textContent = tr(T("没找到模型文件", "No model files found", "모델 파일 없음")); setTimeout(() => { pick.textContent = label; }, 3000); return; }
+      pick.textContent = tr(T(`已导入 ${names.length} 个，重新加载…`, `Imported ${names.length}, reloading…`, `${names.length}개 가져옴, 다시 불러오는 중…`));
+      setTimeout(() => location.reload(), 600);
+    }).catch((err) => { console.warn(err); pick.textContent = "✕ " + err.message; setTimeout(() => { pick.textContent = label; }, 4000); })
+      .finally(() => { pick.disabled = false; });
+  }
+  if (clear && !clear.disabled) {
+    clear.disabled = true;
+    caches.delete(LOCAL_CACHE).catch(() => {}).finally(() => location.reload());
+  }
+});
 const modelBytes = {};
 async function modelAsset(file, url) {
-  if (!(file in modelBytes)) {
-    modelBytes[file] = fetch(MODEL_DIR + file).then((r) => (r.ok ? r.arrayBuffer() : null)).then((b) => (b ? new Uint8Array(b) : null)).catch(() => null);
-  }
+  if (!(file in modelBytes)) modelBytes[file] = (async () => {
+    const local = await cachedModel(file);
+    if (local) { modelSrc[file] = "local"; return local; }
+    try { const r = await fetch(MODEL_DIR + file); if (r.ok) { modelSrc[file] = "site"; return new Uint8Array(await r.arrayBuffer()); } } catch {}
+    modelSrc[file] = url ? "official" : "missing"; return null;
+  })().finally(refreshModelSrc);
   const b = await modelBytes[file];
   return b ? { modelAssetBuffer: b.slice() } : { modelAssetPath: url }; // 每个实例一份拷贝，MediaPipe 会占用传进去的缓冲区
 }
