@@ -1,4 +1,4 @@
-import {saveSettings} from './settings.js';
+import {saveSettings} from './settings.js?v=0.3';
 const L=(zh,en,ko)=>[zh,en,ko];
 export function createUI(cfg,onChange,actions){
  const $=id=>document.getElementById(id),side=$('side');let opened=false,page=0,lastFocus;

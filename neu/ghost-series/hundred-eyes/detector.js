@@ -1,7 +1,7 @@
 export class Detector{
  constructor(cfg,onFaces,onStatus){
   this.ready=false;this.busy=false;this.closed=false;this.onStatus=onStatus;
-  this.worker=new Worker(new URL('./face-worker.js?v=0.1',import.meta.url));
+  this.worker=new Worker(new URL('./face-worker.js?v=0.3',import.meta.url));
   const fail=message=>{if(this.closed)return;this.closed=true;clearTimeout(this.timer);this.worker.terminate();this.busy=false;onStatus(message,true);};
   this.worker.onerror=e=>fail(e.message||'Detection worker failed');
   this.worker.onmessage=({data})=>{clearTimeout(this.timer);if(data.type==='ready'){this.ready=true;onStatus('ready',false);}else if(data.type==='result'){this.busy=false;onFaces(data);}else if(data.type==='error')fail(data.message);};
