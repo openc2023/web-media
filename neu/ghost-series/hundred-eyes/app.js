@@ -1,6 +1,6 @@
 import {loadSettings,saveSettings} from './settings.js';
 import {createUI} from './ui.js';
-import {loadEyes} from './eye-assets.js';
+import {loadEyes,imageFile} from './eye-assets.js';
 import {EyeField} from './eye-field.js';
 import {createMembrane,drawRoom} from './membrane.js';
 import {Proximity} from './proximity.js';
@@ -56,7 +56,7 @@ function draw(now){
  if(field.maskDirty||maskC.width!==mw||maskC.height!==mh){maskC.width=mw;maskC.height=mh;field.drawMask(maskC.getContext('2d'),mw,mh,cfg);water.setMask(maskC);}
  // 空洞后面：实拍空间，或者雾中窗格红梅
  const useCam=(cfg.bgMode==='camera'||(cfg.bgMode==='auto'&&started))&&started&&source.width>0;
- if(useCam){if(camDirty||bgNow!=='cam'){water.setBackground(source);camDirty=false;bgNow='cam';}}else if(bgNow!=='room'){water.setBackground(room);bgNow='room';}
+ if(useCam&&(camDirty||bgNow!=='cam')){water.setBackground(source);camDirty=false;bgNow='cam';}else if(!useCam)bgNow='';
  agit+=((closed?1:0)-agit)*Math.min(1,(1/30)*2);
  water.draw(now,cfg,$('eyes'),useCam&&cfg.mirror,agit,useCam);window.__perf={eyes:t2-t1,gl:performance.now()-t2};
  const g=$('hud').getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
@@ -68,7 +68,7 @@ function draw(now){
  if($('cameraInfo'))$('cameraInfo').textContent=detectStatus||cameraStatus;
 }
 async function init(){
- try{const sets=await loadEyes();field=new EyeField(sets);field.rebuild(cfg);water=createMembrane($('water'));room=drawRoom();status(ui.tr(['素材已就绪','Assets ready','소재 준비 완료']));if(demo){$('intro').hidden=true;started=false;}requestAnimationFrame(draw);refreshCameras();}
+ try{const sets=await loadEyes();field=new EyeField(sets);field.rebuild(cfg);water=createMembrane($('water'));room=drawRoom();water.setRoom(room);water.setWall(await imageFile('assets/water-wall.png'));status(ui.tr(['素材已就绪','Assets ready','소재 준비 완료']));if(demo){$('intro').hidden=true;started=false;}requestAnimationFrame(draw);refreshCameras();}
  catch(e){status(e.message,true);}
 }
 window.addEventListener('pagehide',()=>{detector?.close();video.srcObject?.getTracks().forEach(t=>t.stop());});
