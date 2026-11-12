@@ -1,4 +1,4 @@
-import { t } from './ui.js?v=0.3.0';
+import { t } from './ui.js?v=0.3.1';
 export function createCamera(S,video,stage,save,resetTracks){
  const $=id=>document.getElementById(id);
  const frame=document.createElement('canvas');frame.id='cameraFrame';video.after(frame);video.style.display='none';

@@ -1,11 +1,11 @@
-import { t, translateStatus, ensureFitRange } from "./ui.js?v=0.3.0";
-import { HandFilter } from './hand-filter.js?v=0.3.0';
-import { handLens } from './lens.js?v=0.3.0';
-import { faceBox, matchFaces } from "./tracking.js?v=0.3.0";
-import { createCamera } from "./camera.js?v=0.3.0";
-import { drawVitals, drawDetection } from "./vitals.js?v=0.3.0";
-import { createAtmosphere } from "./atmosphere.js?v=0.3.0";
-import { stepAnomaly, wrongness, revealK, drawAnomaly, ghostHandPoints, initAudio, updateSound, staticBurst } from "./anomaly.js?v=0.3.0";
+import { t, translateStatus, ensureFitRange } from "./ui.js?v=0.3.1";
+import { HandFilter } from './hand-filter.js?v=0.3.1';
+import { handLens } from './lens.js?v=0.3.1';
+import { faceBox, matchFaces } from "./tracking.js?v=0.3.1";
+import { createCamera } from "./camera.js?v=0.3.1";
+import { drawVitals, drawDetection } from "./vitals.js?v=0.3.1";
+import { createAtmosphere } from "./atmosphere.js?v=0.3.1";
+import { stepAnomaly, scheduleAnomalies, wrongness, revealK, drawAnomaly, ghostHandPoints, initAudio, updateSound, staticBurst } from "./anomaly.js?v=0.3.1";
 
 const $ = id => document.getElementById(id);
 const statusEl = $("status"), video = $("video"), stage = $("stage");
@@ -27,7 +27,7 @@ const DEFAULTS = { skull: true, brain: false, muscles: false, eyes: true, outlin
  handConfidence:.75,handFrames:3,minHandSize:.04,demoHands:false,
  cameraLook:'gray',warmth:0,softness:0,cameraSaturation:.1,cameraExposure:.9,cameraContrast:1.15,grain:.2,scanlines:.2,vignette:.45,interference:.15,cameraOverlay:true,
  // 异常剧情：平静 → 异常 → 显形 → 断讯（秒），每轮随机 ±anVary
- anOn:true, anCalm:6, anWrong:6, anReveal:7, anDrop:2.5, anVary:.3, anEyes:true, anCracks:true, anHand:true, anVolume:.6, palette:'bone' };
+ anOn:true, anNear:.12, anMax:2, anStagger:3, anReset:3, anCalm:6, anWrong:6, anReveal:7, anDrop:2.5, anVary:.3, anEyes:true, anCracks:true, anHand:true, anVolume:.6, palette:'bone' };
 let S = Object.assign({}, DEFAULTS);
 try { Object.assign(S, JSON.parse(localStorage.getItem("ghostXrayCfg.v1") || "{}")); } catch (e) {}
 for(const [key,min,max] of [['maxFaces',1,6],['confidence',.1,.95],['minFace',.01,.3],['smooth',.1,1],['lostGrace',.1,3],['detectHz',5,30],['vitalsOpacity',.1,1],['handConfidence',.4,.95],['handFrames',2,6],['minHandSize',.02,.25]]) S[key]=Math.min(max,Math.max(min,Number(S[key])||DEFAULTS[key]));
@@ -496,7 +496,9 @@ function renderFrame(now, faceLms, hands, sides) {
   const visible=actors.filter(a=>a.head.id<S.maxFaces && a.head.found);
   for(const actor of actors)actor.headGroup.visible=false;
   // 异常剧情：每人各走各的；进入断讯时画面撕裂一下、响一声静电
-  for(const actor of visible){const entered=stepAnomaly(S,actor.head,now);if(entered==='drop'){atmosphere.kick();staticBurst(.9);}}
+  // 多人：只有够近的人走剧情，显形名额有限（近的优先），开始时间错开
+  const plan=scheduleAnomalies(S,visible,now);
+  for(const actor of visible){const p=plan.get(actor);if(!p.create&&!actor.head.anom)continue;const entered=stepAnomaly(S,actor.head,now,p.run,p.allowReveal);if(entered==='drop'){atmosphere.kick();staticBurst(.9);}}
   ghostRigs.forEach((rig,i)=>{
    const actor=actors[i],pts=S.anOn&&S.anHand&&visible.includes(actor)?ghostHandPoints(actor.head,META.demoHand):null;
    if(!pts){rig.group.visible=false;return;}
@@ -659,7 +661,9 @@ function demoLoop() {
     const spanY=Math.tan(63*Math.PI/360)*depth*2,spanX=spanY*W/H;
     for(let i=0;i<n;i++){
      const m=new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(-.04,.25*Math.sin(t*.5+i),.02*Math.sin(t+i),'YXZ'));
-     m.setPosition(((i%cols+.5)/cols-.5)*spanX*.88,((rows-1)/2-Math.floor(i/cols))*spanY*.43-2,-depth);
+     // 演示里的人前后来回走（近 ↔ 远），用来看近距离阈值和多人排队
+     const walk=still?.55:.55+.6*(.5+.5*Math.sin(t*.18+i*1.9));
+     m.setPosition(((i%cols+.5)/cols-.5)*spanX*.88*walk,(((rows-1)/2-Math.floor(i/cols))*spanY*.43-2)*walk,-depth*walk);
      const lms=[];for(const id of FIT_IDS){const v=new THREE.Vector3().fromArray(META.fit[id]).applyMatrix4(m).applyMatrix4(baseProj);lms[id]={x:(v.x+1)/2,y:(1-v.y)/2,z:0};}
      detections.push({lms,box:faceBox(lms),matrix:m.elements,jaw:.4+.3*Math.sin(t*1.3+i)});
     }
@@ -736,7 +740,7 @@ for(const key of detectKeys){
 for(const key of ['priority']){$(key).value=S[key];$(key).onchange=()=>{S[key]=$(key).value;save();};}
 for(const key of ['vitals','debug','demoHands']){$(key).checked=S[key];$(key).onchange=()=>{S[key]=$(key).checked;save();};}
 // 异常剧情设置
-for(const key of ['anCalm','anWrong','anReveal','anDrop','anVary','anVolume']){$(key).value=S[key];$(key).addEventListener('input',()=>{S[key]=Number($(key).value);save();});}
+for(const key of ['anNear','anMax','anStagger','anReset','anCalm','anWrong','anReveal','anDrop','anVary','anVolume']){$(key).value=S[key];$(key).addEventListener('input',()=>{S[key]=Number($(key).value);save();});}
 for(const key of ['anOn','anEyes','anCracks','anHand']){$(key).checked=S[key];$(key).onchange=()=>{S[key]=$(key).checked;if(!S.anOn)for(const a of actors)a.head.anom=null;save();};}
 $('palette').value=S.palette;$('palette').onchange=()=>{S.palette=$('palette').value;save();};
 $('anRestart').onclick=()=>{for(const a of actors)a.head.anom=null;};

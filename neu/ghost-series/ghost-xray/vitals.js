@@ -1,9 +1,9 @@
-import {t} from './ui.js?v=0.3.0';
-import {placeCard} from './layout.js?v=0.3.0';
+import {t} from './ui.js?v=0.3.1';
+import {placeCard} from './layout.js?v=0.3.1';
 export function drawDetection(g,{head:h},W,H,screenX,mirror){
  const b=h.box;if(!b)return;g.save();g.strokeStyle='#e5b26f';g.fillStyle='#e5b26f';g.lineWidth=1;g.font='10px Consolas,monospace';
  const x=screenX(mirror?b.left+b.w:b.left),y=b.top*H;
- g.strokeRect(x,y,b.w*W,b.h*H);g.fillText(`SUBJ ${String(h.id+1).padStart(2,'0')} · ${(b.w*100).toFixed(1)}%${h.anom?` · ${h.anom.ph} ${(h.anom.k*100|0)}%`:''}`,x,Math.max(12,y-6));g.restore();
+ g.strokeRect(x,y,b.w*W,b.h*H);g.fillText(`SUBJ ${String(h.id+1).padStart(2,'0')} · ${(b.w*100).toFixed(1)}%${h.near?' · NEAR':' · far'}${h.anom?` · ${h.anom.waiting?'queue':h.anom.ph} ${(h.anom.k*100|0)}%`:h.anWait?' · wait':''}`,x,Math.max(12,y-6));g.restore();
 }
 export function drawVitals(g,actor,now,S,W,H,screenX,headBounds,occupied){
  const h=actor.head,b=h.box,v=h.vitals;if(!b)return;

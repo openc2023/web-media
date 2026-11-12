@@ -16,12 +16,15 @@ function newRound(S) {
 export const durOf = (S, a, ph) => Math.max(0.3, S[DUR_KEY[ph]] * a.mul[ph]);
 
 // 推进一个人的剧情；返回刚进入的阶段名（没切换时返回 null）
-export function stepAnomaly(S, head, now) {
+//   run = false：暂停（人退远了），时间不走
+//   allowReveal = false：显形名额已满，停在“体征异常”末尾排队
+export function stepAnomaly(S, head, now, run = true, allowReveal = true) {
   if (!S.anOn) { head.anom = null; return null; }
   let a = head.anom;
   if (!a) { a = head.anom = newRound(S); a.at = now; return 'calm'; }
-  const dt = clamp((now - a.at) / 1000, 0, 0.2); a.at = now; a.t += dt;
+  const dt = clamp((now - a.at) / 1000, 0, 0.2); a.at = now; if (run) a.t += dt;
   let entered = null;
+  if (a.ph === 'wrong' && !allowReveal) a.t = Math.min(a.t, durOf(S, a, 'wrong') - 1e-3);
   while (a.t >= durOf(S, a, a.ph)) {
     a.t -= durOf(S, a, a.ph);
     const i = PHASES.indexOf(a.ph);
@@ -29,7 +32,33 @@ export function stepAnomaly(S, head, now) {
     a.ph = PHASES[i + 1]; entered = a.ph;
   }
   a.k = clamp(a.t / durOf(S, a, a.ph), 0, 1);
+  a.waiting = a.ph === 'wrong' && !allowReveal && a.k > 0.99;
   return entered;
+}
+
+// 多人调度：只有够近的人才走剧情；同时显形的人数有上限，近的人优先；每个人开始前随机等一会儿。
+// 返回这一帧每个人是否推进 / 是否允许进入显形。
+export function scheduleAnomalies(S, actors, now) {
+  const out = new Map(), w = a => a.head.box ? a.head.box.w : 0;
+  for (const a of actors) {
+    const h = a.head, wide = w(a);
+    // 迟滞：进入要 ≥ 阈值，退出要 < 阈值的 85%，站在边界上不会来回跳
+    h.near = h.near ? wide >= S.anNear * 0.85 : wide >= S.anNear;
+    if (h.near) { h.farSince = null; if (!h.anom && h.anWait == null) h.anWait = now + rnd(0, S.anStagger) * 1000; }
+    else { h.anWait = null; h.farSince ??= now; if (h.anom && now - h.farSince > S.anReset * 1000) h.anom = null; }
+  }
+  const busy = actors.filter(a => a.head.anom && (a.head.anom.ph === 'reveal' || a.head.anom.ph === 'drop')).length;
+  let free = Math.max(0, S.anMax - busy);
+  // 排队等显形的人：离得最近的先
+  const queue = actors.filter(a => a.head.anom?.ph === 'wrong').sort((p, q) => w(q) - w(p));
+  const allowed = new Set(); for (const a of queue) if (a.head.anom.k > 0.98 && free > 0) { allowed.add(a); free--; }
+  for (const a of actors) {
+    const h = a.head, an = h.anom, started = !!an || (h.near && h.anWait != null && now >= h.anWait);
+    // 已经在显形 / 断讯的人就算退远也让这一段演完，免得画面断在一半
+    const run = started && (h.near || (an && (an.ph === 'reveal' || an.ph === 'drop')));
+    out.set(a, { create: started, run, allowReveal: allowed.has(a) || !an || an.ph !== 'wrong' });
+  }
+  return out;
 }
 // 0（正常）→ 1（完全异常）：异常阶段里慢慢涨，显形/断讯时一直是 1
 export const wrongness = a => !a ? 0 : a.ph === 'calm' ? 0 : a.ph === 'wrong' ? a.k : 1;

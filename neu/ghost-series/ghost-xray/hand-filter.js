@@ -1,4 +1,4 @@
-import {faceBox} from './tracking.js?v=0.3.0';
+import {faceBox} from './tracking.js?v=0.3.1';
 // Require plausible landmarks and several consecutive detections; never hold a lost hand.
 export class HandFilter {
  constructor(){this.reset();}

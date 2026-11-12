@@ -1,4 +1,4 @@
-export const DEFAULTS={lang:'zh',deviceId:'',resolution:'720',rotation:0,mirror:true,maxFaces:6,faceConfidence:.5,nearRatio:.14,farRatio:.1,enterHold:.2,leaveHold:1.2,detectHz:8,debug:false,testNear:false,
+export const DEFAULTS={lang:'zh',deviceId:'',resolution:'720',rotation:0,mirror:true,maxFaces:6,faceConfidence:.5,nearRatio:.14,farRatio:.1,zoneOn:true,zoneMin:.045,zoneSize:.42,wakeSpread:4,enterHold:.2,leaveHold:1.2,detectHz:8,debug:false,testNear:false,
  // 眼睛：数量、大小、挤在一起的程度、中间空洞、两种眼睛的比例
  count:72,layoutSeed:5005,eyeSpacing:.04,overlap:.12,gap:.85,eyeScale:1.05,sizeVariation:.85,eyeMix:.28,eyeOpacity:1,eyeExposure:.86,eyeSaturation:.72,rotationSpread:16,
  openDelay:5,closeDuration:.28,openDuration:.6,blinkInterval:5,
