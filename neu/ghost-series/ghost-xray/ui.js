@@ -14,6 +14,11 @@ const dict = {
  'Camera look':['摄像机风格','카메라 스타일'], 'Grey surveillance':['灰调监控','흑백 감시'], 'Vintage color':['老式彩色','빈티지 컬러'], 'Clean camera':['原始画面','원본 영상'], 'Custom':['自定义','사용자 지정'], 'Warm cast':['暖色偏移','따뜻한 색감'], 'Lens softness':['镜头柔化','렌즈 부드럽게'],
  'Surveillance look':['监控质感','감시 카메라 효과'], 'Saturation':['饱和度','채도'], 'Camera exposure':['镜头曝光','카메라 노출'], 'Camera contrast':['镜头对比度','카메라 대비'], 'Film grain':['噪点','영상 노이즈'], 'Scanlines':['扫描线','스캔라인'], 'Vignette':['暗角','비네팅'], 'Signal interference':['信号干扰','신호 간섭'], 'Camera overlay':['监控信息叠加','카메라 정보 표시'],
  'Live camera':['实拍模式','실시간 카메라'],
+ 'Anomaly':['异常','이상 현상'], 'Anomaly sequence':['异常剧情','이상 현상 연출'], 'Run the anomaly':['开启异常剧情','이상 현상 켜기'], 'Calm (s)':['平静（秒）','평온 (초)'], 'Vitals go wrong (s)':['体征异常（秒）','생체 이상 (초)'], 'Manifestation (s)':['显形（秒）','현현 (초)'], 'Signal lost (s)':['断讯（秒）','신호 끊김 (초)'], 'Random variation':['每轮随机差异','회차별 랜덤 차이'], 'Restart sequence':['重新开始剧情','처음부터 다시'],
+ 'Each person runs on their own: calm → vitals go wrong → no vital signs, black eye sockets, skull cracks, a hand that belongs to no one → signal lost → again.':['每个人各走各的：平静 → 体征越来越不对 → 无生命体征、眼眶变黑洞、头骨裂开、肩后多出一只不属于任何人的手骨 → 断讯 → 再来一轮。人离开就重来。','사람마다 따로 진행됩니다: 평온 → 생체 신호 이상 → 생체 신호 없음, 검은 눈구멍, 두개골 균열, 누구의 것도 아닌 손 → 신호 끊김 → 반복. 사람이 떠나면 처음부터.'],
+ 'Manifestations':['显形内容','현현 요소'], 'Black eye sockets':['黑眼洞 + 黑泪','검은 눈구멍 + 검은 눈물'], 'Skull cracks':['头骨裂痕','두개골 균열'], 'Extra hand bones':['肩后多出的手骨','어깨 뒤의 손뼈'], 'Bone color':['骨骼配色','뼈 색상'], 'Old film bone':['旧胶片骨白','오래된 필름 뼈색'], 'Medical blue':['医疗蓝（原版）','의료용 파랑 (원본)'], 'Sound volume':['音量','볼륨'],
+ 'Sound: heartbeat that slows and stumbles, a flat tone, static. It starts after the first click or key press.':['声音：越来越慢、乱跳的心跳 → 平直长鸣 → 静电。浏览器要求先点一下或按一下键才会出声。','소리: 점점 느려지고 불규칙한 심장 소리 → 평탄음 → 잡음. 첫 클릭이나 키 입력 후 재생됩니다.'],
+ 'NO VITAL SIGNS':['无生命体征','생체 신호 없음'],
  'Detection':['识别','인식'], 'People':['多人追踪','다중 추적'], 'Max people':['最大人数','최대 인원'], 'Min face size':['最小脸宽','최소 얼굴 너비'], 'Confidence':['识别置信度','검출 신뢰도'], 'Stabilize':['跟随平滑','추적 안정화'], 'Lost tolerance (s)':['丢失容忍（秒）','놓침 허용 (초)'], 'Detection rate':['检测频率','검출 빈도'], 'Priority':['挑人优先级','추적 우선순위'], 'Nearest first':['最近优先','가까운 사람 우선'], 'Center first':['中心优先','중앙 우선'], 'Detection overlay':['识别调试叠加','검출 디버그 표시'],
  'Saved for camera mode.':['已保存，切换到摄像头模式后使用。','저장됨. 카메라 모드에서 적용됩니다.'], 'Unavailable':['不可用','사용 불가'], 'Camera list unavailable':['浏览器无法列出摄像头','카메라 목록을 불러올 수 없습니다'],
  'Camera source':['摄像头','카메라 장치'], 'Default camera':['默认摄像头','기본 카메라'], 'Resolution':['分辨率','해상도'], 'Rotation':['旋转','회전'], 'Mirror':['镜像','좌우 반전'], 'Refresh cameras':['刷新摄像头列表','카메라 목록 새로고침'], 'Apply camera':['应用摄像头设置','카메라 설정 적용'], 'Camera changes apply with this button.':['更换镜头、分辨率后点应用；首次使用请先启动摄像头。','장치나 해상도 변경 후 적용하세요. 처음에는 카메라를 시작하세요.'],
@@ -54,7 +59,7 @@ document.body.append(side);
 const panels = [...side.querySelectorAll('.panel')];
 side.querySelector('h1').remove();
 const notes = [...side.querySelectorAll(':scope > .small')];
-side.insertAdjacentHTML('afterbegin', `<header class="top"><div class="brand">GHOST / X-RAY<em>v0.2.2</em></div><div class="sp"></div><div class="seg" id="lang"><button data-lang="zh">中</button><button data-lang="en">EN</button><button data-lang="ko">한</button></div><button class="btn icon ghost" id="close" aria-label="Close settings">✕</button></header><nav class="tabs" id="tabs" aria-label="Settings"></nav><div id="panes"></div><footer id="statusbar"><span class="dot"></span><span id="liveStats">LOCAL · X-RAY</span><span class="v">v0.2.2</span></footer>`);
+side.insertAdjacentHTML('afterbegin', `<header class="top"><div class="brand">GHOST / X-RAY<em>v0.3.0</em></div><div class="sp"></div><div class="seg" id="lang"><button data-lang="zh">中</button><button data-lang="en">EN</button><button data-lang="ko">한</button></div><button class="btn icon ghost" id="close" aria-label="Close settings">✕</button></header><nav class="tabs" id="tabs" aria-label="Settings"></nav><div id="panes"></div><footer id="statusbar"><span class="dot"></span><span id="liveStats">LOCAL · X-RAY</span><span class="v">v0.3.0</span></footer>`);
 const panes = document.getElementById('panes'), tabs = document.getElementById('tabs');
 const groups = [['Camera',[0]],['Detection',[]],['Anatomy',[1]],['Display',[2,3,4]],['Calibration',[5]]];
 groups.forEach(([name,indices],i) => {
@@ -104,6 +109,14 @@ let wake;
 async function keepAwake(){try{if(!wake && document.visibilityState==='visible'){wake=await navigator.wakeLock?.request('screen');wake?.addEventListener('release',()=>wake=null);}}catch{}}
 document.addEventListener('pointerdown',keepAwake,{once:true}); document.addEventListener('visibilitychange',keepAwake);
 window.addEventListener('pagehide',()=>document.getElementById('video').srcObject?.getTracks().forEach(track=>track.stop()));
+{
+ const pane=document.createElement('section');pane.className='pane';pane.setAttribute('role','tabpanel');
+ pane.innerHTML=`<div class="panel"><h3>Anomaly sequence</h3>${check('anOn','Run the anomaly')}${slider('anCalm','Calm (s)',1,30,.5)}${slider('anWrong','Vitals go wrong (s)',1,30,.5)}${slider('anReveal','Manifestation (s)',1,30,.5)}${slider('anDrop','Signal lost (s)',.5,10,.5)}${slider('anVary','Random variation',0,.8,.05)}<div class="grid2"><button class="btn" id="anRestart">Restart sequence</button></div><p class="info">Each person runs on their own: calm → vitals go wrong → no vital signs, black eye sockets, skull cracks, a hand that belongs to no one → signal lost → again.</p></div>
+ <div class="panel"><h3>Manifestations</h3>${check('anEyes','Black eye sockets')}${check('anCracks','Skull cracks')}${check('anHand','Extra hand bones')}<div class="row"><label for="palette">Bone color</label><select id="palette"><option value="bone">Old film bone</option><option value="blue">Medical blue</option></select></div>${slider('anVolume','Sound volume',0,1,.05)}<p class="info">Sound: heartbeat that slows and stumbles, a flat tone, static. It starts after the first click or key press.</p></div>`;
+ const button=document.createElement('button');button.textContent='Anomaly';button.setAttribute('role','tab');
+ panes.insertBefore(pane,panes.children[2]);tabs.insertBefore(button,tabs.children[2]);
+ [...tabs.children].forEach((b,i)=>b.onclick=()=>selectTab(i));
+}
 const textNodes=[];
 const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement.closest('script,style')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT});
 while(walker.nextNode()){const n=walker.currentNode;if(dict[n.textContent.trim()]) textNodes.push([n,n.textContent.trim()]);}

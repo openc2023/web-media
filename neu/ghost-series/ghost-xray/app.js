@@ -1,10 +1,11 @@
-import { t, translateStatus, ensureFitRange } from "./ui.js?v=0.2.2";
-import { HandFilter } from './hand-filter.js?v=0.2.2';
-import { handLens } from './lens.js?v=0.2.2';
-import { faceBox, matchFaces } from "./tracking.js?v=0.2.2";
-import { createCamera } from "./camera.js?v=0.2.2";
-import { drawVitals, drawDetection } from "./vitals.js?v=0.2.2";
-import { createAtmosphere } from "./atmosphere.js?v=0.2.2";
+import { t, translateStatus, ensureFitRange } from "./ui.js?v=0.3.0";
+import { HandFilter } from './hand-filter.js?v=0.3.0';
+import { handLens } from './lens.js?v=0.3.0';
+import { faceBox, matchFaces } from "./tracking.js?v=0.3.0";
+import { createCamera } from "./camera.js?v=0.3.0";
+import { drawVitals, drawDetection } from "./vitals.js?v=0.3.0";
+import { createAtmosphere } from "./atmosphere.js?v=0.3.0";
+import { stepAnomaly, wrongness, revealK, drawAnomaly, ghostHandPoints, initAudio, updateSound, staticBurst } from "./anomaly.js?v=0.3.0";
 
 const $ = id => document.getElementById(id);
 const statusEl = $("status"), video = $("video"), stage = $("stage");
@@ -24,7 +25,9 @@ const DEFAULTS = { skull: true, brain: false, muscles: false, eyes: true, outlin
  maxFaces:4, minFace:.045, confidence:.5, smooth:.6, lostGrace:.6, detectHz:20, priority:'near',
  deviceId:'', resolution:'720', mirror:true, rotation:0, vitals:true, vitalsOpacity:.8, debug:false,
  handConfidence:.75,handFrames:3,minHandSize:.04,demoHands:false,
- cameraLook:'gray',warmth:0,softness:0,cameraSaturation:.1,cameraExposure:.9,cameraContrast:1.15,grain:.2,scanlines:.2,vignette:.45,interference:.15,cameraOverlay:true };
+ cameraLook:'gray',warmth:0,softness:0,cameraSaturation:.1,cameraExposure:.9,cameraContrast:1.15,grain:.2,scanlines:.2,vignette:.45,interference:.15,cameraOverlay:true,
+ // 异常剧情：平静 → 异常 → 显形 → 断讯（秒），每轮随机 ±anVary
+ anOn:true, anCalm:6, anWrong:6, anReveal:7, anDrop:2.5, anVary:.3, anEyes:true, anCracks:true, anHand:true, anVolume:.6, palette:'bone' };
 let S = Object.assign({}, DEFAULTS);
 try { Object.assign(S, JSON.parse(localStorage.getItem("ghostXrayCfg.v1") || "{}")); } catch (e) {}
 for(const [key,min,max] of [['maxFaces',1,6],['confidence',.1,.95],['minFace',.01,.3],['smooth',.1,1],['lostGrace',.1,3],['detectHz',5,30],['vitalsOpacity',.1,1],['handConfidence',.4,.95],['handFrames',2,6],['minHandSize',.02,.25]]) S[key]=Math.min(max,Math.max(min,Number(S[key])||DEFAULTS[key]));
@@ -156,7 +159,7 @@ function buildScene() {
     const mesh = new THREE.Mesh(geo, makeMat(xray, solid, mode));
     mesh.renderOrder = order; mesh.frustumCulled = false;
     (parent || headGroup).add(mesh);
-    meshes[name] = { mesh, layer, fixedMode: mode };
+    meshes[name] = { mesh, layer, fixedMode: mode, xray: new THREE.Color(xray) };
     return mesh;
   };
   add("veil", geos.skin, "veil", 0x04070d, 0x04070d, -10, null, 2).material.uniforms.uFade.value = 1;
@@ -179,10 +182,21 @@ function buildScene() {
     handRigs.push({ group, palm: mk(geos.hand_palm), bones: BONES.map(([a, b]) => mk(geos["hand_b_" + a + "_" + b])),
                     pts: null, seen: 0 });
   }
+  // 异常剧情里肩后多出来的手骨：每个人一只
+  for (let h = 0; h < 6; h++) {
+    const group = new THREE.Group(); group.visible = false; handScene.add(group);
+    const mk = geo => { const m = new THREE.Mesh(geo, makeMat(0xffd6c8, 0xe9e2cf)); m.material.uniforms.uOrtho.value = 1;
+                        m.matrixAutoUpdate = false; m.frustumCulled = false; group.add(m); return m; };
+    ghostRigs.push({ group, palm: mk(geos.hand_palm), bones: BONES.map(([a, b]) => mk(geos["hand_b_" + a + "_" + b])), pts: null });
+  }
   applyStyle(); resize();
 }
 
-const actors=[];
+const actors=[], ghostRigs=[];
+// 骨白配色（旧胶片 X 光）；palette = 'blue' 时用原来的医疗蓝
+const BONE = { outline: 0x7f8f88, muscles: 0xc9584b, cranium: 0xeadfc6, jaw: 0xeadfc6, eyes: 0xeedc9e, cerebrum: 0xd49aa6, hindbrain: 0xd6ae7c };
+const BONE_HAND = 0xe8dcc4, BLUE_HAND = 0xd9f0ff;
+let tmpC, RED;
 function useActor(actor){({head,headGroup,jawPivot,meshes}=actor);if(cam&&head.projection){cam.projectionMatrix.copy(head.projection);cam.projectionMatrixInverse.copy(head.projection).invert();}}
 function eachMat(fn) {
   for(const actor of actors) for (const k in actor.meshes) fn(actor.meshes[k].mesh.material, actor.meshes[k]);
@@ -218,6 +232,7 @@ let tmpM, tmpP, tmpQ, tmpS, tmpV, fitM, corr;
 function initMath() {
   tmpM = new THREE.Matrix4(); tmpP = new THREE.Vector3(); tmpQ = new THREE.Quaternion(); tmpS = new THREE.Vector3();
   tmpV = new THREE.Vector3(); fitM = new THREE.Matrix4(); corr = new THREE.Matrix4(); jawM = new THREE.Matrix4();
+  tmpC = new THREE.Color(); RED = new THREE.Color(0xff2a1f);
   head.pos = new THREE.Vector3(); head.quat = new THREE.Quaternion(); head.scl = new THREE.Vector3(1, 1, 1);
 }
 const FIT_IDS = Object.keys(META.fit).map(Number);
@@ -280,12 +295,21 @@ function applyLayers() {
   jawM.copy(jawPivot.matrix).multiply(meshes.jaw.mesh.matrix);
   const heavy = (S.skull ? 1 : 0) + (S.brain ? 1 : 0) + (S.muscles ? 1 : 0);
   const share = 1 / (0.4 + 0.6 * Math.max(1, heavy));        // several glowing layers at once would wash out to white
+  // 异常剧情：越异常骨头越偏红、亮度越不稳；断讯时整个人的解剖消失
+  const an = head.anom, wk = wrongness(an), rk = revealK(an);
+  const flicker = wk > 0 ? 1 + (Math.random() - 0.5) * 0.55 * wk + (rk > 0 && Math.random() < 0.04 ? -0.8 : 0) : 1;
+  const gone = an && an.ph === "drop" ? 0 : 1;
   for (const k in meshes) {
-    const { mesh, layer } = meshes[k], u = mesh.material.uniforms;
+    const { mesh, layer, xray } = meshes[k], u = mesh.material.uniforms;
     mesh.visible = layer === "veil" ? true : !!S[layer];
+    if (layer !== "veil") {
+      tmpC.copy(S.palette === "bone" && BONE[k] !== undefined ? tmpC.set(BONE[k]) : xray);
+      if (k !== "outline") tmpC.lerp(RED, wk * 0.18 + rk * 0.4);
+      u.uColor.value.copy(tmpC);
+    }
     // x-ray light adds up, so layers with many overlapping surfaces get a lower share
-    u.uGain.value = (S.style === "solid" && k !== "outline") ? Math.min(1.25, 0.6 + 0.4 * S.bright) : S.bright * (XRAY_GAIN[k] || 1) * (layer === "outline" ? 1 : share);
-    u.uOpacity.value = (layer === "veil" ? 1 - S.real : 1) * head.opacity;
+    u.uGain.value = ((S.style === "solid" && k !== "outline") ? Math.min(1.25, 0.6 + 0.4 * S.bright) : S.bright * (XRAY_GAIN[k] || 1) * (layer === "outline" ? 1 : share)) * (layer === "veil" ? 1 : flicker);
+    u.uOpacity.value = (layer === "veil" ? 1 - S.real : 1) * head.opacity * gone;
     u.uClipOn.value = clipOn; u.uClip.value.set(cx, cy, cz, cw);
     u.uFeather.value = S.feather * 0.75; u.uCutSoft.value = S.feather * 5;   // outline softness, and up to 5 cm of fade at a cut
     if (k === "jaw") u.uToHead.value.copy(jawPivot.matrix).multiply(mesh.matrix); else u.uToHead.value.identity();
@@ -465,11 +489,22 @@ function renderFrame(now, faceLms, hands, sides) {
       updateHand(rig, lms, sides[i]);
       drawHandVeil(sg, lms, (1 - S.real) * 0.92);
       for (const m of [rig.palm, ...rig.bones]) { m.material.uniforms.uGain.value = S.style === "solid" ? Math.min(1.25, 0.6 + 0.4 * S.bright) : S.bright * 1.15;
-                                                 m.material.uniforms.uFeather.value = S.feather * 0.75; }
+                                                 m.material.uniforms.uFeather.value = S.feather * 0.75;
+                                                 m.material.uniforms.uColor.value.set(S.palette === "bone" ? BONE_HAND : BLUE_HAND); }
     } else rig.group.visible = false;
   });
   const visible=actors.filter(a=>a.head.id<S.maxFaces && a.head.found);
   for(const actor of actors)actor.headGroup.visible=false;
+  // 异常剧情：每人各走各的；进入断讯时画面撕裂一下、响一声静电
+  for(const actor of visible){const entered=stepAnomaly(S,actor.head,now);if(entered==='drop'){atmosphere.kick();staticBurst(.9);}}
+  ghostRigs.forEach((rig,i)=>{
+   const actor=actors[i],pts=S.anOn&&S.anHand&&visible.includes(actor)?ghostHandPoints(actor.head,META.demoHand):null;
+   if(!pts){rig.group.visible=false;return;}
+   const fresh=!rig.group.visible;updateHand(rig,pts,actor.head.anom.side>0);if(fresh)rig.pts.forEach((p,j)=>p.set(pts[j].x*W,(1-pts[j].y)*H,-pts[j].z*W));
+   const k=revealK(actor.head.anom)*actor.head.opacity;
+   for(const m of [rig.palm,...rig.bones]){const u=m.material.uniforms;u.uGain.value=S.bright*1.1*k*(0.85+Math.random()*0.3);u.uFeather.value=S.feather*0.75;u.uColor.value.set(S.palette==="bone"?0xf0d2c4:0xffc8c0);}
+  });
+  updateSound(S,visible,now);
 
   // x-ray lens: a round window; outside it you see the plain camera picture
   let mask = "none", lens = null;
@@ -499,7 +534,8 @@ function renderFrame(now, faceLms, hands, sides) {
   for(const actor of visible){
    useActor(actor);headGroup.visible=true;
    applyLayers();
-   if(S.labels&&(S.reveal!=='lens'||lens))drawLabels(g,lens);
+   if(S.anOn)drawAnomaly(g,actor,now,S,W,H,screenX);
+   if(S.labels&&(S.reveal!=='lens'||lens)&&actor.head.anom?.ph!=='drop')drawLabels(g,lens);
    if(S.vitals)drawVitals(g,actor,now,S,W,H,screenX,headBounds,occupiedCards);
    if(S.debug)drawDetection(g,actor,W,H,screenX,S.mirror);
    headGroup.visible=false;
@@ -559,7 +595,7 @@ function updateFaces(detections,now){
   const i=matches.get(head.id);
   if(i!==undefined){
    const d=filtered[i],fresh=!head.box||now-head.seen>S.lostGrace*1000;
-   if(fresh){head.found=false;head.born=now;head.vx=head.vy=0;head.vitals.next=0;}
+   if(fresh){head.found=false;head.born=now;head.vx=head.vy=0;head.vitals.next=0;head.anom=null;}
    else {const dt=Math.max(.016,(now-head.seen)/1000);head.vx=(d.box.x-head.box.x)/dt*.5+head.vx*.5;head.vy=(d.box.y-head.box.y)/dt*.5+head.vy*.5;}
    updateHead(d.matrix,d.lms,d.jaw||0);head.box=d.box;head.seen=now;
   }
@@ -699,6 +735,12 @@ for(const key of detectKeys){
 }
 for(const key of ['priority']){$(key).value=S[key];$(key).onchange=()=>{S[key]=$(key).value;save();};}
 for(const key of ['vitals','debug','demoHands']){$(key).checked=S[key];$(key).onchange=()=>{S[key]=$(key).checked;save();};}
+// 异常剧情设置
+for(const key of ['anCalm','anWrong','anReveal','anDrop','anVary','anVolume']){$(key).value=S[key];$(key).addEventListener('input',()=>{S[key]=Number($(key).value);save();});}
+for(const key of ['anOn','anEyes','anCracks','anHand']){$(key).checked=S[key];$(key).onchange=()=>{S[key]=$(key).checked;if(!S.anOn)for(const a of actors)a.head.anom=null;save();};}
+$('palette').value=S.palette;$('palette').onchange=()=>{S.palette=$('palette').value;save();};
+$('anRestart').onclick=()=>{for(const a of actors)a.head.anom=null;};
+for(const ev of ['pointerdown','keydown'])addEventListener(ev,()=>initAudio(S));
 $('applyCamera').onclick=async()=>{
  if(DEMO){$('cameraInfo').textContent=t('Saved for camera mode.');return;}
  if(!running){$('start').click();return;}

@@ -24,11 +24,17 @@ export function createAtmosphere(S,stage,source,save){
    g.fillStyle=`rgba(180,200,190,${.025+S.interference*.08})`;g.fillRect(0,tearY,W,2+S.interference*12);
    g.fillStyle='rgba(0,0,0,.12)';g.fillRect(0,tearY+13,W,2);
   }
+  // 异常剧情断讯时的一下大撕裂（不受“信号干扰”设置影响）
+  if(now<kickUntil){
+   const k=(kickUntil-now)/450;
+   for(let i=0;i<5;i++){const y=Math.random()*H,h=2+Math.random()*22*k;g.fillStyle=`rgba(200,210,200,${.05+.14*k})`;g.fillRect(0,y,W,h);g.fillStyle=`rgba(0,0,0,${.25*k})`;g.fillRect(0,y+h,W,3);}
+  }
   if(S.cameraOverlay){
    g.font='10px Consolas,"Microsoft YaHei",monospace';g.textBaseline='top';g.fillStyle='rgba(190,205,194,.65)';
    const label=demo?'CAM 01 / DEMO':'CAM 01 / LIVE';g.fillText(label,12,H-24);
    const stamp=new Date().toLocaleString('sv-SE',{hour12:false});g.textAlign='right';g.fillText(stamp,W-12,H-24);g.textAlign='left';
   }
  }
- return {draw};
+ let kickUntil=0;
+ return {draw,kick(){kickUntil=performance.now()+450;}};
 }
