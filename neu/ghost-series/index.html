@@ -104,6 +104,8 @@
   .sealed .tab::before { content: "🔒"; color: inherit; font-size: 10px; }
   .redact { background: #2a2a2f; color: transparent; border-radius: 1px; user-select: none; }
 
+  .photo .img.xray { display:grid;place-items:center;background:#0c181e; }
+  .photo .img.xray svg { width:86%;height:86%;filter:drop-shadow(0 0 3px #7cc8db88); }
   footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--faint); font-size: 11.5px; line-height: 1.9; }
   footer .c { font-style: normal; }
   @media (max-width: 640px) {
@@ -172,6 +174,16 @@
     </a>
     <div class="models"><span class="c">// <span data-i="models"></span></span><span class="names">face_landmarker.task · selfie_multiclass_256x256.tflite · yolo-head-nano.onnx · yolo-head-medium.onnx</span><button class="zip" data-zip="ghost-wedding-models.zip" data-files="face_landmarker.task:3.6 MB:Google MediaPipe · Apache-2.0|selfie_multiclass_256x256.tflite:15.6 MB:Google MediaPipe · Apache-2.0|yolo-head-nano.onnx:11.7 MB:trysem/YOLOv8_head_detector · MIT|yolo-head-medium.onnx:98.8 MB:trysem/YOLOv8_head_detector · MIT"><span data-i="zipBtn"></span> · 130 MB</button></div>
     </div>
+    <div class="case"><a class="hit" href="ghost-xray/">
+      <div class="tabbar"><span class="tab">GS-004.case</span><span class="state active" data-i="active"></span></div>
+      <div class="body">
+        <div class="photo"><div class="img xray"><svg viewBox="0 0 100 100" aria-hidden="true"><g fill="none" stroke="#afdcde" stroke-width="1.5"><path d="M50 9C25 9 16 28 20 48L27 62V76L36 89H64L73 76V62L80 48C84 28 75 9 50 9Z"/><path d="M35 68V84M42 68V88M50 68V89M58 68V88M65 68V84M29 72H71M32 64Q50 72 68 64"/><ellipse cx="35" cy="45" rx="11" ry="10"/><ellipse cx="65" cy="45" rx="11" ry="10"/><path d="M50 47L44 61H56ZM50 10L47 22L52 34M23 33L36 28M77 33L64 28"/></g></svg></div><div class="cap">ANATOMY · 01–06</div><span class="stamp">ACTIVE</span></div>
+        <pre><span class="l"><span class="kw">case</span> <span class="t">GS_004</span> <span class="p">{</span></span><span class="l">  <span class="k">name</span><span class="p">:</span>   <span class="s">"<span data-i="c4t"></span>"</span><span class="p">,</span></span><span class="l">  <span class="k">alias</span><span class="p">:</span>  <span class="s">"X-RAY MIRROR"</span><span class="p">,</span></span><span class="l">  <span class="k">site</span><span class="p">:</span>   <span class="s">"<span data-i="c4site"></span>"</span><span class="p">,</span></span><span class="l">  <span class="k">threat</span><span class="p">:</span> <span class="n">5</span><span class="p">,</span> <span class="c">// ☠☠☠☠☠</span></span><span class="l">  <span class="k">needs</span><span class="p">:</span>  <span class="p">[</span><span class="s">"camera"</span><span class="p">,</span> <span class="s">"chrome"</span><span class="p">],</span></span><span class="l">  <span class="c">// <span data-i="c4what"></span></span></span><span class="l"><span class="p">}</span></span></pre>
+      </div>
+      <div class="foot"><span>mediapipe · three.js · webgl</span><span class="run" data-i="open"></span></div>
+    </a>
+    <div class="models"><span class="c">// <span data-i="models"></span></span><span class="names">face_landmarker.task · hand_landmarker.task</span><button class="zip" data-zip="ghost-xray-models.zip" data-files="face_landmarker.task:3.6 MB:Google MediaPipe · Apache-2.0|hand_landmarker.task:7.5 MB:Google MediaPipe · Apache-2.0"><span data-i="zipBtn"></span> · 11 MB</button></div>
+    </div>
   </section>
 
   <footer><span class="c" data-i="foot"></span></footer>
@@ -180,33 +192,36 @@
   const I18N = {
     zh: {
       org: "NEU 鬼神事件调查局", orgSub: "案卷档案 · GHOST CASE ARCHIVE",
-      title: "鬼神系列", count: "3 件已建档",
+      title: "鬼神系列", count: "4 件已建档",
       lead: "调查局收录的异常事件。每一件都发生在展场里，只有你亲自站到它面前，它才会显现。按编号调阅。",
       c1t: "破碎鬼镜", c1site: "展厅尽头的一面镜子", c1what: "倒影结霜、龟裂，脸上浮现不属于你的面孔",
       c2t: "CCTV 鬼眼", c2site: "监控室 / CAM 01–04", c2what: "镜头自行锁定来访者，推到双眼——眼睛变成黑洞，然后 NO SIGNAL",
       c3t: "冥婚", c3site: "镜前的一张空凳子", c3what: "有人坐下，鬼新郎、鬼新娘在两侧显形；你转头看谁，谁就凑过来",
+      c4t: "X 光镜", c4site: "异常影像 / CAM 01–06", c4what: "1–6 人的头骨随动作显形；灰调监控、老式彩色与模拟体征记录",
       contained: "CONTAINED 已收容", active: "ACTIVE 调查中", sealed: "SEALED 封存", open: "调阅案卷",
       sealedNote: "权限不足，待解禁", models: "使用的模型（网页自动加载）", zipBtn: "下载模型 zip",
       foot: "// 本局不对调阅后发生的任何异常负责。需要允许摄像头；画面只在本机处理，不会上传。建议使用桌面版 Chrome。",
     },
     en: {
       org: "NEU GHOST CASE BUREAU", orgSub: "CASE ARCHIVE",
-      title: "Ghost Series", count: "3 cases on file",
+      title: "Ghost Series", count: "4 cases on file",
       lead: "Anomalous incidents logged by the Bureau. Each one happens in the exhibition room and only appears when you stand right in front of it. Open in order.",
       c1t: "Ghost Mirror", c1site: "a mirror at the end of the gallery", c1what: "the reflection frosts and cracks; a face that is not yours surfaces",
       c2t: "Ghost CCTV", c2site: "control room / CAM 01–04", c2what: "cameras lock onto visitors and zoom into the eyes — black holes, then NO SIGNAL",
       c3t: "Ghost Wedding", c3site: "an empty stool before the mirror", c3what: "sit down and a ghost groom and bride appear beside you; whoever you turn to leans in",
+      c4t: "X-Ray Mirror", c4site: "anatomy feed / CAM 01–06", c4what: "1–6 tracked heads reveal their anatomy; vintage camera looks and simulated vital signs",
       contained: "CONTAINED", active: "ACTIVE", sealed: "SEALED", open: "open case",
       sealedNote: "clearance required", models: "models used (loaded automatically)", zipBtn: "download models.zip",
       foot: "// The Bureau is not responsible for anomalies after review. Camera access required; video is processed locally, never uploaded. Desktop Chrome recommended.",
     },
     ko: {
       org: "NEU 귀신사건조사국", orgSub: "사건 기록 보관소 · GHOST CASE ARCHIVE",
-      title: "귀신 시리즈", count: "기록 3건",
+      title: "귀신 시리즈", count: "기록 4건",
       lead: "조사국이 기록한 이상 사건입니다. 모두 전시장에서 일어나며, 직접 그 앞에 서야만 모습을 드러냅니다. 번호 순서대로 열람하십시오.",
       c1t: "깨지는 귀신 거울", c1site: "전시실 끝의 거울 하나", c1what: "모습에 서리와 금이 번지고, 내 것이 아닌 얼굴이 떠오름",
       c2t: "CCTV 귀신 눈", c2site: "관제실 / CAM 01–04", c2what: "카메라가 방문자를 잡아 눈까지 줌인 — 검은 구멍, 그리고 NO SIGNAL",
       c3t: "영혼결혼식", c3site: "거울 앞의 빈 의자", c3what: "앉으면 양옆에 귀신 신랑·신부가 나타나고, 고개를 돌린 쪽이 다가옴",
+      c4t: "X선 거울", c4site: "이상 영상 / CAM 01–06", c4what: "1–6명의 머리에 해부 모델이 겹쳐지고, 빈티지 영상과 가상 생체 신호가 표시됨",
       contained: "CONTAINED 수용 완료", active: "ACTIVE 조사 중", sealed: "SEALED 봉인", open: "사건 열람",
       sealedNote: "권한 부족, 해제 대기", models: "사용 모델 (자동 로드)", zipBtn: "모델 zip 다운로드",
       foot: "// 본국은 열람 후 발생하는 이상 현상에 책임지지 않습니다. 카메라 권한 필요, 영상은 기기 안에서만 처리되며 업로드되지 않습니다. 데스크톱 Chrome 권장.",
@@ -233,7 +248,8 @@
   const tick = () => { const d = new Date(); document.getElementById("clock").textContent = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
   tick(); setInterval(tick, 1000);
   const MODEL_DIR = "models/";
-  // 模型 zip：点按钮时在网页里现场把这个作品用到的模型打成一个 zip（不压缩）。   // 模型加起来超过 GitHub 单文件 100 MB 上限，放不了现成的 zip，所以在浏览器里打包。   const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();   const crc32 = (d) => { let c = 0xffffffff; for (let i = 0; i < d.length; i++) c = CRC_T[(c ^ d[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };   async function downloadModelsZip(zipName, list, onProgress) {     const enc = new TextEncoder(), parts = [], central = [];     let off = 0;     const notes = ["Models used by " + zipName.replace(/\.zip$/, ""), "Put this models/ folder next to the demo folders (互动demo/models/).", ""];     const entries = [];     for (let i = 0; i < list.length; i++) {       onProgress && onProgress(i, list.length);       const m = list[i], r = await fetch(MODEL_DIR + m.file);       if (!r.ok) throw new Error(m.file + " " + r.status);       entries.push({ name: "models/" + m.file, data: new Uint8Array(await r.arrayBuffer()) });       notes.push(`${m.file}  ${m.size}  ${m.src}`);     }     entries.push({ name: "models/README.txt", data: enc.encode(notes.join("\r\n") + "\r\n") });     for (const { name: n, data } of entries) {       const name = enc.encode(n), crc = crc32(data);       const h = new DataView(new ArrayBuffer(30));       h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(12, 0x21, true);       h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true);       parts.push(h, name, data);       const c = new DataView(new ArrayBuffer(46));       c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(14, 0x21, true);       c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, name.length, true); c.setUint32(42, off, true);       central.push(c, name);       off += 30 + name.length + data.length;     }     const csize = central.reduce((s, x) => s + x.byteLength, 0), e = new DataView(new ArrayBuffer(22));     e.setUint32(0, 0x06054b50, true); e.setUint16(8, entries.length, true); e.setUint16(10, entries.length, true); e.setUint32(12, csize, true); e.setUint32(16, off, true);     const url = URL.createObjectURL(new Blob([...parts, ...central, e], { type: "application/zip" }));     const a = document.createElement("a"); a.href = url; a.download = zipName; document.body.appendChild(a); a.click(); a.remove();     setTimeout(() => URL.revokeObjectURL(url), 60000);   } 
+  // 模型 zip：点按钮时在网页里现场把这个作品用到的模型打成一个 zip（不压缩）。   // 模型加起来超过 GitHub 单文件 100 MB 上限，放不了现成的 zip，所以在浏览器里打包。
+  const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();   const crc32 = (d) => { let c = 0xffffffff; for (let i = 0; i < d.length; i++) c = CRC_T[(c ^ d[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };   async function downloadModelsZip(zipName, list, onProgress) {     const enc = new TextEncoder(), parts = [], central = [];     let off = 0;     const notes = ["Models used by " + zipName.replace(/\.zip$/, ""), "Put this models/ folder next to the demo folders (互动demo/models/).", ""];     const entries = [];     for (let i = 0; i < list.length; i++) {       onProgress && onProgress(i, list.length);       const m = list[i], r = await fetch(MODEL_DIR + m.file);       if (!r.ok) throw new Error(m.file + " " + r.status);       entries.push({ name: "models/" + m.file, data: new Uint8Array(await r.arrayBuffer()) });       notes.push(`${m.file}  ${m.size}  ${m.src}`);     }     entries.push({ name: "models/README.txt", data: enc.encode(notes.join("\r\n") + "\r\n") });     for (const { name: n, data } of entries) {       const name = enc.encode(n), crc = crc32(data);       const h = new DataView(new ArrayBuffer(30));       h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(12, 0x21, true);       h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true);       parts.push(h, name, data);       const c = new DataView(new ArrayBuffer(46));       c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(14, 0x21, true);       c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, name.length, true); c.setUint32(42, off, true);       central.push(c, name);       off += 30 + name.length + data.length;     }     const csize = central.reduce((s, x) => s + x.byteLength, 0), e = new DataView(new ArrayBuffer(22));     e.setUint32(0, 0x06054b50, true); e.setUint16(8, entries.length, true); e.setUint16(10, entries.length, true); e.setUint32(12, csize, true); e.setUint32(16, off, true);     const url = URL.createObjectURL(new Blob([...parts, ...central, e], { type: "application/zip" }));     const a = document.createElement("a"); a.href = url; a.download = zipName; document.body.appendChild(a); a.click(); a.remove();     setTimeout(() => URL.revokeObjectURL(url), 60000);   }
   for (const b of document.querySelectorAll(".models .zip")) b.onclick = () => {
     const list = b.dataset.files.split("|").map((s) => { const [file, size, src] = s.split(":"); return { file, size, src }; });
     const label = b.innerHTML; b.disabled = true;
