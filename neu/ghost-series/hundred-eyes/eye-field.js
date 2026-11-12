@@ -1,4 +1,4 @@
-import {seeded} from './proximity.js?v=0.3';
+import {seeded} from './proximity.js?v=0.3.1';
 // 眼睛布局：大眼先放、小眼补缝，铺满整个画面（边上的可以出画），中间留一块空洞透出后面的空间。
 // 同一个随机种子 + 同一画面尺寸 → 同样的布局。
 export class EyeField{

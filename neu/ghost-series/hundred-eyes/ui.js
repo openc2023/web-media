@@ -1,4 +1,4 @@
-import {saveSettings} from './settings.js?v=0.3';
+import {saveSettings} from './settings.js?v=0.3.1';
 const L=(zh,en,ko)=>[zh,en,ko];
 export function createUI(cfg,onChange,actions){
  const $=id=>document.getElementById(id),side=$('side');let opened=false,page=0,lastFocus;
@@ -25,7 +25,7 @@ export function createUI(cfg,onChange,actions){
    ['range','openDelay',L('随机苏醒间隔 / 秒','Wake spread / s','깨어남 간격 / 초'),.5,12,.5],['range','blinkInterval',L('随机睁眼停留 / 秒','Open hold / s','뜨기 유지 / 초'),1,12,.5]]},
   {name:L('画面','Display','화면'),items:[
    ['select','bgMode',L('空洞后面','Behind the opening','틈 뒤의 배경'),[['auto',L('自动（实拍 / 无摄像头时窗格）','Auto (camera, lattice without camera)','자동 (카메라 / 없으면 창살)')],['camera',L('实拍空间','Camera space','카메라 공간')],['room',L('雾中窗格红梅','Misty lattice & plum','안개 속 창살과 매화')]]],
-   ['range','roomOpacity',L('窗花不透明度（叠在实拍上）','Lattice opacity (over camera)','창살 불투명도 (카메라 위)'),0,1,.05],['range','waterOpacity',L('前景水墙不透明度','Front water wall opacity','앞 물벽 불투명도'),0,1,.02],['range','waterSpeed',L('水墙流速','Water wall flow','물벽 흐름'),0,3,.05],
+   ['range','roomOpacity',L('窗花不透明度（叠在实拍上）','Lattice opacity (over camera)','창살 불투명도 (카메라 위)'),0,1,.05],['range','seeThrough',L('中间透出实拍','See camera through the middle','가운데로 카메라 비침'),0,1,.05],['range','waterOpacity',L('前景水墙不透明度','Front water wall opacity','앞 물벽 불투명도'),0,1,.02],['range','waterSpeed',L('水墙流速','Water wall flow','물벽 흐름'),0,3,.05],
    ['range','fleshCover',L('肉膜覆盖','Membrane cover','막 덮임'),0,1,.02],['range','fleshTone',L('肉膜亮度','Membrane brightness','막 밝기'),.4,1.8,.05],
    ['range','gloss',L('湿润高光','Wet highlights','젖은 광택'),0,2.5,.05],['range','drip',L('水痕多少','Drips','물줄기'),0,2.5,.05],['range','dripSpeed',L('水痕速度','Drip speed','물줄기 속도'),0,3,.05],
    ['range','refraction',L('水痕折射','Drip refraction','물줄기 굴절'),0,3,.05],['range','fog',L('背景雾','Background fog','배경 안개'),0,1,.02],

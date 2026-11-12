@@ -1,10 +1,10 @@
-import {loadSettings,saveSettings} from './settings.js?v=0.3';
-import {createUI} from './ui.js?v=0.3';
-import {loadEyes,imageFile} from './eye-assets.js?v=0.3';
-import {EyeField} from './eye-field.js?v=0.3';
-import {createMembrane,drawRoom} from './membrane.js?v=0.3';
-import {Proximity} from './proximity.js?v=0.3';
-import {Detector} from './detector.js?v=0.3';
+import {loadSettings,saveSettings} from './settings.js?v=0.3.1';
+import {createUI} from './ui.js?v=0.3.1';
+import {loadEyes,imageFile} from './eye-assets.js?v=0.3.1';
+import {EyeField} from './eye-field.js?v=0.3.1';
+import {createMembrane,drawRoom} from './membrane.js?v=0.3.1';
+import {Proximity} from './proximity.js?v=0.3.1';
+import {Detector} from './detector.js?v=0.3.1';
 const cfg=loadSettings(),$=id=>document.getElementById(id),video=$('video'),stage=$('stage'),source=$('cameraFrame');
 const demo=location.hash==='#demo';let room=null,bgNow='',camDirty=false,agit=0,maskC=document.createElement('canvas');let field,water,detector,faces=[],lastFacesAt=0,epoch=0,started=false,starting=false,cameraStatus='',detectStatus='',lastFrame=-Infinity,lastDetect=-Infinity,lastVideo=-1,fps=0,frames=0,fpsAt=0;
 const proximity=new Proximity();

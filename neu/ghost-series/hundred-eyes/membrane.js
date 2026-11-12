@@ -6,7 +6,7 @@ const vertex = `attribute vec2 position;varying vec2 uv;void main(){uv=position*
 const fragment = `precision highp float;
 varying vec2 uv;
 uniform sampler2D bg, eyes, mask, room, wall;
-uniform vec2 res; uniform float time, mirror, fog, drip, dripSpeed, gloss, refr, camSat, camBright, tone, agit, eyeExp, eyeSat, camOn, roomA, wallA, wallSpeed;
+uniform vec2 res; uniform float time, mirror, fog, drip, dripSpeed, gloss, refr, camSat, camBright, tone, agit, eyeExp, eyeSat, camOn, roomA, wallA, wallSpeed, seeThrough;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
 float fbm(vec2 p){float n=0.,a=.5;for(int i=0;i<4;i++){n+=noise(p)*a;p=p*2.03+7.2;a*=.5;}return n;}
@@ -52,7 +52,7 @@ void main(){
   vec3 b=vec3(0.);
   for(int i=0;i<5;i++){float t=float(i)*1.2566; b+=texture2D(bg,c+vec2(cos(t),sin(t))*.0022).rgb;} b=b/5.*.6+texture2D(bg,c).rgb*.4;
   float lum=dot(b,vec3(.299,.587,.114)); b=mix(vec3(lum),b,camSat)*camBright;
-  b=mix(b,b*vec3(.72,.9,.95)+vec3(.03,.05,.06),.6);
+  b=mix(b,b*vec3(.72,.9,.95)+vec3(.03,.05,.06),.4);
   // 窗格红梅：有实拍时半透明叠在实拍上，没摄像头时就是背景本身
   vec3 rm=texture2D(room,uv+off*1.6).rgb;
   b=camOn>.5?mix(b,rm,roomA):mix(vec3(.1,.13,.14),rm,.4+.6*roomA);
@@ -64,7 +64,7 @@ void main(){
   fl+= spec*vec3(.72,.84,.9)+spec2*vec3(.9,.95,1.);
   vec3 col=mix(b,fl,f);
   // 空洞里也蒙着一层很薄的湿膜：一点灰、一点高光，像隔着一层胶看后面的房间
-  float film=(1.-f)*.42;
+  float film=(1.-f)*.26;
   col=mix(col,col*.78+vec3(.07,.09,.1)+(spec*.5+spec2*.4)*vec3(.8,.88,.92),film);
   // 膜的边缘：薄的半透明湿边
   float edge=smoothstep(.0,.12,f)*smoothstep(.45,.12,f);
@@ -77,6 +77,9 @@ void main(){
   // 水痕：提亮 + 珠子高光
   col*=1.-clamp(drim,0.,1.)*.4;
   col+=dr*vec3(.5,.58,.62)*.22+pow(clamp(dr,0.,1.),5.)*vec3(.5,.55,.58);
+  // 中间一圈眼睛和肉膜稍微透明，能隐约看见后面的实拍
+  float ck=smoothstep(.85,.1,length((uv-vec2(.5,.53))*vec2(1.1,1.55)))*seeThrough;
+  col=mix(col,b*1.08,ck*(.55+.45*f));
   // 最前面一层半透明的流动水墙（assets/water-wall.png）：扭动 + 焦散高光
   vec2 wq=uv*.84+.08;   // 只取图的中间，图边缘那圈波浪白边不进画面
   vec2 wf=vec2(noise(wq*4.+vec2(time*.21,-time*.17)*wallSpeed),noise(wq*4.+vec2(-time*.15,time*.23)*wallSpeed+11.))-.5;
@@ -99,7 +102,7 @@ export function createMembrane(canvas) {
   gl.useProgram(p);
   const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
   const at = gl.getAttribLocation(p, 'position'); gl.enableVertexAttribArray(at); gl.vertexAttribPointer(at, 2, gl.FLOAT, false, 0, 0);
-  const U = Object.fromEntries(['bg', 'eyes', 'mask', 'res', 'time', 'mirror', 'fog', 'drip', 'dripSpeed', 'gloss', 'refr', 'camSat', 'camBright', 'tone', 'agit', 'eyeExp', 'eyeSat', 'room', 'wall', 'camOn', 'roomA', 'wallA', 'wallSpeed'].map(k => [k, gl.getUniformLocation(p, k)]));
+  const U = Object.fromEntries(['bg', 'eyes', 'mask', 'res', 'time', 'mirror', 'fog', 'drip', 'dripSpeed', 'gloss', 'refr', 'camSat', 'camBright', 'tone', 'agit', 'eyeExp', 'eyeSat', 'room', 'wall', 'camOn', 'roomA', 'wallA', 'wallSpeed', 'seeThrough'].map(k => [k, gl.getUniformLocation(p, k)]));
   const tex = unit => { const t = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -119,7 +122,7 @@ export function createMembrane(canvas) {
       gl.uniform2f(U.res, canvas.width, canvas.height); gl.uniform1f(U.time, now * .001);
       gl.uniform1f(U.mirror, mirror ? 1 : 0); gl.uniform1f(U.fog, cfg.fog); gl.uniform1f(U.drip, cfg.drip); gl.uniform1f(U.dripSpeed, cfg.dripSpeed);
       gl.uniform1f(U.gloss, cfg.gloss); gl.uniform1f(U.refr, cfg.refraction); gl.uniform1f(U.camSat, isCam ? cfg.cameraSaturation : .95); gl.uniform1f(U.camBright, isCam ? cfg.cameraExposure : 1);
-      gl.uniform1f(U.tone, cfg.fleshTone); gl.uniform1f(U.agit, agit); gl.uniform1f(U.eyeExp, cfg.eyeExposure); gl.uniform1f(U.eyeSat, cfg.eyeSaturation); gl.uniform1f(U.camOn, isCam ? 1 : 0); gl.uniform1f(U.roomA, cfg.roomOpacity); gl.uniform1f(U.wallA, cfg.waterOpacity); gl.uniform1f(U.wallSpeed, cfg.waterSpeed);
+      gl.uniform1f(U.tone, cfg.fleshTone); gl.uniform1f(U.agit, agit); gl.uniform1f(U.eyeExp, cfg.eyeExposure); gl.uniform1f(U.eyeSat, cfg.eyeSaturation); gl.uniform1f(U.camOn, isCam ? 1 : 0); gl.uniform1f(U.roomA, cfg.roomOpacity); gl.uniform1f(U.wallA, cfg.waterOpacity); gl.uniform1f(U.wallSpeed, cfg.waterSpeed); gl.uniform1f(U.seeThrough, cfg.seeThrough);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
     },
   };
