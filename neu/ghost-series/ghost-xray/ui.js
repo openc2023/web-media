@@ -1,4 +1,14 @@
+const fitScale=new Set(['fs','fw','fh','fd']),fitPosition=new Set(['fx','fy','fz']);
+const isFit=id=>fitScale.has(id)||fitPosition.has(id);
+export function ensureFitRange(id,value){
+ if(!isFit(id)||!Number.isFinite(Number(value)))return;
+ const range=document.getElementById(id);if(!range)return;
+ if(Number(value)<Number(range.min))range.min=String(value);
+ if(Number(value)>Number(range.max))range.max=String(value);
+}
 const dict = {
+ 'Hand validation':['手部防误识别','손 오검출 방지'], 'Hand confidence':['手部置信度','손 검출 신뢰도'], 'Confirm frames':['连续确认帧数','연속 확인 프레임'], 'Min hand size':['最小手部尺寸','최소 손 크기'], 'Simulated hand (demo only)':['模拟手骨（仅演示）','가상 손뼈 (데모 전용)'], 'Calibration values can extend beyond the slider range.':['数值框可超出滑块范围，滑块会自动扩展；缩放必须大于零。','숫자를 입력하면 슬라이더 범위가 자동 확장됩니다. 크기는 0보다 커야 합니다.'],
+ 'Tip: pick the Solid look and set "Real me showing through" to about half, then line the skull up with your face.':['提示：选择“实体”，把“真人透出”调到一半左右，再将头骨对齐面部。','팁: 불투명 모드에서 실제 영상 투명도를 절반 정도로 설정한 뒤 두개골을 얼굴에 맞추세요.'],
  'Case archive':['返回案卷','사건 목록'], 'X-RAY MIRROR':['X 光镜','X선 거울'],
  'Camera look':['摄像机风格','카메라 스타일'], 'Grey surveillance':['灰调监控','흑백 감시'], 'Vintage color':['老式彩色','빈티지 컬러'], 'Clean camera':['原始画面','원본 영상'], 'Custom':['自定义','사용자 지정'], 'Warm cast':['暖色偏移','따뜻한 색감'], 'Lens softness':['镜头柔化','렌즈 부드럽게'],
  'Surveillance look':['监控质感','감시 카메라 효과'], 'Saturation':['饱和度','채도'], 'Camera exposure':['镜头曝光','카메라 노출'], 'Camera contrast':['镜头对比度','카메라 대비'], 'Film grain':['噪点','영상 노이즈'], 'Scanlines':['扫描线','스캔라인'], 'Vignette':['暗角','비네팅'], 'Signal interference':['信号干扰','신호 간섭'], 'Camera overlay':['监控信息叠加','카메라 정보 표시'],
@@ -43,7 +53,7 @@ document.body.append(side);
 const panels = [...side.querySelectorAll('.panel')];
 side.querySelector('h1').remove();
 const notes = [...side.querySelectorAll(':scope > .small')];
-side.insertAdjacentHTML('afterbegin', `<header class="top"><div class="brand">GHOST / X-RAY<em>v0.2</em></div><div class="sp"></div><div class="seg" id="lang"><button data-lang="zh">中</button><button data-lang="en">EN</button><button data-lang="ko">한</button></div><button class="btn icon ghost" id="close" aria-label="Close settings">✕</button></header><nav class="tabs" id="tabs" aria-label="Settings"></nav><div id="panes"></div><footer id="statusbar"><span class="dot"></span><span id="liveStats">LOCAL · X-RAY</span><span class="v">v0.2</span></footer>`);
+side.insertAdjacentHTML('afterbegin', `<header class="top"><div class="brand">GHOST / X-RAY<em>v0.2.1</em></div><div class="sp"></div><div class="seg" id="lang"><button data-lang="zh">中</button><button data-lang="en">EN</button><button data-lang="ko">한</button></div><button class="btn icon ghost" id="close" aria-label="Close settings">✕</button></header><nav class="tabs" id="tabs" aria-label="Settings"></nav><div id="panes"></div><footer id="statusbar"><span class="dot"></span><span id="liveStats">LOCAL · X-RAY</span><span class="v">v0.2.1</span></footer>`);
 const panes = document.getElementById('panes'), tabs = document.getElementById('tabs');
 const groups = [['Camera',[0]],['Detection',[]],['Anatomy',[1]],['Display',[2,3,4]],['Calibration',[5]]];
 groups.forEach(([name,indices],i) => {
@@ -62,6 +72,10 @@ panes.children[0].insertAdjacentHTML('afterbegin',`<div class="panel"><h3>Camera
  <div class="row"><label for="rotation">Rotation</label><select id="rotation"><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select></div>
  ${check('mirror','Mirror')}<div class="grid2"><button class="btn" id="refreshCameras">Refresh cameras</button><button class="btn primary" id="applyCamera">Apply camera</button></div><p class="info">Camera changes apply with this button.</p><p class="info" id="cameraInfo" role="status"></p></div>`);
 panes.children[1].innerHTML=`<div class="panel"><h3>People</h3>${slider('maxFaces','Max people',1,6,1)}${slider('minFace','Min face size',.01,.3,.005)}${slider('confidence','Confidence',.1,.95,.05)}${slider('smooth','Stabilize',.1,1,.05)}${slider('lostGrace','Lost tolerance (s)',.1,3,.1)}${slider('detectHz','Detection rate',5,30,1)}<div class="row"><label for="priority">Priority</label><select id="priority"><option value="near">Nearest first</option><option value="center">Center first</option></select></div>${check('debug','Detection overlay')}<p class="info">Nearby faces keep their slots briefly when occluded.</p><p class="info">Hand tracking: 2 hands total.</p></div>`;
+panes.children[1].insertAdjacentHTML('beforeend',`<div class="panel"><h3>Hand validation</h3>${slider('handConfidence','Hand confidence',.4,.95,.05)}${slider('handFrames','Confirm frames',2,6,1)}${slider('minHandSize','Min hand size',.02,.25,.01)}<div ${location.hash==='#demo'?'':'hidden'}>${check('demoHands','Simulated hand (demo only)')}</div></div>`);
+panes.children[4].insertAdjacentHTML('beforeend','<p class="small">Calibration values can extend beyond the slider range.</p>');
+for(const id of [...fitScale,...fitPosition]){const range=document.getElementById(id);range.min=fitScale.has(id)?'.25':'-20';range.max=fitScale.has(id)?'3':'20';}
+if(location.hash==='#demo')panes.children[0].querySelector('.grid2').insertAdjacentHTML('afterbegin',`<a class="btn primary" href="${location.pathname+location.search}">Live camera</a>`);
 panes.children[3].insertAdjacentHTML('beforeend',`<div class="panel"><h3>Vitals overlay</h3>${check('vitals','Simulated vitals')}${slider('vitalsOpacity','Overlay opacity',.1,1,.05)}<p class="info">Per-person random animation, not camera measurements.</p></div>`);
 panes.children[3].insertAdjacentHTML('afterbegin',`<div class="panel"><h3>Surveillance look</h3><div class="row"><label for="cameraLook">Camera look</label><select id="cameraLook"><option value="gray">Grey surveillance</option><option value="vintage">Vintage color</option><option value="clean">Clean camera</option><option value="custom">Custom</option></select></div>${slider('cameraSaturation','Saturation',0,1,.05)}${slider('cameraExposure','Camera exposure',.4,1.5,.05)}${slider('cameraContrast','Camera contrast',.5,2,.05)}${slider('warmth','Warm cast',0,1,.05)}${slider('softness','Lens softness',0,1,.05)}${slider('grain','Film grain',0,1,.05)}${slider('scanlines','Scanlines',0,1,.05)}${slider('vignette','Vignette',0,1,.05)}${slider('interference','Signal interference',0,1,.05)}${check('cameraOverlay','Camera overlay')}</div>`);
 document.body.insertAdjacentHTML('beforeend','<button id="hotspot" aria-label="Settings" title="S · Settings"></button>');
@@ -101,11 +115,11 @@ function translate(){
 }
 document.querySelectorAll('[data-lang]').forEach(b=>b.onclick=()=>{lang=b.dataset.lang;try{localStorage.setItem('ghostXrayLang',lang);localStorage.setItem('ghostSeriesLang',lang);}catch{}translate();});
 for(const range of document.querySelectorAll('input[type=range]')) {
- const number=document.createElement('input');number.type='number';number.className='nv'; for(const key of ['min','max','step']) number[key]=range[key];number.setAttribute('aria-label',range.parentElement.querySelector('label').textContent.trim());range.after(number);
+ const number=document.createElement('input');number.type='number';number.className='nv'; for(const key of ['min','max','step']) number[key]=range[key];if(isFit(range.id)){number.removeAttribute('max');number.step='any';if(fitScale.has(range.id))number.min='.001';else number.removeAttribute('min');}number.setAttribute('aria-label',range.parentElement.querySelector('label').textContent.trim());range.after(number);
  const sync=()=>number.value=Number(range.value).toFixed(Number(range.step)>=1?0:Number(range.step)<0.01?3:2);
  range.addEventListener('input',sync);
- number.addEventListener('input',()=>{if(number.value==='' || !number.validity.valid)return;const v=Number(number.value);if(!Number.isFinite(v))return;range.value=String(v);range.dispatchEvent(new Event('input',{bubbles:true}));});
- number.addEventListener('change',()=>{const v=Number(number.value);range.value=String(Number.isFinite(v)?Math.min(Number(range.max),Math.max(Number(range.min),v)):Number(range.min));range.dispatchEvent(new Event('input',{bubbles:true}));sync();});
+ number.addEventListener('input',()=>{if(number.value==='' || !number.validity.valid)return;const v=Number(number.value);if(!Number.isFinite(v))return;ensureFitRange(range.id,v);range.value=String(v);range.dispatchEvent(new Event('input',{bubbles:true}));});
+ number.addEventListener('change',()=>{const v=Number(number.value);if(isFit(range.id)){if(number.value===''||!Number.isFinite(v)||(fitScale.has(range.id)&&v<=0)){sync();return;}ensureFitRange(range.id,v);}range.value=String(Number.isFinite(v)?Math.min(Number(range.max),Math.max(Number(range.min),v)):Number(range.min));range.dispatchEvent(new Event('input',{bubbles:true}));sync();});
  document.addEventListener('xray-sync',sync); document.addEventListener('change',()=>{if(document.activeElement!==number)sync();});document.addEventListener('click',()=>queueMicrotask(()=>{if(document.activeElement!==number)sync();}));queueMicrotask(sync);
 }
 selectTab(0);translate();

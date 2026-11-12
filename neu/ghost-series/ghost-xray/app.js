@@ -1,8 +1,9 @@
-import { t, translateStatus } from "./ui.js";
-import { faceBox, matchFaces } from "./tracking.js";
-import { createCamera } from "./camera.js";
-import { drawVitals, drawDetection } from "./vitals.js";
-import { createAtmosphere } from "./atmosphere.js";
+import { t, translateStatus, ensureFitRange } from "./ui.js?v=0.2.1";
+import { HandFilter } from './hand-filter.js?v=0.2.1';
+import { faceBox, matchFaces } from "./tracking.js?v=0.2.1";
+import { createCamera } from "./camera.js?v=0.2.1";
+import { drawVitals, drawDetection } from "./vitals.js?v=0.2.1";
+import { createAtmosphere } from "./atmosphere.js?v=0.2.1";
 
 const $ = id => document.getElementById(id);
 const statusEl = $("status"), video = $("video"), stage = $("stage");
@@ -21,10 +22,11 @@ const DEFAULTS = { skull: true, brain: false, muscles: false, eyes: true, outlin
                    fs: 1, fw: 1, fh: 1, fd: 1, fx: 0, fy: 0, fz: 0, labels: false,
  maxFaces:4, minFace:.045, confidence:.5, smooth:.6, lostGrace:.6, detectHz:20, priority:'near',
  deviceId:'', resolution:'720', mirror:true, rotation:0, vitals:true, vitalsOpacity:.8, debug:false,
+ handConfidence:.75,handFrames:3,minHandSize:.04,demoHands:false,
  cameraLook:'gray',warmth:0,softness:0,cameraSaturation:.1,cameraExposure:.9,cameraContrast:1.15,grain:.2,scanlines:.2,vignette:.45,interference:.15,cameraOverlay:true };
 let S = Object.assign({}, DEFAULTS);
 try { Object.assign(S, JSON.parse(localStorage.getItem("ghostXrayCfg.v1") || "{}")); } catch (e) {}
-for(const [key,min,max] of [['maxFaces',1,6],['confidence',.1,.95],['minFace',.01,.3],['smooth',.1,1],['lostGrace',.1,3],['detectHz',5,30],['vitalsOpacity',.1,1]]) S[key]=Math.min(max,Math.max(min,Number(S[key])||DEFAULTS[key]));
+for(const [key,min,max] of [['maxFaces',1,6],['confidence',.1,.95],['minFace',.01,.3],['smooth',.1,1],['lostGrace',.1,3],['detectHz',5,30],['vitalsOpacity',.1,1],['handConfidence',.4,.95],['handFrames',2,6],['minHandSize',.02,.25]]) S[key]=Math.min(max,Math.max(min,Number(S[key])||DEFAULTS[key]));
 S.maxFaces=Math.round(S.maxFaces);
 // User requested a visible live camera background, including on existing installations.
 if(!S.liveVideoV2){S.real=1;S.liveVideoV2=true;}
@@ -35,7 +37,7 @@ const SLIDERS = ["bright", "real", "feather", "cut", "fs", "fw", "fh", "fd", "fx
 function syncUI() {
   for (const k of LAYERS) $("L_" + k).checked = S[k];
   for (const b of $("style").children) b.classList.toggle("on", b.dataset.style === S.style);
-  for (const k of SLIDERS) $(k).value = S[k];
+  for (const k of SLIDERS) {ensureFitRange(k,S[k]);$(k).value = S[k];}
   for (const k of ["fs", "fw", "fh", "fd"]) $(k + "v").textContent = Math.round(S[k] * 100) + "%";
   for (const k of ["fx", "fy", "fz"]) $(k + "v").textContent = (S[k] > 0 ? "+" : "") + S[k].toFixed(1) + " cm";
   $("featherv").textContent = Math.round(S.feather * 100) + "%";
@@ -510,7 +512,7 @@ function renderFrame(now, faceLms, hands, sides) {
    headGroup.visible=false;
   }
   useActor(visible[0]||actors[0]);
-  $('liveStats').textContent=`${t('Faces')} ${visible.length}/${S.maxFaces} · ${fps} FPS`;
+  $('liveStats').textContent=`${DEMO?'DEMO · ':''}${t('Faces')} ${visible.length}/${S.maxFaces} · ${fps} FPS`;
   if(S.debug){g.fillStyle='#7fd1a8';g.font='11px Consolas,monospace';g.fillText(`${t('Faces')} ${visible.length}/${S.maxFaces}  ${fps} FPS`,12,20);}
   if (S.showdata) {
     if (faceLms) { g.fillStyle = "rgba(127,255,170,.85)"; for (const p of faceLms.filter(Boolean)) g.fillRect(screenX(p.x) - 1, p.y * H - 1, 2, 2); }
@@ -550,7 +552,7 @@ async function loadTrackers() {
   const mkFace = d => vision.FaceLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: FACE_MODEL, delegate: d },
     runningMode: "VIDEO", numFaces: S.maxFaces, minFaceDetectionConfidence:S.confidence,minFacePresenceConfidence:S.confidence,minTrackingConfidence:S.confidence, outputFacialTransformationMatrixes: true, outputFaceBlendshapes: true });
   const mkHand = d => vision.HandLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: HAND_MODEL, delegate: d },
-    runningMode: "VIDEO", numHands: 2 });
+    runningMode: "VIDEO", numHands: 2, minHandDetectionConfidence:S.handConfidence,minHandPresenceConfidence:S.handConfidence,minTrackingConfidence:S.handConfidence });
   try { faceTracker = await mkFace("GPU"); } catch (e) { faceTracker = await mkFace("CPU"); }
   try { try { handTracker = await mkHand("GPU"); } catch (e) { handTracker = await mkHand("CPU"); } }
   catch (e) { handTracker = null; }                        // the head view still works without hand tracking
@@ -578,16 +580,18 @@ const faceOptions=()=>({numFaces:S.maxFaces,minFaceDetectionConfidence:S.confide
 async function configureTracker(){
  trackerDirty=true;if(trackingBusy||!faceTracker)return;
  trackingBusy=true;
- try{while(trackerDirty){trackerDirty=false;await faceTracker.setOptions(faceOptions());}}
+ try{while(trackerDirty){trackerDirty=false;await faceTracker.setOptions(faceOptions());if(handTracker)await handTracker.setOptions({minHandDetectionConfidence:S.handConfidence,minHandPresenceConfidence:S.handConfidence,minTrackingConfidence:S.handConfidence});}}
  catch(e){setStatus('The tracker hit an error: '+e.message,'bad');}
  finally{trackingBusy=false;}
 }
 function liveLoop() {
- running=true;let lastTime=-1,lastDetect=-Infinity,hands=[],sides=[];
+ running=true;let lastTime=-1,lastDetect=-Infinity,hands=[],sides=[],lastHandAt=-Infinity;
+ const handFilter=new HandFilter();
+ const clearHands=()=>{hands=[];sides=[];handFilter.reset();for(const rig of handRigs){rig.group.visible=false;rig.pts=null;}};
  function tick(){
   if(!running)return;liveRequest=requestAnimationFrame(tick);
   const now=performance.now();
-  if(video.readyState<2||video.currentTime===lastTime)return;
+  if(video.readyState<2||video.currentTime===lastTime){if(now-lastHandAt>Math.max(250,1500/S.detectHz)){clearHands();ageFaces(now);if(renderer)renderFrame(now,null,[],[]);}return;}
   lastTime=video.currentTime;paintCamera();
   if(!trackingBusy && now-lastDetect>=1000/S.detectHz){
    lastDetect=now;
@@ -595,11 +599,14 @@ function liveLoop() {
     const fr=faceTracker.detectForVideo(cameraFrame,now);
     updateFaces((fr.faceLandmarks||[]).map((lms,i)=>({lms,box:faceBox(lms),matrix:fr.facialTransformationMatrixes?.[i]?.data,jaw:fr.faceBlendshapes?.[i]?.categories.find(c=>c.categoryName==='jawOpen')?.score||0})).filter(d=>d.matrix),now);
     if(handTracker&&(S.hands||S.reveal==='lens'||S.showdata)){
-     const hr=handTracker.detectForVideo(cameraFrame,now);hands=hr.landmarks||[];const hd=hr.handedness||hr.handednesses||[];sides=hands.map((_,i)=>hd[i]?.[0]?.categoryName==='Left');
-    }else{hands=[];sides=[];}
-   }catch(e){setStatus('The tracker hit an error: '+e.message,'bad');}
+     const hr=handTracker.detectForVideo(cameraFrame,now),hd=hr.handedness||hr.handednesses||[];
+     const accepted=handFilter.update((hr.landmarks||[]).map((lms,i)=>({lms,isRight:hd[i]?.[0]?.categoryName==='Left'})),now,{minSize:S.minHandSize,frames:S.handFrames,maxGap:Math.max(250,1800/S.detectHz)});
+     hands=accepted.map(d=>d.lms);sides=accepted.map(d=>d.isRight);lastHandAt=now;
+    }else{clearHands();}
+   }catch(e){clearHands();setStatus('The tracker hit an error: '+e.message,'bad');}
   }
   ageFaces(now);
+  if(now-lastHandAt>Math.max(250,1500/S.detectHz))clearHands();
   const count=actors.filter(a=>a.head.found).length;
   const message=`${t('Live camera')} · ${t('Faces')} ${count}/${S.maxFaces}`;
   if(statusEl.textContent!==message)setStatus(message,count?'ok':'');
@@ -629,7 +636,7 @@ function demoLoop() {
     }
     updateFaces(detections,now);ageFaces(now);
     const k=.0021*H/W*(4/3),hand=base.map(p=>({x:.14-(p[0]-cx)*k,y:.68+(p[2]-cz)*k*W/H,z:(p[1]-cy)*k}));
-    renderFrame(now,detections[0]?.lms,[hand],[true]);
+    renderFrame(now,detections[0]?.lms,S.demoHands?[hand]:[],S.demoHands?[true]:[]);
     if (params.has("dump") && now > 1500 && !demoLoop.dumped) {      // flatten the layers into one picture for testing
       demoLoop.dumped = true;
       const c = document.createElement("canvas"); c.width = W; c.height = H; const x = c.getContext("2d");
@@ -689,16 +696,16 @@ function resetTracks(){for(const a of actors){a.head.found=false;a.head.box=null
 const camera=createCamera(S,video,stage,save,resetTracks);
 const cameraFrame=camera.frame,paintCamera=camera.paint,openCamera=camera.open;
 const atmosphere=createAtmosphere(S,stage,cameraFrame,save);
-const detectKeys=['maxFaces','minFace','confidence','smooth','lostGrace','detectHz','vitalsOpacity'];
+const detectKeys=['maxFaces','minFace','confidence','smooth','lostGrace','detectHz','vitalsOpacity','handConfidence','handFrames','minHandSize'];
 for(const key of detectKeys){
  $(key).value=S[key];
  $(key).addEventListener('input',()=>{
   S[key]=Number($(key).value);if(key==='maxFaces'){S.maxFaces=Math.round(S.maxFaces);for(const a of actors)if(a.head.id>=S.maxFaces){a.head.found=false;a.head.box=null;}}
-  save();if(key==='maxFaces'||key==='confidence')configureTracker();
+  save();if(key==='maxFaces'||key==='confidence'||key==='handConfidence')configureTracker();
  });
 }
 for(const key of ['priority']){$(key).value=S[key];$(key).onchange=()=>{S[key]=$(key).value;save();};}
-for(const key of ['vitals','debug']){$(key).checked=S[key];$(key).onchange=()=>{S[key]=$(key).checked;save();};}
+for(const key of ['vitals','debug','demoHands']){$(key).checked=S[key];$(key).onchange=()=>{S[key]=$(key).checked;save();};}
 $('applyCamera').onclick=async()=>{
  if(DEMO){$('cameraInfo').textContent=t('Saved for camera mode.');return;}
  if(!running){$('start').click();return;}
