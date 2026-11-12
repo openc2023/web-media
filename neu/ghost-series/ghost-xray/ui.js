@@ -7,6 +7,7 @@ export function ensureFitRange(id,value){
  if(Number(value)>Number(range.max))range.max=String(value);
 }
 const dict = {
+ 'The fingertip lens disappears when no hand is confirmed.':['没有确认到手部时，指尖透视镜和圆圈自动隐藏。','손이 확인되지 않으면 손끝 렌즈와 원이 숨겨집니다.'],
  'Hand validation':['手部防误识别','손 오검출 방지'], 'Hand confidence':['手部置信度','손 검출 신뢰도'], 'Confirm frames':['连续确认帧数','연속 확인 프레임'], 'Min hand size':['最小手部尺寸','최소 손 크기'], 'Simulated hand (demo only)':['模拟手骨（仅演示）','가상 손뼈 (데모 전용)'], 'Calibration values can extend beyond the slider range.':['数值框可超出滑块范围，滑块会自动扩展；缩放必须大于零。','숫자를 입력하면 슬라이더 범위가 자동 확장됩니다. 크기는 0보다 커야 합니다.'],
  'Tip: pick the Solid look and set "Real me showing through" to about half, then line the skull up with your face.':['提示：选择“实体”，把“真人透出”调到一半左右，再将头骨对齐面部。','팁: 불투명 모드에서 실제 영상 투명도를 절반 정도로 설정한 뒤 두개골을 얼굴에 맞추세요.'],
  'Case archive':['返回案卷','사건 목록'], 'X-RAY MIRROR':['X 光镜','X선 거울'],
@@ -53,7 +54,7 @@ document.body.append(side);
 const panels = [...side.querySelectorAll('.panel')];
 side.querySelector('h1').remove();
 const notes = [...side.querySelectorAll(':scope > .small')];
-side.insertAdjacentHTML('afterbegin', `<header class="top"><div class="brand">GHOST / X-RAY<em>v0.2.1</em></div><div class="sp"></div><div class="seg" id="lang"><button data-lang="zh">中</button><button data-lang="en">EN</button><button data-lang="ko">한</button></div><button class="btn icon ghost" id="close" aria-label="Close settings">✕</button></header><nav class="tabs" id="tabs" aria-label="Settings"></nav><div id="panes"></div><footer id="statusbar"><span class="dot"></span><span id="liveStats">LOCAL · X-RAY</span><span class="v">v0.2.1</span></footer>`);
+side.insertAdjacentHTML('afterbegin', `<header class="top"><div class="brand">GHOST / X-RAY<em>v0.2.2</em></div><div class="sp"></div><div class="seg" id="lang"><button data-lang="zh">中</button><button data-lang="en">EN</button><button data-lang="ko">한</button></div><button class="btn icon ghost" id="close" aria-label="Close settings">✕</button></header><nav class="tabs" id="tabs" aria-label="Settings"></nav><div id="panes"></div><footer id="statusbar"><span class="dot"></span><span id="liveStats">LOCAL · X-RAY</span><span class="v">v0.2.2</span></footer>`);
 const panes = document.getElementById('panes'), tabs = document.getElementById('tabs');
 const groups = [['Camera',[0]],['Detection',[]],['Anatomy',[1]],['Display',[2,3,4]],['Calibration',[5]]];
 groups.forEach(([name,indices],i) => {
@@ -77,6 +78,7 @@ panes.children[4].insertAdjacentHTML('beforeend','<p class="small">Calibration v
 for(const id of [...fitScale,...fitPosition]){const range=document.getElementById(id);range.min=fitScale.has(id)?'.25':'-20';range.max=fitScale.has(id)?'3':'20';}
 if(location.hash==='#demo')panes.children[0].querySelector('.grid2').insertAdjacentHTML('afterbegin',`<a class="btn primary" href="${location.pathname+location.search}">Live camera</a>`);
 panes.children[3].insertAdjacentHTML('beforeend',`<div class="panel"><h3>Vitals overlay</h3>${check('vitals','Simulated vitals')}${slider('vitalsOpacity','Overlay opacity',.1,1,.05)}<p class="info">Per-person random animation, not camera measurements.</p></div>`);
+document.getElementById('reveal').closest('.panel').insertAdjacentHTML('beforeend','<p class="info">The fingertip lens disappears when no hand is confirmed.</p>');
 panes.children[3].insertAdjacentHTML('afterbegin',`<div class="panel"><h3>Surveillance look</h3><div class="row"><label for="cameraLook">Camera look</label><select id="cameraLook"><option value="gray">Grey surveillance</option><option value="vintage">Vintage color</option><option value="clean">Clean camera</option><option value="custom">Custom</option></select></div>${slider('cameraSaturation','Saturation',0,1,.05)}${slider('cameraExposure','Camera exposure',.4,1.5,.05)}${slider('cameraContrast','Camera contrast',.5,2,.05)}${slider('warmth','Warm cast',0,1,.05)}${slider('softness','Lens softness',0,1,.05)}${slider('grain','Film grain',0,1,.05)}${slider('scanlines','Scanlines',0,1,.05)}${slider('vignette','Vignette',0,1,.05)}${slider('interference','Signal interference',0,1,.05)}${check('cameraOverlay','Camera overlay')}</div>`);
 document.body.insertAdjacentHTML('beforeend','<button id="hotspot" aria-label="Settings" title="S · Settings"></button>');
 let opened=false, lastFocus=null;

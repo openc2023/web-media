@@ -1,9 +1,10 @@
-import { t, translateStatus, ensureFitRange } from "./ui.js?v=0.2.1";
-import { HandFilter } from './hand-filter.js?v=0.2.1';
-import { faceBox, matchFaces } from "./tracking.js?v=0.2.1";
-import { createCamera } from "./camera.js?v=0.2.1";
-import { drawVitals, drawDetection } from "./vitals.js?v=0.2.1";
-import { createAtmosphere } from "./atmosphere.js?v=0.2.1";
+import { t, translateStatus, ensureFitRange } from "./ui.js?v=0.2.2";
+import { HandFilter } from './hand-filter.js?v=0.2.2';
+import { handLens } from './lens.js?v=0.2.2';
+import { faceBox, matchFaces } from "./tracking.js?v=0.2.2";
+import { createCamera } from "./camera.js?v=0.2.2";
+import { drawVitals, drawDetection } from "./vitals.js?v=0.2.2";
+import { createAtmosphere } from "./atmosphere.js?v=0.2.2";
 
 const $ = id => document.getElementById(id);
 const statusEl = $("status"), video = $("video"), stage = $("stage");
@@ -452,9 +453,7 @@ function drawLabels(g, lens) {
 }
 
 // ------------------------------ per-frame update ------------------------------
-let pointer = null, frames = 0, fps = 0, fpsAt = 0, dataAt = 0;
-stage.addEventListener("pointermove", e => { const r = stage.getBoundingClientRect(); pointer = { x: e.clientX - r.left, y: e.clientY - r.top }; });
-stage.addEventListener("pointerleave", () => { pointer = null; });
+let frames = 0, fps = 0, fpsAt = 0, dataAt = 0;
 
 function renderFrame(now, faceLms, hands, sides) {
   atmosphere.draw(now,W,H,DEMO);
@@ -475,14 +474,8 @@ function renderFrame(now, faceLms, hands, sides) {
   // x-ray lens: a round window; outside it you see the plain camera picture
   let mask = "none", lens = null;
   if (S.reveal === "lens") {
-    const rad = (0.07 + 0.38 * S.cut) * W;
-    let cx, cy;                                              // in the canvas's own (unmirrored) pixel space
-    if (hands[0]) { cx = hands[0][8].x * W; cy = hands[0][8].y * H; }
-    else if (pointer) { cx = S.mirror ? W - pointer.x : pointer.x; cy = pointer.y; }
-    else if (faceLms) { cx = faceLms[1].x * W; cy = faceLms[1].y * H; }
-    else { cx = W / 2; cy = H / 2; }
-    mask = "radial-gradient(circle " + rad.toFixed(1) + "px at " + cx.toFixed(1) + "px " + cy.toFixed(1) + "px, #000 " + (98 - 78 * S.feather).toFixed(0) + "%, transparent 100%)";
-    lens = { x: screenX(cx/W), y: cy, r: rad };
+    lens=handLens(hands,W,H,S.cut,S.mirror);
+    mask=lens ? `radial-gradient(circle ${lens.r.toFixed(1)}px at ${lens.cx.toFixed(1)}px ${lens.cy.toFixed(1)}px, #000 ${(98-78*S.feather).toFixed(0)}%, transparent 100%)` : 'linear-gradient(transparent, transparent)';
   }
   for (const id of ["gl", "shade"]) { const st = $(id).style; st.maskImage = mask; st.webkitMaskImage = mask; }
 
@@ -506,7 +499,7 @@ function renderFrame(now, faceLms, hands, sides) {
   for(const actor of visible){
    useActor(actor);headGroup.visible=true;
    applyLayers();
-   if(S.labels)drawLabels(g,lens);
+   if(S.labels&&(S.reveal!=='lens'||lens))drawLabels(g,lens);
    if(S.vitals)drawVitals(g,actor,now,S,W,H,screenX,headBounds,occupiedCards);
    if(S.debug)drawDetection(g,actor,W,H,screenX,S.mirror);
    headGroup.visible=false;

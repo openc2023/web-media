@@ -1,5 +1,5 @@
-import {t} from './ui.js?v=0.2.1';
-import {placeCard} from './layout.js?v=0.2.1';
+import {t} from './ui.js?v=0.2.2';
+import {placeCard} from './layout.js?v=0.2.2';
 export function drawDetection(g,{head:h},W,H,screenX,mirror){
  const b=h.box;if(!b)return;g.save();g.strokeStyle='#e5b26f';g.fillStyle='#e5b26f';g.lineWidth=1;g.font='10px Consolas,monospace';
  const x=screenX(mirror?b.left+b.w:b.left),y=b.top*H;
